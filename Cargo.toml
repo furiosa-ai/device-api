@@ -1,0 +1,9 @@
+[package]
+name = "furiosa-device-api"
+version = "0.1.0"
+authors = ["ByungChan Lee <libc@furiosa.ai>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
