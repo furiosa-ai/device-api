@@ -5,11 +5,16 @@ authors = ["FuriosaAI SW Team <pkg@furiosa.ai>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "list_npu"
+path = "bin/list_npu.rs"
 
 [dependencies]
-lazy_static = "1.4"
-regex = "1.5"
-enum-display-derive = "0.1"
-tokio = { version = "1.13.1", features = ["fs", "full"] }
-itertools = "0.10"
 array_tool = "1"
+lazy_static = "1.4"
+enum-display-derive = "0.1"
+itertools = "0.10"
+regex = "1.5"
+strum = "0.24"
+strum_macros = "0.24"
+tokio = { version = "1.13.1", features = ["fs", "full"] }
