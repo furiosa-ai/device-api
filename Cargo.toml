@@ -1,7 +1,7 @@
 [package]
 name = "furiosa-device-api"
 version = "0.1.0"
-authors = ["ByungChan Lee <libc@furiosa.ai>"]
+authors = ["FuriosaAI SW Team <pkg@furiosa.ai>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,6 +10,6 @@ edition = "2021"
 lazy_static = "1.4"
 regex = "1.5"
 enum-display-derive = "0.1"
-tokio = { version = "1.15", features = ["fs", "full"] }
+tokio = { version = "1.13.1", features = ["fs", "full"] }
 itertools = "0.10"
 array_tool = "1"
