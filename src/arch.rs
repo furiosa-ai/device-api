@@ -6,6 +6,7 @@ pub enum Arch {
     Warboy,
     WarboyB0,
     Renegade,
+    U250 // TODO - It's somewhat ambiguous. We need two attributes to distinguish both HW type and NPU family.
 }
 
 impl Display for Arch {
@@ -17,6 +18,7 @@ impl Display for Arch {
             Warboy => write!(f, "warboy"),
             WarboyB0 => write!(f, "warboy-b0"),
             Renegade => write!(f, "renegade"),
+            U250 => write!(f, "u250"),
         }
     }
 }

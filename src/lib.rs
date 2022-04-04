@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::io;
+use std::os::unix::fs::FileTypeExt;
+
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -18,8 +20,6 @@ mod device;
 mod error;
 mod status;
 
-const DEFAULT_DEVICE_LIST_SIZE: usize = 8;
-
 lazy_static! {
     static ref REGEX_DEVICE_INDEX: Regex = Regex::new(r"^(npu)(?P<idx>\d+)pe.*$").unwrap();
 }
@@ -30,10 +30,10 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
-    let device_map = find_dev_files(devfs).await?;
+    let dev_files = find_dev_files(devfs).await?;
 
-    let mut devices: Vec<Device> = Vec::with_capacity(DEFAULT_DEVICE_LIST_SIZE);
-    for (idx, paths) in device_map.into_iter() {
+    let mut devices: Vec<Device> = Vec::with_capacity(dev_files.len());
+    for (idx, paths) in dev_files.into_iter() {
         if is_furiosa_device(idx, sysfs).await {
             let device_type = identify_arch(idx, sysfs).await?;
             devices.extend(collect_devices(idx, device_type, paths).await?);
@@ -84,9 +84,9 @@ fn reconcile_devices(cores: Vec<Device>) -> Vec<Device> {
 }
 
 async fn recognize_device(device_idx: u8, dev_path: PathBuf, arch: Arch) -> DeviceResult<Device> {
-    let status = status::get_core_status(&dev_path).await;
+    let status = status::get_device_status(&dev_path).await;
 
-    if !dev_path.is_file() {
+    if !dev_path.metadata()?.file_type().is_char_device() {
         return Err(DeviceError::IoError(io::Error::new(
             io::ErrorKind::Other,
             format!("{} is not a file", dev_path.display()),
@@ -107,9 +107,10 @@ async fn find_dev_files(devfs: &str) -> DeviceResult<HashMap<u8, Vec<PathBuf>>> 
 
     let mut entries = fs::read_dir(devfs).await?;
     while let Some(entry) = entries.next_entry().await? {
-        if entry.path().is_file() {
+        if entry.file_type().await?.is_char_device() {
             let filename = entry.file_name().to_string_lossy().to_string();
             if let Some(x) = REGEX_DEVICE_INDEX.captures(&filename) {
+                eprintln!("{}", filename);
                 let idx: u8 = x
                     .name("idx")
                     .ok_or_else(|| UnrecognizedDeviceFile(filename.clone()))?
@@ -135,7 +136,11 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
     fs::read_to_string(path)
         .await
         .ok()
-        .filter(|s| s.trim() == "FuriosaAI")
+        .filter(|s| {
+            let platform = s.trim();
+            // FuriosaAI in Warboy, VISIT in U250
+            platform == "FuriosaAI" || platform == "VITIS"
+        })
         .is_some()
 }
 
