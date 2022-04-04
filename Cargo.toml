@@ -17,4 +17,5 @@ itertools = "0.10"
 regex = "1.5"
 strum = "0.24"
 strum_macros = "0.24"
-tokio = { version = "1.13.1", features = ["fs", "full"] }
+tracing = "0.1"
+tokio = { version = "1.13.1", features = ["fs", "rt-multi-thread", "macros"] }

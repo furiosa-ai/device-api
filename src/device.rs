@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 
 use crate::arch::Arch;
+use crate::DeviceError;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Device {
@@ -35,7 +36,7 @@ impl Device {
         }
     }
 
-    pub(crate) fn with_status(self, status: DeviceStatus) -> Self {
+    pub(crate) fn change_status(self, status: DeviceStatus) -> Self {
         Self { status, ..self }
     }
 
@@ -114,7 +115,7 @@ impl PartialOrd for Device {
 pub enum DeviceStatus {
     Available,
     Occupied,
-    Occupied2,
+    Fused,
     Unavailable,
 }
 
@@ -157,7 +158,7 @@ fn capture_to_str<'a>(c: &'a Captures, key: &'a str) -> &'a str {
 }
 
 impl TryFrom<&str> for DeviceMode {
-    type Error = ();
+    type Error = DeviceError;
 
     fn try_from(item: &str) -> Result<Self, Self::Error> {
         if let Some(x) = REGEX_PE.captures(item) {
@@ -172,7 +173,7 @@ impl TryFrom<&str> for DeviceMode {
 
             Ok(DeviceMode::Fusion(indexes))
         } else {
-            Err(())
+            Err(DeviceError::UnrecognizedDeviceFile(item.to_string()))
         }
     }
 }
@@ -182,21 +183,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_try_from() {
-        assert_eq!(DeviceMode::try_from("npu0"), Err(()));
-        assert_eq!(DeviceMode::try_from("npu0pe"), Err(()));
-        assert_eq!(DeviceMode::try_from("npu0pe0"), Ok(DeviceMode::Single(0)));
-        assert_eq!(DeviceMode::try_from("npu0pe1"), Ok(DeviceMode::Single(1)));
+    fn test_try_from() -> Result<(), DeviceError> {
+        assert!(DeviceMode::try_from("npu0").is_err());
+        assert!(DeviceMode::try_from("npu0pe").is_err());
+        assert_eq!(DeviceMode::try_from("npu0pe0")?, DeviceMode::Single(0));
+        assert_eq!(DeviceMode::try_from("npu0pe1")?, DeviceMode::Single(1));
         assert_eq!(
-            DeviceMode::try_from("npu0pe0-1"),
-            Ok(DeviceMode::Fusion(vec![0, 1]))
+            DeviceMode::try_from("npu0pe0-1")?,
+            DeviceMode::Fusion(vec![0, 1])
         );
         assert_eq!(
-            DeviceMode::try_from("npu0pe0-1-2"),
-            Ok(DeviceMode::Fusion(vec![0, 1, 2]))
+            DeviceMode::try_from("npu0pe0-1-2")?,
+            DeviceMode::Fusion(vec![0, 1, 2])
         );
-        assert_eq!(DeviceMode::try_from("npu0pe0-"), Err(()));
-        assert_eq!(DeviceMode::try_from("npu0pe-1"), Err(()));
+        assert!(DeviceMode::try_from("npu0pe0-").is_err());
+        assert!(DeviceMode::try_from("npu0pe-1").is_err());
+        Ok(())
     }
 
     #[test]

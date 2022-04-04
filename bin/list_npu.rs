@@ -1,10 +1,10 @@
-use furiosa_device_api::list_devices;
+use furiosa_device_api::{list_devices, DeviceError};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), DeviceError> {
     let mut found = Vec::new();
     // find 2 pes
-    for device in list_devices().await {
+    for device in list_devices().await? {
         eprintln!("{}", device);
         if device.available() && device.single_core() {
             found.push(device);
@@ -14,4 +14,6 @@ async fn main() {
     for device in found.iter() {
         println!("{}", device.path().display());
     }
+
+    Ok(())
 }
