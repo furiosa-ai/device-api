@@ -1,7 +1,7 @@
-use tracing_subscriber::EnvFilter;
+use furiosa_device_api::{list_devices, DeviceError};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use furiosa_device_api::{list_devices, DeviceError};
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<(), DeviceError> {
@@ -10,9 +10,7 @@ async fn main() -> Result<(), DeviceError> {
 
     let mut found = Vec::new();
     for device in list_devices().await? {
-        if device.available() {
-            found.push(device);
-        }
+        found.push(device);
     }
 
     for device in found.iter() {

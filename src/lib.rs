@@ -84,14 +84,16 @@ fn reconcile_devices(devices: Vec<Device>) -> Vec<Device> {
 }
 
 async fn recognize_device(device_idx: u8, dev_path: PathBuf, arch: Arch) -> DeviceResult<Device> {
-    let status = status::get_device_status(&dev_path).await;
     let file_type = dev_path.metadata()?.file_type();
-    if !(file_type.is_char_device() || file_type.is_file()) { // allow just a file too for unit testing
+    // allow just a file too for unit testing
+    if !(file_type.is_char_device() || file_type.is_file()) {
         return Err(DeviceError::IoError(io::Error::new(
             io::ErrorKind::Other,
             format!("{} is not a character device", dev_path.display()),
         )));
     }
+
+    let status = status::get_device_status(&dev_path).await;
 
     let file_name = dev_path
         .file_name()
@@ -108,7 +110,8 @@ async fn find_dev_files(devfs: &str) -> DeviceResult<HashMap<u8, Vec<PathBuf>>> 
     let mut entries = fs::read_dir(devfs).await?;
     while let Some(entry) = entries.next_entry().await? {
         let file_type = entry.file_type().await?;
-        if file_type.is_char_device() || file_type.is_file() { // allow just a file too for unit testing
+        if file_type.is_char_device() || file_type.is_file() {
+            // allow just a file too for unit testing
             let filename = entry.file_name().to_string_lossy().to_string();
             if let Some(x) = REGEX_DEVICE_INDEX.captures(&filename) {
                 let idx: u8 = x
