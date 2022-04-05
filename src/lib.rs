@@ -33,7 +33,8 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
     let dev_files = find_dev_files(devfs).await?;
 
-    let mut devices: Vec<Device> = Vec::with_capacity(dev_files.values().fold(0, |acc, v| acc + v.len()));
+    let mut devices: Vec<Device> =
+        Vec::with_capacity(dev_files.values().fold(0, |acc, v| acc + v.len()));
     for (idx, paths) in dev_files.into_iter() {
         if is_furiosa_device(idx, sysfs).await {
             let device_type = identify_arch(idx, sysfs).await?;
@@ -85,7 +86,7 @@ fn reconcile_devices(devices: Vec<Device>) -> Vec<Device> {
 }
 
 async fn recognize_device(device_idx: u8, dev_path: PathBuf, arch: Arch) -> DeviceResult<Device> {
-    if is_character_device(dev_path.metadata()?.file_type()) {
+    if !is_character_device(dev_path.metadata()?.file_type()) {
         return Err(DeviceError::IoError(io::Error::new(
             io::ErrorKind::Other,
             format!("{} is not a character device", dev_path.display()),
