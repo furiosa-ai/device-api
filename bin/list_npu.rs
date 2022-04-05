@@ -9,9 +9,8 @@ async fn main() -> Result<(), DeviceError> {
     tracing_subscriber::registry().with(env_filter).init();
 
     let mut found = Vec::new();
-    // find 2 pes
     for device in list_devices().await? {
-        if device.available() && device.single_core() {
+        if device.available() {
             found.push(device);
         }
     }

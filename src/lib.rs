@@ -55,8 +55,8 @@ async fn collect_devices(
     Ok(reconcile_devices(devices))
 }
 
-fn reconcile_devices(cores: Vec<Device>) -> Vec<Device> {
-    let occupied: Vec<u8> = cores
+fn reconcile_devices(devices: Vec<Device>) -> Vec<Device> {
+    let occupied: Vec<u8> = devices
         .iter()
         .filter(|core| core.status() == DeviceStatus::Occupied)
         .flat_map(|core| match core.mode() {
@@ -65,19 +65,19 @@ fn reconcile_devices(cores: Vec<Device>) -> Vec<Device> {
         })
         .collect();
 
-    cores
+    devices
         .into_iter()
-        .map(|core| {
-            let is_occupied = core.status() == DeviceStatus::Available
-                && match core.mode() {
+        .map(|device| {
+            let is_occupied = device.status() == DeviceStatus::Available
+                && match device.mode() {
                     DeviceMode::Single(idx) => occupied.contains(idx),
                     DeviceMode::Fusion(indexes) => !occupied.intersect(indexes.clone()).is_empty(),
                 };
 
             if is_occupied {
-                core.change_status(DeviceStatus::Fused)
+                device.change_status(DeviceStatus::Fused)
             } else {
-                core
+                device
             }
         })
         .collect()
@@ -138,7 +138,7 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
         .ok()
         .filter(|s| {
             let platform = s.trim();
-            // FuriosaAI in Warboy, VISIT in U250
+            // FuriosaAI in Warboy, VITIS in U250
             platform == "FuriosaAI" || platform == "VITIS"
         })
         .is_some()
