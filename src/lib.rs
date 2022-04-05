@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs::FileType;
 use std::io;
 use std::os::unix::fs::FileTypeExt;
 
@@ -84,9 +85,7 @@ fn reconcile_devices(devices: Vec<Device>) -> Vec<Device> {
 }
 
 async fn recognize_device(device_idx: u8, dev_path: PathBuf, arch: Arch) -> DeviceResult<Device> {
-    let file_type = dev_path.metadata()?.file_type();
-    // allow just a file too for unit testing
-    if !(file_type.is_char_device() || file_type.is_file()) {
+    if is_character_device(dev_path.metadata()?.file_type()) {
         return Err(DeviceError::IoError(io::Error::new(
             io::ErrorKind::Other,
             format!("{} is not a character device", dev_path.display()),
@@ -104,13 +103,20 @@ async fn recognize_device(device_idx: u8, dev_path: PathBuf, arch: Arch) -> Devi
         .map(|mode| Device::new(device_idx, dev_path, mode, arch, status))
 }
 
+fn is_character_device(file_type: FileType) -> bool {
+    if cfg!(test) {
+        file_type.is_file()
+    } else {
+        file_type.is_char_device()
+    }
+}
+
 async fn find_dev_files(devfs: &str) -> DeviceResult<HashMap<u8, Vec<PathBuf>>> {
     let mut dev_files: HashMap<u8, Vec<PathBuf>> = HashMap::new();
 
     let mut entries = fs::read_dir(devfs).await?;
     while let Some(entry) = entries.next_entry().await? {
-        let file_type = entry.file_type().await?;
-        if file_type.is_char_device() || file_type.is_file() {
+        if is_character_device(entry.file_type().await?) {
             // allow just a file too for unit testing
             let filename = entry.file_name().to_string_lossy().to_string();
             if let Some(x) = REGEX_DEVICE_INDEX.captures(&filename) {
