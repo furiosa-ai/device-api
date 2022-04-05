@@ -32,7 +32,7 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
     let dev_files = find_dev_files(devfs).await?;
 
-    let mut devices: Vec<Device> = Vec::with_capacity(dev_files.len());
+    let mut devices: Vec<Device> = Vec::with_capacity(dev_files.values().fold(0, |acc, v| acc + v.len()));
     for (idx, paths) in dev_files.into_iter() {
         if is_furiosa_device(idx, sysfs).await {
             let device_type = identify_arch(idx, sysfs).await?;
