@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs::FileType;
-use std::io;
 use std::os::unix::fs::FileTypeExt;
 
 use std::path::PathBuf;
@@ -86,13 +85,6 @@ fn reconcile_devices(devices: Vec<Device>) -> Vec<Device> {
 }
 
 async fn recognize_device(device_idx: u8, dev_path: PathBuf, arch: Arch) -> DeviceResult<Device> {
-    if !is_character_device(dev_path.metadata()?.file_type()) {
-        return Err(DeviceError::IoError(io::Error::new(
-            io::ErrorKind::Other,
-            format!("{} is not a character device", dev_path.display()),
-        )));
-    }
-
     let status = status::get_device_status(&dev_path).await;
 
     let file_name = dev_path
