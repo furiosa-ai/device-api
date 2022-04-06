@@ -10,13 +10,25 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  checkout:    
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v3   
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: icepuma/rust-action@master
+      - name: cargo fmt
+        with:
+          args: cargo fmt --all -- --check
+      - name: cargo clippy
+        with:
+          args: cargo clippy --all-targets -- -Dwarnings -Drust_2018_idioms
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
