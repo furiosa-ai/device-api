@@ -1,464 +1,677 @@
-#[macro_use]
-extern crate enum_display_derive;
+use std::collections::HashMap;
+use std::fs::FileType;
+use std::os::unix::fs::FileTypeExt;
 
-mod core;
-mod device;
-mod status;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 use array_tool::vec::Intersect;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashMap;
-use std::path::PathBuf;
 use tokio::fs;
 
-use crate::core::{CoreType, CoreStatus, Core};
-use crate::device::DeviceType;
+use crate::arch::Arch;
+use crate::device::{Device, DeviceMode, DeviceStatus};
+pub use crate::error::{DeviceError, DeviceResult};
+use crate::DeviceError::UnrecognizedDeviceFile;
+
+mod arch;
+mod device;
+mod error;
+mod status;
 
 lazy_static! {
-    static ref REGEX_DEVICE_CORE: Regex = Regex::new(r"^(npu)(?P<idx>\d+)pe.*$").unwrap();
+    static ref REGEX_DEVICE_INDEX: Regex = Regex::new(r"^(npu)(?P<idx>\d+)pe.*$").unwrap();
 }
 
-pub async fn list_async() -> Vec<Core> {
-    list_async_with_path("/dev", "/sys").await
+pub async fn list_devices() -> DeviceResult<Vec<Device>> {
+    list_devices_with("/dev", "/sys").await
 }
 
-async fn list_async_with_path(devfs: &str, sysfs: &str) -> Vec<Core> {
-    let device_map = build_device_map_async(devfs).await
-        .unwrap_or_else(|e| {
-            eprintln!("WARN: Failed getting device list {}", e);
-            HashMap::new()
-        });
+/// Allow to specify arbitrary sysfs, devfs paths for unit testing
+async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
+    let dev_files = find_dev_files(devfs).await?;
 
-    let mut res: Vec<Core> = vec![];
-    for (idx, paths) in device_map.into_iter() {
+    let mut devices: Vec<Device> =
+        Vec::with_capacity(dev_files.values().fold(0, |acc, v| acc + v.len()));
+    for (idx, paths) in dev_files.into_iter() {
         if is_furiosa_device(idx, sysfs).await {
-            if let Some(device_type) = identify_device_type(idx, sysfs).await {
-                let mut cores = collect_cores(idx, device_type, paths).await;
-                res.append(&mut cores);
-            }
+            let device_type = identify_arch(idx, sysfs).await?;
+            devices.extend(collect_devices(idx, device_type, paths).await?);
         }
     }
-    res.sort();
-
-    res
+    devices.sort();
+    Ok(devices)
 }
 
-async fn collect_cores(idx: u8, device_type: DeviceType, paths: Vec<PathBuf>) -> Vec<Core> {
-    let mut res: Vec<Core> = vec![];
+async fn collect_devices(
+    idx: u8,
+    device_type: Arch,
+    paths: Vec<PathBuf>,
+) -> DeviceResult<Vec<Device>> {
+    let mut devices = Vec::with_capacity(paths.len());
     for path in paths.into_iter() {
-        if let Some(core) = get_core(idx, path, device_type).await {
-            res.push(core);
-        }
+        devices.push(recognize_device(idx, path, device_type).await?);
     }
-
-    core_status_masking(res)
+    Ok(reconcile_devices(devices))
 }
 
-fn core_status_masking(cores: Vec<Core>) -> Vec<Core> {
-    let occupied: Vec<u8> = cores.iter()
-        .filter(|core| core.status() == CoreStatus::Occupied)
-        .flat_map(|core| match core.core_type() {
-            CoreType::Single(idx) => vec![*idx],
-            CoreType::Fusion(v) => v.clone()
+fn reconcile_devices(devices: Vec<Device>) -> Vec<Device> {
+    let occupied: Vec<u8> = devices
+        .iter()
+        .filter(|core| core.status() == DeviceStatus::Occupied)
+        .flat_map(|core| match core.mode() {
+            DeviceMode::Single(idx) => vec![*idx],
+            DeviceMode::Fusion(v) => v.clone(),
         })
         .collect();
 
-    cores.into_iter()
-        .map(|core| {
-            let is_occupied = core.status() == CoreStatus::Available &&
-                match core.core_type() {
-                    CoreType::Single(idx) =>
-                        occupied.contains(idx),
-                    CoreType::Fusion(indexes) =>
-                        occupied.intersect(indexes.clone()).len() > 0
+    devices
+        .into_iter()
+        .map(|device| {
+            let is_occupied = device.status() == DeviceStatus::Available
+                && match device.mode() {
+                    DeviceMode::Single(idx) => occupied.contains(idx),
+                    DeviceMode::Fusion(indexes) => !occupied.intersect(indexes.clone()).is_empty(),
                 };
 
             if is_occupied {
-                core.with_status(CoreStatus::Occupied2)
+                device.change_status(DeviceStatus::Fused)
             } else {
-                core
+                device
             }
         })
         .collect()
 }
 
-async fn get_core(device_idx: u8, core_path: PathBuf, device_type: DeviceType) -> Option<Core> {
-    let status = status::get_core_status(&core_path).await;
-    let file_name = core_path.file_name().unwrap().to_string_lossy().to_string();
+async fn recognize_device(device_idx: u8, dev_path: PathBuf, arch: Arch) -> DeviceResult<Device> {
+    let status = status::get_device_status(&dev_path).await;
 
-    if let Ok(core_type) = CoreType::try_from(file_name.as_str()) {
-        Some(Core::new(
-            device_idx,
-            core_path,
-            core_type,
-            device_type,
-            status))
+    let file_name = dev_path
+        .file_name()
+        .expect("not a file")
+        .to_string_lossy()
+        .to_string();
+    DeviceMode::try_from(file_name.as_str())
+        .map(|mode| Device::new(device_idx, dev_path, mode, arch, status))
+}
+
+fn is_character_device(file_type: FileType) -> bool {
+    if cfg!(test) {
+        file_type.is_file()
     } else {
-        None
+        file_type.is_char_device()
     }
 }
 
-async fn build_device_map_async(devfs: &str) -> tokio::io::Result<HashMap<u8, Vec<PathBuf>>> {
-    let mut dir = fs::read_dir(devfs).await?;
+async fn find_dev_files(devfs: &str) -> DeviceResult<HashMap<u8, Vec<PathBuf>>> {
+    let mut dev_files: HashMap<u8, Vec<PathBuf>> = HashMap::new();
 
-    let mut map: HashMap<u8, Vec<PathBuf>> = HashMap::new();
-    while let Some(entry) = dir.next_entry().await? {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if let Some(x) = REGEX_DEVICE_CORE.captures(&name) {
-            let idx: u8 = x.name("idx").unwrap()
-                .as_str()
-                .parse()
-                .unwrap();
-
-            map.entry(idx).or_insert_with(Vec::new).push(entry.path());
+    let mut entries = fs::read_dir(devfs).await?;
+    while let Some(entry) = entries.next_entry().await? {
+        if is_character_device(entry.file_type().await?) {
+            // allow just a file too for unit testing
+            let filename = entry.file_name().to_string_lossy().to_string();
+            if let Some(x) = REGEX_DEVICE_INDEX.captures(&filename) {
+                let idx: u8 = x
+                    .name("idx")
+                    .ok_or_else(|| UnrecognizedDeviceFile(filename.clone()))?
+                    .as_str()
+                    .parse()
+                    .map_err(|_| UnrecognizedDeviceFile(filename))?;
+                // make an absolute path
+                let absolute_path = std::fs::canonicalize(entry.path())?;
+                dev_files
+                    .entry(idx)
+                    .or_insert_with(Vec::new)
+                    .push(absolute_path);
+            }
         }
     }
 
-    Ok(map)
+    Ok(dev_files)
 }
 
 async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/platform_type", sysfs, idx);
 
-    fs::read_to_string(path).await
+    fs::read_to_string(path)
+        .await
         .ok()
-        .filter(|s| s.trim() == "FuriosaAI")
+        .filter(|s| {
+            let platform = s.trim();
+            // FuriosaAI in Warboy, VITIS in U250
+            platform == "FuriosaAI" || platform == "VITIS"
+        })
         .is_some()
 }
 
-async fn identify_device_type(idx: u8, sysfs: &str) -> Option<DeviceType> {
+async fn identify_arch(idx: u8, sysfs: &str) -> DeviceResult<Arch> {
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/device_type", sysfs, idx);
-
-    let text = fs::read_to_string(path).await;
-    if let Ok(device_type) = text {
-        DeviceType::try_from(device_type.as_str()).ok()
-    } else {
-        None
-    }
+    let contents = fs::read_to_string(path).await?;
+    Arch::from_str(contents.trim()).map_err(|_| DeviceError::UnknownArch(contents))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use itertools::Itertools;
 
     #[tokio::test]
-    async fn test_build_device_map_async() -> tokio::io::Result<()> {
-        let res = build_device_map_async("tests/test-0/dev").await?;
-        //assert_eq!(res, vec![0, 1]);
-        println!("{:?}", res);
+    async fn test_fine_dev_files() -> DeviceResult<()> {
+        let dev_files = find_dev_files("test_data/test-0/dev").await?;
+        assert_eq!(
+            dev_files.keys().copied().sorted().collect::<Vec<u8>>(),
+            vec![0, 1]
+        );
         Ok(())
     }
 
     #[tokio::test]
     async fn test_is_furiosa_device() -> tokio::io::Result<()> {
-        let res = is_furiosa_device(0, "tests/test-0/sys").await;
+        let res = is_furiosa_device(0, "test_data/test-0/sys").await;
         assert!(res);
 
-        let res = is_furiosa_device(1, "tests/test-0/sys").await;
+        let res = is_furiosa_device(1, "test_data/test-0/sys").await;
         assert!(res);
 
-        let res = is_furiosa_device(2, "tests/test-0/sys").await;
+        let res = is_furiosa_device(2, "test_data/test-0/sys").await;
         assert!(!res);
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_identify_device() -> tokio::io::Result<()> {
-        let res = identify_device_type(0, "tests/test-0/sys").await;
-        println!("{:?}", res);
-
-        let res = identify_device_type(1, "tests/test-0/sys").await;
-        println!("{:?}", res);
-
-        let res = identify_device_type(2, "tests/test-0/sys").await;
-        println!("{:?}", res);
-
+    async fn test_identify_arch() -> DeviceResult<()> {
+        assert_eq!(
+            identify_arch(0, "test_data/test-0/sys").await?,
+            Arch::Warboy
+        );
+        assert_eq!(
+            identify_arch(1, "test_data/test-0/sys").await?,
+            Arch::Warboy
+        );
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_get_core() -> tokio::io::Result<()> {
-        let buf = PathBuf::from("tests/test-0/dev/npu0pe0");
-        let res = get_core(0, buf, DeviceType::Warboy).await.unwrap();
-        println!("{:?}", res);
+    async fn test_recognize_device() -> DeviceResult<()> {
+        let path = PathBuf::from("test_data/test-0/dev/npu0pe0");
+        let res = recognize_device(0, path, Arch::Warboy).await?;
         assert_eq!("npu0:0", res.name());
-        assert_eq!("tests/test-0/dev/npu0pe0", res.path().as_os_str().to_string_lossy().as_ref());
-        assert_eq!(1, res.core_count());
-        assert!(!res.is_fusioned());
+        assert_eq!(
+            "test_data/test-0/dev/npu0pe0",
+            res.path().as_os_str().to_string_lossy().as_ref()
+        );
+        assert_eq!(1, res.core_num());
+        assert!(!res.fused());
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_core_status_masking() -> tokio::io::Result<()> {
-        let cores = vec![
-            Core::new(0, PathBuf::new(),
-                CoreType::Single(0),
-                DeviceType::Warboy,
-                CoreStatus::Available)
-        ];
+    async fn test_reconcile_devices() -> tokio::io::Result<()> {
+        let cores = vec![Device::new(
+            0,
+            PathBuf::new(),
+            DeviceMode::Single(0),
+            Arch::Warboy,
+            DeviceStatus::Available,
+        )];
 
-        let res = core_status_masking(cores/*, occupied*/);
+        let res = reconcile_devices(cores /*, occupied*/);
         assert_eq!(res.len(), 1);
         let core0 = res.get(0).unwrap();
-        assert_eq!(core0.core_type(), &CoreType::Single(0));
-        assert_eq!(core0.status(), CoreStatus::Available);
+        assert_eq!(core0.mode(), &DeviceMode::Single(0));
+        assert_eq!(core0.status(), DeviceStatus::Available);
+
+        let cores = vec![Device::new(
+            0,
+            PathBuf::new(),
+            DeviceMode::Single(0),
+            Arch::Warboy,
+            DeviceStatus::Occupied,
+        )];
+
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
+            .map(|c| c.status())
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(res, vec![DeviceStatus::Occupied]);
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Warboy,
-                      CoreStatus::Occupied)
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Occupied]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(res, vec![DeviceStatus::Available, DeviceStatus::Available]);
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Warboy,
+                DeviceStatus::Occupied,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Available, CoreStatus::Available]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(res, vec![DeviceStatus::Available, DeviceStatus::Occupied]);
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Warboy,
-                      CoreStatus::Occupied),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Warboy,
+                DeviceStatus::Occupied,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1]),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Available, CoreStatus::Occupied]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(
+            res,
+            vec![
+                DeviceStatus::Available,
+                DeviceStatus::Occupied,
+                DeviceStatus::Fused,
+            ]
+        );
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Warboy,
-                      CoreStatus::Occupied),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1]),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Warboy,
+                DeviceStatus::Occupied,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Warboy,
+                DeviceStatus::Occupied,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1]),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Available, CoreStatus::Occupied, CoreStatus::Occupied2]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(
+            res,
+            vec![
+                DeviceStatus::Occupied,
+                DeviceStatus::Occupied,
+                DeviceStatus::Fused,
+            ]
+        );
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Warboy,
-                      CoreStatus::Occupied),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Warboy,
-                      CoreStatus::Occupied),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1]),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Warboy,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1]),
+                Arch::Warboy,
+                DeviceStatus::Occupied,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Occupied, CoreStatus::Occupied, CoreStatus::Occupied2]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(
+            res,
+            vec![
+                DeviceStatus::Fused,
+                DeviceStatus::Fused,
+                DeviceStatus::Occupied,
+            ]
+        );
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Warboy,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1]),
-                      DeviceType::Warboy,
-                      CoreStatus::Occupied),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(2),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(3),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1, 2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Occupied2, CoreStatus::Occupied2, CoreStatus::Occupied]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(
+            res,
+            vec![
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+            ]
+        );
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(2),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(3),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1, 2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Renegade,
+                DeviceStatus::Occupied,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(2),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(3),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1, 2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Available, CoreStatus::Available, CoreStatus::Available,
-                             CoreStatus::Available, CoreStatus::Available, CoreStatus::Available, CoreStatus::Available,]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(
+            res,
+            vec![
+                DeviceStatus::Occupied,
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Fused,
+                DeviceStatus::Available,
+                DeviceStatus::Fused,
+            ]
+        );
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Renegade,
-                      CoreStatus::Occupied),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(2),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(3),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1, 2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(2),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(3),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Occupied,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1, 2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Occupied, CoreStatus::Available, CoreStatus::Available,
-                             CoreStatus::Available, CoreStatus::Occupied2, CoreStatus::Available, CoreStatus::Occupied2,]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(
+            res,
+            vec![
+                DeviceStatus::Available,
+                DeviceStatus::Available,
+                DeviceStatus::Fused,
+                DeviceStatus::Fused,
+                DeviceStatus::Available,
+                DeviceStatus::Occupied,
+                DeviceStatus::Fused,
+            ]
+        );
 
         let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(2),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(3),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Occupied),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1, 2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(0),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(1),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(2),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Single(3),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Available,
+            ),
+            Device::new(
+                0,
+                PathBuf::new(),
+                DeviceMode::Fusion(vec![0, 1, 2, 3]),
+                Arch::Renegade,
+                DeviceStatus::Occupied,
+            ),
         ];
 
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
+        let res = reconcile_devices(cores /*, occupied*/)
+            .into_iter()
             .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Available, CoreStatus::Available, CoreStatus::Occupied2, CoreStatus::Occupied2,
-                             CoreStatus::Available, CoreStatus::Occupied, CoreStatus::Occupied2,]);
-
-        let cores = vec![
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(0),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(1),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(2),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Single(3),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Available),
-            Core::new(0, PathBuf::new(),
-                      CoreType::Fusion(vec![0, 1, 2, 3]),
-                      DeviceType::Renegade,
-                      CoreStatus::Occupied),
-        ];
-
-        let res = core_status_masking(cores/*, occupied*/).into_iter()
-            .map(|c| c.status())
-            .collect::<Vec<CoreStatus>>();
-        assert_eq!(res, vec![CoreStatus::Occupied2, CoreStatus::Occupied2, CoreStatus::Occupied2, CoreStatus::Occupied2,
-                             CoreStatus::Occupied2, CoreStatus::Occupied2, CoreStatus::Occupied,]);
+            .collect::<Vec<DeviceStatus>>();
+        assert_eq!(
+            res,
+            vec![
+                DeviceStatus::Fused,
+                DeviceStatus::Fused,
+                DeviceStatus::Fused,
+                DeviceStatus::Fused,
+                DeviceStatus::Fused,
+                DeviceStatus::Fused,
+                DeviceStatus::Occupied,
+            ]
+        );
 
         Ok(())
     }
-
 }
