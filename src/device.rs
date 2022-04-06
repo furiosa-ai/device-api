@@ -153,7 +153,7 @@ lazy_static! {
         Regex::new(r"^(npu)(?P<npu>\d*)(pe)(?P<pe>(\d+-)+\d+)$").unwrap();
 }
 
-fn capture_to_str<'a>(c: &'a Captures, key: &'a str) -> &'a str {
+fn capture_to_str<'a>(c: &'a Captures<'_>, key: &'a str) -> &'a str {
     c.name(key).unwrap().as_str()
 }
 
