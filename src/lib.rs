@@ -204,7 +204,7 @@ mod tests {
             res.path().as_os_str().to_string_lossy().as_ref()
         );
         assert_eq!(1, res.core_num());
-        assert!(!res.fusible());
+        assert!(!res.fused());
 
         Ok(())
     }

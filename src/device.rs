@@ -81,7 +81,7 @@ impl Device {
         self.core_num() == 1
     }
 
-    pub fn fusible(&self) -> bool {
+    pub fn fused(&self) -> bool {
         self.core_num() > 1
     }
 }
