@@ -109,12 +109,21 @@ impl PartialOrd for Device {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, strum_macros::Display)]
-#[strum(serialize_all = "kebab_case")]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreStatus {
     Available,
     Occupied(String),
     Unavailable,
+}
+
+impl Display for CoreStatus {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            CoreStatus::Available => write!(f, "available"),
+            CoreStatus::Occupied(devfile) => write!(f, "occupied by {}", devfile),
+            CoreStatus::Unavailable => write!(f, "unavailable"),
+        }
+    }
 }
 
 type CoreIdx = u8;
@@ -249,5 +258,15 @@ mod tests {
         assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe0-")).is_err());
         assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe-1")).is_err());
         Ok(())
+    }
+
+    #[test]
+    fn test_core_status_fmt() {
+        assert_eq!(format!("{}", CoreStatus::Available), "available");
+        assert_eq!(format!("{}", CoreStatus::Unavailable), "unavailable");
+        assert_eq!(
+            format!("{}", CoreStatus::Occupied(String::from("npu0pe0"))),
+            "occupied by npu0pe0"
+        );
     }
 }
