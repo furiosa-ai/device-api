@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
@@ -15,7 +15,7 @@ use crate::{DeviceError, DeviceResult};
 pub struct Device {
     device_index: u8,
     arch: Arch,
-    cores: HashSet<CoreIdx>,
+    cores: Vec<CoreIdx>,
     dev_files: Vec<DeviceFile>,
 }
 
@@ -23,7 +23,7 @@ impl Device {
     pub(crate) fn new(
         device_index: u8,
         arch: Arch,
-        cores: HashSet<CoreIdx>,
+        cores: Vec<CoreIdx>,
         dev_files: Vec<DeviceFile>,
     ) -> Self {
         Self {
@@ -50,7 +50,7 @@ impl Device {
         u8::try_from(self.cores.len()).unwrap()
     }
 
-    pub fn cores(&self) -> &HashSet<CoreIdx> {
+    pub fn cores(&self) -> &Vec<CoreIdx> {
         &self.cores
     }
 

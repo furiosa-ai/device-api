@@ -54,6 +54,8 @@ fn collect_devices(idx: u8, device_type: Arch, paths: Vec<PathBuf>) -> DeviceRes
         dev_files.push(file);
     }
 
+    let mut cores: Vec<u8> = cores.into_iter().collect();
+    cores.sort_unstable();
     dev_files.sort();
     Ok(Device::new(idx, device_type, cores, dev_files))
 }
