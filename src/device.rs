@@ -58,8 +58,36 @@ impl Device {
         &self.dev_files
     }
 
-    pub fn get_status_core(&self, _core: CoreIdx) -> DeviceResult<CoreStatus> {
-        unimplemented!()
+    pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
+        for file in &self.dev_files {
+            if (file.is_raw() || file.indices().contains(&core))
+                && get_device_status(&file.path).await? == DeviceStatus::Occupied
+            {
+                return Ok(CoreStatus::Occupied(file.to_string()));
+            }
+        }
+        Ok(CoreStatus::Available)
+    }
+
+    pub async fn get_status_all(&self) -> DeviceResult<HashMap<CoreIdx, CoreStatus>> {
+        let mut status_map: HashMap<CoreIdx, CoreStatus> = self
+            .cores
+            .iter()
+            .map(|k| (*k, CoreStatus::Available))
+            .collect();
+        for file in &self.dev_files {
+            if get_device_status(&file.path).await? == DeviceStatus::Occupied {
+                for core in file.indices.iter().chain(
+                    file.is_raw()
+                        .then(|| self.cores.iter())
+                        .into_iter()
+                        .flatten(),
+                ) {
+                    status_map.insert(*core, CoreStatus::Occupied(file.to_string()));
+                }
+            }
+        }
+        Ok(status_map)
     }
 }
 

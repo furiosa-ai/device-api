@@ -11,6 +11,7 @@ path = "bin/list_npu.rs"
 
 [dependencies]
 array_tool = "1"
+cli-table = "0.4"
 lazy_static = "1.4"
 enum-display-derive = "0.1"
 itertools = "0.10"
