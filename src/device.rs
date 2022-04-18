@@ -1,60 +1,41 @@
 use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
-use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
+use std::fmt::{self, Display, Formatter};
 
 use crate::arch::Arch;
-use crate::DeviceError;
+use crate::status::{get_device_status, DeviceStatus};
+use crate::{DeviceError, DeviceResult};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Device {
     device_index: u8,
-    path: PathBuf,
-    mode: DeviceMode,
     arch: Arch,
-    status: DeviceStatus,
+    cores: HashSet<CoreIdx>,
+    dev_files: Vec<DeviceFile>,
 }
 
 impl Device {
     pub(crate) fn new(
         device_index: u8,
-        path: PathBuf,
-        mode: DeviceMode,
         arch: Arch,
-        status: DeviceStatus,
+        cores: HashSet<CoreIdx>,
+        dev_files: Vec<DeviceFile>,
     ) -> Self {
         Self {
             device_index,
-            path,
-            mode,
             arch,
-            status,
+            cores,
+            dev_files,
         }
     }
 
-    pub(crate) fn change_status(self, status: DeviceStatus) -> Self {
-        Self { status, ..self }
-    }
-
     pub fn name(&self) -> String {
-        format!("npu{}:{}", self.device_index, self.mode)
-    }
-
-    #[deprecated]
-    pub fn devname(&self) -> String {
-        format!("npu{}pe{}", self.device_index, self.mode)
-    }
-
-    pub fn path(&self) -> &PathBuf {
-        &self.path
-    }
-
-    pub fn mode(&self) -> &DeviceMode {
-        &self.mode
+        format!("npu{}", self.device_index)
     }
 
     pub fn device_index(&self) -> u8 {
@@ -65,42 +46,32 @@ impl Device {
         self.arch
     }
 
-    pub fn status(&self) -> DeviceStatus {
-        self.status
-    }
-
-    pub fn available(&self) -> bool {
-        matches!(self.status, DeviceStatus::Available)
-    }
-
     pub fn core_num(&self) -> u8 {
-        self.mode.count()
+        u8::try_from(self.cores.len()).unwrap()
     }
 
-    pub fn single_core(&self) -> bool {
-        self.core_num() == 1
+    pub fn cores(&self) -> &HashSet<CoreIdx> {
+        &self.cores
     }
 
-    pub fn fused(&self) -> bool {
-        self.core_num() > 1
+    pub fn dev_files(&self) -> &Vec<DeviceFile> {
+        &self.dev_files
+    }
+
+    pub fn get_status_core(&self, _core: CoreIdx) -> DeviceResult<CoreStatus> {
+        unimplemented!()
     }
 }
 
 impl Display for Device {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "npu:{}:{} {} {}",
-            self.device_index, self.mode, self.arch, self.status
-        )
+        write!(f, "npu{}", self.device_index)
     }
 }
 
 impl Ord for Device {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.device_index
-            .cmp(&other.device_index)
-            .then(self.mode.cmp(&other.mode))
+        self.device_index.cmp(&other.device_index)
     }
 }
 
@@ -110,44 +81,59 @@ impl PartialOrd for Device {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, strum_macros::Display)]
+#[derive(Debug, Clone, Eq, PartialEq, strum_macros::Display)]
 #[strum(serialize_all = "kebab_case")]
-pub enum DeviceStatus {
+pub enum CoreStatus {
     Available,
-    Occupied,
-    Fused,
+    Occupied(String),
     Unavailable,
 }
 
 type CoreIdx = u8;
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum DeviceMode {
-    Single(CoreIdx),
-    Fusion(Vec<CoreIdx>),
+#[derive(Debug, Eq, PartialEq)]
+pub struct DeviceFile {
+    path: PathBuf,
+    indices: Vec<CoreIdx>,
 }
 
-impl Display for DeviceMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = match self {
-            DeviceMode::Single(pe) => format!("{}", pe),
-            DeviceMode::Fusion(v) => v.iter().join("-"),
-        };
-
-        write!(f, "{}", name)
+impl Display for DeviceFile {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path.file_name().unwrap().to_str().unwrap())
     }
 }
 
-impl DeviceMode {
-    fn count(&self) -> u8 {
-        match self {
-            DeviceMode::Single(_) => 1,
-            DeviceMode::Fusion(v) => u8::try_from(v.len()).unwrap(),
-        }
+impl Ord for DeviceFile {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.indices
+            .len()
+            .cmp(&other.indices.len())
+            .then(self.path.cmp(&other.path))
+    }
+}
+
+impl PartialOrd for DeviceFile {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl DeviceFile {
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    pub fn indices(&self) -> &Vec<CoreIdx> {
+        &self.indices
+    }
+
+    fn is_raw(&self) -> bool {
+        self.indices.is_empty()
     }
 }
 
 lazy_static! {
+    static ref REGEX_RAW: Regex = Regex::new(r"^(npu)(?P<npu>\d*)$").unwrap();
     static ref REGEX_PE: Regex = Regex::new(r"^(npu)(?P<npu>\d*)(pe)(?P<pe>\d+)$").unwrap();
     static ref REGEX_FUSION: Regex =
         Regex::new(r"^(npu)(?P<npu>\d*)(pe)(?P<pe>(\d+-)+\d+)$").unwrap();
@@ -157,21 +143,33 @@ fn capture_to_str<'a>(c: &'a Captures<'_>, key: &'a str) -> &'a str {
     c.name(key).unwrap().as_str()
 }
 
-impl TryFrom<&str> for DeviceMode {
+impl TryFrom<&PathBuf> for DeviceFile {
     type Error = DeviceError;
 
-    fn try_from(item: &str) -> Result<Self, Self::Error> {
-        if let Some(x) = REGEX_PE.captures(item) {
-            Ok(DeviceMode::Single(
-                capture_to_str(&x, "pe").parse().unwrap(),
-            ))
-        } else if let Some(x) = REGEX_FUSION.captures(item) {
-            let indexes: Vec<u8> = capture_to_str(&x, "pe")
-                .split('-')
-                .map(|s| s.parse().unwrap())
-                .collect();
-
-            Ok(DeviceMode::Fusion(indexes))
+    fn try_from(path: &PathBuf) -> Result<Self, Self::Error> {
+        let item = path
+            .file_name()
+            .expect("not a file")
+            .to_string_lossy()
+            .to_string();
+        if REGEX_RAW.captures(&item).is_some() {
+            Ok(DeviceFile {
+                path: path.clone(),
+                indices: vec![],
+            })
+        } else if let Some(x) = REGEX_PE.captures(&item) {
+            Ok(DeviceFile {
+                path: path.clone(),
+                indices: vec![capture_to_str(&x, "pe").parse().unwrap()],
+            })
+        } else if let Some(x) = REGEX_FUSION.captures(&item) {
+            Ok(DeviceFile {
+                path: path.clone(),
+                indices: capture_to_str(&x, "pe")
+                    .split('-')
+                    .map(|s| s.parse().unwrap())
+                    .collect(),
+            })
         } else {
             Err(DeviceError::UnrecognizedDeviceFile(item.to_string()))
         }
@@ -184,32 +182,44 @@ mod tests {
 
     #[test]
     fn test_try_from() -> Result<(), DeviceError> {
-        assert!(DeviceMode::try_from("npu0").is_err());
-        assert!(DeviceMode::try_from("npu0pe").is_err());
-        assert_eq!(DeviceMode::try_from("npu0pe0")?, DeviceMode::Single(0));
-        assert_eq!(DeviceMode::try_from("npu0pe1")?, DeviceMode::Single(1));
         assert_eq!(
-            DeviceMode::try_from("npu0pe0-1")?,
-            DeviceMode::Fusion(vec![0, 1])
+            DeviceFile::try_from(&PathBuf::from("./npu0"))?,
+            DeviceFile {
+                path: PathBuf::from("./npu0"),
+                indices: vec![]
+            }
+        );
+        assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe")).is_err());
+        assert_eq!(
+            DeviceFile::try_from(&PathBuf::from("./npu0pe0"))?,
+            DeviceFile {
+                path: PathBuf::from("./npu0pe0"),
+                indices: vec![0]
+            }
         );
         assert_eq!(
-            DeviceMode::try_from("npu0pe0-1-2")?,
-            DeviceMode::Fusion(vec![0, 1, 2])
+            DeviceFile::try_from(&PathBuf::from("./npu0pe1"))?,
+            DeviceFile {
+                path: PathBuf::from("./npu0pe1"),
+                indices: vec![1]
+            }
         );
-        assert!(DeviceMode::try_from("npu0pe0-").is_err());
-        assert!(DeviceMode::try_from("npu0pe-1").is_err());
+        assert_eq!(
+            DeviceFile::try_from(&PathBuf::from("./npu0pe0-1"))?,
+            DeviceFile {
+                path: PathBuf::from("./npu0pe0-1"),
+                indices: vec![0, 1]
+            }
+        );
+        assert_eq!(
+            DeviceFile::try_from(&PathBuf::from("./npu0pe0-1-2"))?,
+            DeviceFile {
+                path: PathBuf::from("./npu0pe0-1-2"),
+                indices: vec![0, 1, 2]
+            }
+        );
+        assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe0-")).is_err());
+        assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe-1")).is_err());
         Ok(())
-    }
-
-    #[test]
-    fn test_fmt() {
-        assert_eq!(format!("{}", DeviceMode::Single(0)), "0");
-        assert_eq!(format!("{}", DeviceMode::Single(1)), "1");
-
-        assert_eq!(format!("{}", DeviceMode::Fusion(vec![0, 1])), "0-1");
-        assert_eq!(
-            format!("{}", DeviceMode::Fusion(vec![0, 1, 2, 3])),
-            "0-1-2-3"
-        );
     }
 }
