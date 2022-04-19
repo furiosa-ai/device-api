@@ -128,10 +128,11 @@ impl Display for CoreStatus {
 
 type CoreIdx = u8;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct DeviceFile {
     path: PathBuf,
     indices: Vec<CoreIdx>,
+    mode: DeviceMode,
 }
 
 impl Display for DeviceFile {
@@ -164,8 +165,12 @@ impl DeviceFile {
         &self.indices
     }
 
-    fn is_raw(&self) -> bool {
-        self.indices.is_empty()
+    pub fn mode(&self) -> DeviceMode {
+        self.mode
+    }
+
+    pub(crate) fn is_raw(&self) -> bool {
+        self.mode == DeviceMode::Raw
     }
 }
 
@@ -193,11 +198,13 @@ impl TryFrom<&PathBuf> for DeviceFile {
             Ok(DeviceFile {
                 path: path.clone(),
                 indices: vec![],
+                mode: DeviceMode::Raw,
             })
         } else if let Some(x) = REGEX_PE.captures(&item) {
             Ok(DeviceFile {
                 path: path.clone(),
                 indices: vec![capture_to_str(&x, "pe").parse().unwrap()],
+                mode: DeviceMode::Single,
             })
         } else if let Some(x) = REGEX_FUSION.captures(&item) {
             Ok(DeviceFile {
@@ -206,11 +213,19 @@ impl TryFrom<&PathBuf> for DeviceFile {
                     .split('-')
                     .map(|s| s.parse().unwrap())
                     .collect(),
+                mode: DeviceMode::Fusion,
             })
         } else {
             Err(DeviceError::UnrecognizedDeviceFile(item.to_string()))
         }
     }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum DeviceMode {
+    Raw,
+    Single,
+    Fusion,
 }
 
 #[cfg(test)]
@@ -223,7 +238,8 @@ mod tests {
             DeviceFile::try_from(&PathBuf::from("./npu0"))?,
             DeviceFile {
                 path: PathBuf::from("./npu0"),
-                indices: vec![]
+                indices: vec![],
+                mode: DeviceMode::Raw,
             }
         );
         assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe")).is_err());
@@ -231,28 +247,32 @@ mod tests {
             DeviceFile::try_from(&PathBuf::from("./npu0pe0"))?,
             DeviceFile {
                 path: PathBuf::from("./npu0pe0"),
-                indices: vec![0]
+                indices: vec![0],
+                mode: DeviceMode::Single,
             }
         );
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe1"))?,
             DeviceFile {
                 path: PathBuf::from("./npu0pe1"),
-                indices: vec![1]
+                indices: vec![1],
+                mode: DeviceMode::Single,
             }
         );
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-1"))?,
             DeviceFile {
                 path: PathBuf::from("./npu0pe0-1"),
-                indices: vec![0, 1]
+                indices: vec![0, 1],
+                mode: DeviceMode::Fusion,
             }
         );
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-1-2"))?,
             DeviceFile {
                 path: PathBuf::from("./npu0pe0-1-2"),
-                indices: vec![0, 1, 2]
+                indices: vec![0, 1, 2],
+                mode: DeviceMode::Fusion,
             }
         );
         assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe0-")).is_err());
