@@ -25,7 +25,7 @@ impl Display for Arch {
 
 #[cfg(test)]
 mod tests {
-    use crate::Arch;
+    use crate::arch::Arch;
     use std::str::FromStr;
 
     #[test]
