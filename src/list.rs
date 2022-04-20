@@ -10,7 +10,7 @@ use regex::Regex;
 use tokio::fs;
 
 use crate::arch::Arch;
-use crate::device::{Device, DeviceFile};
+use crate::device::{Device, DeviceFile, DeviceInfo};
 
 use crate::error::{DeviceError, DeviceResult};
 use crate::DeviceError::UnrecognizedDeviceFile;
@@ -27,8 +27,9 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
 
     for (idx, paths) in dev_files.into_iter() {
         if is_furiosa_device(idx, sysfs).await {
-            let device_type = identify_arch(idx, sysfs).await?;
-            devices.push(collect_devices(idx, device_type, paths)?);
+            let device_info = identify_device(idx, sysfs).await?;
+            let device = collect_devices(idx, device_info, paths)?;
+            devices.push(device);
         }
     }
 
@@ -36,7 +37,7 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
     Ok(devices)
 }
 
-fn collect_devices(idx: u8, device_type: Arch, paths: Vec<PathBuf>) -> DeviceResult<Device> {
+fn collect_devices(idx: u8, device_info: DeviceInfo, paths: Vec<PathBuf>) -> DeviceResult<Device> {
     let mut cores: HashSet<u8> = HashSet::new();
     let mut dev_files: Vec<DeviceFile> = Vec::with_capacity(paths.len());
 
@@ -49,7 +50,7 @@ fn collect_devices(idx: u8, device_type: Arch, paths: Vec<PathBuf>) -> DeviceRes
     let mut cores: Vec<u8> = cores.into_iter().collect();
     cores.sort_unstable();
     dev_files.sort();
-    Ok(Device::new(idx, device_type, cores, dev_files))
+    Ok(Device::new(idx, device_info, cores, dev_files))
 }
 
 fn is_character_device(file_type: FileType) -> bool {
@@ -102,10 +103,30 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
         .is_some()
 }
 
-async fn identify_arch(idx: u8, sysfs: &str) -> DeviceResult<Arch> {
+async fn identify_device(idx: u8, sysfs: &str) -> DeviceResult<DeviceInfo> {
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/device_type", sysfs, idx);
     let contents = fs::read_to_string(path).await?;
-    Arch::from_str(contents.trim()).map_err(|_| DeviceError::UnknownArch(contents))
+    let arch = Arch::from_str(contents.trim()).map_err(|_| DeviceError::UnknownArch(contents))?;
+
+    let path = format!("{}/class/npu_mgmt/npu{}_mgmt/busname", sysfs, idx);
+    let busname = fs::read_to_string(path)
+        .await
+        .and_then(|s| Ok(String::from(s.trim())))
+        .ok();
+
+    let path = format!("{}/class/npu_mgmt/npu{}_mgmt/dev", sysfs, idx);
+    let pci_dev = fs::read_to_string(path)
+        .await
+        .and_then(|s| Ok(String::from(s.trim())))
+        .ok();
+
+    let path = format!("{}/class/npu_mgmt/npu{}_mgmt/fw_version", sysfs, idx);
+    let firmware_version = fs::read_to_string(path)
+        .await
+        .and_then(|s| Ok(String::from(s.trim())))
+        .ok();
+
+    Ok(DeviceInfo::new(arch, busname, pci_dev, firmware_version))
 }
 
 #[cfg(test)]
@@ -114,7 +135,7 @@ mod tests {
     use itertools::Itertools;
 
     #[tokio::test]
-    async fn test_fine_dev_files() -> DeviceResult<()> {
+    async fn test_find_dev_files() -> DeviceResult<()> {
         let dev_files = find_dev_files("test_data/test-0/dev").await?;
         assert_eq!(
             dev_files.keys().copied().sorted().collect::<Vec<u8>>(),
@@ -140,11 +161,11 @@ mod tests {
     #[tokio::test]
     async fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
-            identify_arch(0, "test_data/test-0/sys").await?,
+            identify_device(0, "test_data/test-0/sys").await?.arch(),
             Arch::Warboy
         );
         assert_eq!(
-            identify_arch(1, "test_data/test-0/sys").await?,
+            identify_device(1, "test_data/test-0/sys").await?.arch(),
             Arch::Warboy
         );
         Ok(())

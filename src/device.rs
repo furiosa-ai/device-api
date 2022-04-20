@@ -14,7 +14,7 @@ use crate::{DeviceError, DeviceResult};
 #[derive(Debug, Eq, PartialEq)]
 pub struct Device {
     device_index: u8,
-    arch: Arch,
+    device_info: DeviceInfo,
     cores: Vec<CoreIdx>,
     dev_files: Vec<DeviceFile>,
 }
@@ -22,13 +22,13 @@ pub struct Device {
 impl Device {
     pub(crate) fn new(
         device_index: u8,
-        arch: Arch,
+        device_info: DeviceInfo,
         cores: Vec<CoreIdx>,
         dev_files: Vec<DeviceFile>,
     ) -> Self {
         Self {
             device_index,
-            arch,
+            device_info,
             cores,
             dev_files,
         }
@@ -42,8 +42,24 @@ impl Device {
         self.device_index
     }
 
+    pub fn device_info(&self) -> &DeviceInfo {
+        &self.device_info
+    }
+
     pub fn arch(&self) -> Arch {
-        self.arch
+        self.device_info().arch()
+    }
+
+    pub fn busname(&self) -> Option<&str> {
+        self.device_info().busname()
+    }
+
+    pub fn pci_dev(&self) -> Option<&str> {
+        self.device_info().pci_dev()
+    }
+
+    pub fn firmware_version(&self) -> Option<&str> {
+        self.device_info().firmware_version()
     }
 
     pub fn core_num(&self) -> u8 {
@@ -106,6 +122,46 @@ impl Ord for Device {
 impl PartialOrd for Device {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct DeviceInfo {
+    arch: Arch,
+    busname: Option<String>,
+    pci_dev: Option<String>,
+    firmware_version: Option<String>,
+}
+
+impl DeviceInfo {
+    pub(crate) fn new(
+        arch: Arch,
+        busname: Option<String>,
+        pci_dev: Option<String>,
+        firmware_version: Option<String>,
+    ) -> DeviceInfo {
+        Self {
+            arch,
+            busname,
+            pci_dev,
+            firmware_version,
+        }
+    }
+
+    pub fn arch(&self) -> Arch {
+        self.arch
+    }
+
+    pub fn busname(&self) -> Option<&str> {
+        self.busname.as_deref()
+    }
+
+    pub fn pci_dev(&self) -> Option<&str> {
+        self.pci_dev.as_deref()
+    }
+
+    pub fn firmware_version(&self) -> Option<&str> {
+        self.firmware_version.as_deref()
     }
 }
 
