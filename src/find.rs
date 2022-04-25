@@ -23,8 +23,8 @@ impl DeviceConfig {
 pub struct WarboyConfigBuilder(DeviceConfig);
 
 impl WarboyConfigBuilder {
-    pub fn raw(mut self) -> Self {
-        self.0.mode = DeviceMode::Raw;
+    pub fn multicore(mut self) -> Self {
+        self.0.mode = DeviceMode::MultiCore;
         self
     }
 
@@ -67,8 +67,8 @@ pub async fn find_devices_in(
             if config.arch != device.arch() {
                 continue;
             }
-            // early exit for raw dev
-            if config.mode == DeviceMode::Raw
+            // early exit for multicore
+            if config.mode == DeviceMode::MultiCore
                 && !allocated.get(&device.device_index()).unwrap().is_empty()
             {
                 continue;
@@ -89,7 +89,7 @@ pub async fn find_devices_in(
 
                 let used = allocated.get_mut(&device.device_index()).unwrap();
                 used.extend(dev_file.indices());
-                if dev_file.is_raw() {
+                if dev_file.is_multicore() {
                     used.extend(device.cores());
                 }
                 continue 'outer;

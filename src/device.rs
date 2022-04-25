@@ -76,7 +76,7 @@ impl Device {
 
     pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
         for file in &self.dev_files {
-            if (file.is_raw() || file.indices().contains(&core))
+            if (file.is_multicore() || file.indices().contains(&core))
                 && get_device_status(&file.path).await? == DeviceStatus::Occupied
             {
                 return Ok(CoreStatus::Occupied(file.to_string()));
@@ -94,7 +94,7 @@ impl Device {
         for file in &self.dev_files {
             if get_device_status(&file.path).await? == DeviceStatus::Occupied {
                 for core in file.indices.iter().chain(
-                    file.is_raw()
+                    file.is_multicore()
                         .then(|| self.cores.iter())
                         .into_iter()
                         .flatten(),
@@ -210,13 +210,13 @@ impl DeviceFile {
         self.mode
     }
 
-    pub(crate) fn is_raw(&self) -> bool {
-        self.mode == DeviceMode::Raw
+    pub(crate) fn is_multicore(&self) -> bool {
+        self.mode == DeviceMode::MultiCore
     }
 }
 
 lazy_static! {
-    static ref REGEX_RAW: Regex = Regex::new(r"^(npu)(?P<npu>\d*)$").unwrap();
+    static ref REGEX_MULTICORE: Regex = Regex::new(r"^(npu)(?P<npu>\d*)$").unwrap();
     static ref REGEX_PE: Regex = Regex::new(r"^(npu)(?P<npu>\d*)(pe)(?P<pe>\d+)$").unwrap();
     static ref REGEX_FUSION: Regex =
         Regex::new(r"^(npu)(?P<npu>\d*)(pe)(?P<pe>(\d+-)+\d+)$").unwrap();
@@ -235,11 +235,11 @@ impl TryFrom<&PathBuf> for DeviceFile {
             .expect("not a file")
             .to_string_lossy()
             .to_string();
-        if REGEX_RAW.captures(&item).is_some() {
+        if REGEX_MULTICORE.captures(&item).is_some() {
             Ok(DeviceFile {
                 path: path.clone(),
                 indices: vec![],
-                mode: DeviceMode::Raw,
+                mode: DeviceMode::MultiCore,
             })
         } else if let Some(x) = REGEX_PE.captures(&item) {
             Ok(DeviceFile {
@@ -264,9 +264,9 @@ impl TryFrom<&PathBuf> for DeviceFile {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum DeviceMode {
-    Raw,
     Single,
     Fusion,
+    MultiCore,
 }
 
 #[cfg(test)]
@@ -280,7 +280,7 @@ mod tests {
             DeviceFile {
                 path: PathBuf::from("./npu0"),
                 indices: vec![],
-                mode: DeviceMode::Raw,
+                mode: DeviceMode::MultiCore,
             }
         );
         assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe")).is_err());
