@@ -2,6 +2,7 @@ use crate::arch::Arch;
 use crate::device::{CoreStatus, Device, DeviceFile, DeviceMode};
 use crate::error::DeviceResult;
 use std::collections::{HashMap, HashSet};
+
 pub struct DeviceConfig {
     arch: Arch,
     mode: DeviceMode,
@@ -98,4 +99,63 @@ pub async fn find_devices_in(
     }
 
     Ok(Some(found))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::list::list_devices_with;
+    use std::path::PathBuf;
+
+    #[tokio::test]
+    async fn test_find_devices() -> DeviceResult<()> {
+        // test directory contains 2 warboy NPUs
+        let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
+
+        // try lookup 4 different single cores
+        let config = DeviceConfig::warboy().count(4);
+        let found = find_devices_in(&devices, &config).await?.unwrap();
+        assert_eq!(found.len(), 4);
+        assert_eq!(
+            *found[0].path(),
+            PathBuf::from("test_data/test-0/dev/npu0pe0").canonicalize()?
+        );
+        assert_eq!(
+            *found[1].path(),
+            PathBuf::from("test_data/test-0/dev/npu0pe1").canonicalize()?
+        );
+        assert_eq!(
+            *found[2].path(),
+            PathBuf::from("test_data/test-0/dev/npu1pe0").canonicalize()?
+        );
+        assert_eq!(
+            *found[3].path(),
+            PathBuf::from("test_data/test-0/dev/npu1pe1").canonicalize()?
+        );
+
+        // looking for 5 different cores should fail
+        let config = DeviceConfig::warboy().count(5);
+        let found = find_devices_in(&devices, &config).await?;
+        assert_eq!(found, None);
+
+        // try lookup 2 different fused cores
+        let config = DeviceConfig::warboy().fused().count(2);
+        let found = find_devices_in(&devices, &config).await?.unwrap();
+        assert_eq!(found.len(), 2);
+        assert_eq!(
+            *found[0].path(),
+            PathBuf::from("test_data/test-0/dev/npu0pe0-1").canonicalize()?
+        );
+        assert_eq!(
+            *found[1].path(),
+            PathBuf::from("test_data/test-0/dev/npu1pe0-1").canonicalize()?
+        );
+
+        // looking for 3 different fused cores should fail
+        let config = DeviceConfig::warboy().fused().count(3);
+        let found = find_devices_in(&devices, &config).await?;
+        assert_eq!(found, None);
+
+        Ok(())
+    }
 }
