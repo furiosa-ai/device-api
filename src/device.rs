@@ -197,21 +197,6 @@ impl Display for DeviceFile {
     }
 }
 
-impl Ord for DeviceFile {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.indices
-            .len()
-            .cmp(&other.indices.len())
-            .then(self.path.cmp(&other.path))
-    }
-}
-
-impl PartialOrd for DeviceFile {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl DeviceFile {
     pub fn path(&self) -> &PathBuf {
         &self.path

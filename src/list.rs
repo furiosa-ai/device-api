@@ -49,7 +49,13 @@ fn collect_devices(idx: u8, device_info: DeviceInfo, paths: Vec<PathBuf>) -> Dev
 
     let mut cores: Vec<u8> = cores.into_iter().collect();
     cores.sort_unstable();
-    dev_files.sort();
+    dev_files.sort_by(|x, y| {
+        x.indices()
+            .len()
+            .cmp(&y.indices().len())
+            .then(x.path().cmp(&y.path()))
+    });
+
     Ok(Device::new(idx, device_info, cores, dev_files))
 }
 
