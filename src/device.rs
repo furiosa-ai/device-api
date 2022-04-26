@@ -202,6 +202,15 @@ impl DeviceFile {
         &self.path
     }
 
+    pub fn filename(&self) -> &str {
+        // We should guarantee that it returns a filename
+        self.path
+            .file_name()
+            .expect("not a file")
+            .to_str()
+            .expect("invalid UTF-8 encoding")
+    }
+
     pub fn indices(&self) -> &Vec<CoreIdx> {
         &self.indices
     }

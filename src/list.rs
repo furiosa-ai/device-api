@@ -53,7 +53,7 @@ fn collect_devices(idx: u8, device_info: DeviceInfo, paths: Vec<PathBuf>) -> Dev
         x.indices()
             .len()
             .cmp(&y.indices().len())
-            .then(x.path().cmp(&y.path()))
+            .then(x.path().cmp(y.path()))
     });
 
     Ok(Device::new(idx, device_info, cores, dev_files))
@@ -117,19 +117,19 @@ async fn identify_device(idx: u8, sysfs: &str) -> DeviceResult<DeviceInfo> {
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/busname", sysfs, idx);
     let busname = fs::read_to_string(path)
         .await
-        .and_then(|s| Ok(String::from(s.trim())))
+        .map(|s| String::from(s.trim()))
         .ok();
 
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/dev", sysfs, idx);
     let pci_dev = fs::read_to_string(path)
         .await
-        .and_then(|s| Ok(String::from(s.trim())))
+        .map(|s| String::from(s.trim()))
         .ok();
 
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/fw_version", sysfs, idx);
     let firmware_version = fs::read_to_string(path)
         .await
-        .and_then(|s| Ok(String::from(s.trim())))
+        .map(|s| String::from(s.trim()))
         .ok();
 
     Ok(DeviceInfo::new(arch, busname, pci_dev, firmware_version))
