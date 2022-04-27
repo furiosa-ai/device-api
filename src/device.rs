@@ -266,7 +266,9 @@ impl TryFrom<&PathBuf> for DeviceFile {
                 mode: DeviceMode::Fusion,
             })
         } else {
-            Err(DeviceError::UnrecognizedDeviceFile(item.to_string()))
+            Err(DeviceError::IncompatibleDriver {
+                cause: format!("{} file cannot be recognized", path.display()),
+            })
         }
     }
 }

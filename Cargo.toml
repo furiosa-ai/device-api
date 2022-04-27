@@ -18,6 +18,7 @@ itertools = "0.10"
 regex = "1.5"
 strum = "0.24"
 strum_macros = "0.24"
+thiserror = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter", "json"] }
 tokio = { version = "1.17.0", features = ["fs", "rt-multi-thread", "macros"] }
