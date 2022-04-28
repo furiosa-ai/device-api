@@ -3,6 +3,7 @@ use crate::device::{CoreStatus, Device, DeviceFile, DeviceMode};
 use crate::error::DeviceResult;
 use std::collections::{HashMap, HashSet};
 
+#[derive(Copy, Clone)]
 pub struct DeviceConfig {
     arch: Arch,
     mode: DeviceMode,
