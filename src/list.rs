@@ -13,7 +13,6 @@ use crate::arch::Arch;
 use crate::device::{Device, DeviceFile, DeviceInfo};
 
 use crate::error::{DeviceError, DeviceResult};
-use crate::DeviceError::UnrecognizedDeviceFile;
 
 lazy_static! {
     static ref REGEX_DEVICE_INDEX: Regex = Regex::new(r"^(npu)(?P<idx>\d+)($|pe.*$)").unwrap();
@@ -60,6 +59,7 @@ fn collect_devices(idx: u8, device_info: DeviceInfo, paths: Vec<PathBuf>) -> Dev
 }
 
 fn is_character_device(file_type: FileType) -> bool {
+    // allow just a file too for unit testing
     if cfg!(test) {
         file_type.is_file()
     } else {
@@ -78,10 +78,10 @@ async fn find_dev_files(devfs: &str) -> DeviceResult<HashMap<u8, Vec<PathBuf>>> 
             if let Some(x) = REGEX_DEVICE_INDEX.captures(&filename) {
                 let idx: u8 = x
                     .name("idx")
-                    .ok_or_else(|| UnrecognizedDeviceFile(filename.clone()))?
+                    .ok_or_else(|| DeviceError::unrecognized_file(&filename))?
                     .as_str()
                     .parse()
-                    .map_err(|_| UnrecognizedDeviceFile(filename))?;
+                    .map_err(|_| DeviceError::unrecognized_file(&filename))?;
                 // make an absolute path
                 let absolute_path = std::fs::canonicalize(entry.path())?;
                 dev_files
@@ -112,7 +112,8 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
 async fn identify_device(idx: u8, sysfs: &str) -> DeviceResult<DeviceInfo> {
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/device_type", sysfs, idx);
     let contents = fs::read_to_string(path).await?;
-    let arch = Arch::from_str(contents.trim()).map_err(|_| DeviceError::UnknownArch(contents))?;
+    let arch =
+        Arch::from_str(contents.trim()).map_err(|_| DeviceError::UnknownArch { arch: contents })?;
 
     let path = format!("{}/class/npu_mgmt/npu{}_mgmt/busname", sysfs, idx);
     let busname = fs::read_to_string(path)
