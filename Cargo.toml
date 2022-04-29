@@ -15,6 +15,7 @@ path = "bin/list_npu.rs"
 [[bin]]
 name = "list_npu_blocking"
 path = "bin/list_npu_blocking.rs"
+required-features = ["blocking"]
 
 [dependencies]
 array_tool = "1"
