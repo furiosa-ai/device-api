@@ -12,6 +12,10 @@ blocking = [] # Enable blocking APIs
 name = "list_npu"
 path = "bin/list_npu.rs"
 
+[[bin]]
+name = "list_npu_blocking"
+path = "bin/list_npu_blocking.rs"
+
 [dependencies]
 array_tool = "1"
 cli-table = "0.4"
