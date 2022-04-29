@@ -1,7 +1,9 @@
-use crate::arch::Arch;
-use crate::device::{CoreStatus, Device, DeviceFile, DeviceMode};
-use crate::error::DeviceResult;
 use std::collections::{HashMap, HashSet};
+use std::ops::Deref;
+
+use crate::arch::Arch;
+use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile, DeviceMode};
+use crate::error::DeviceResult;
 
 #[derive(Copy, Clone)]
 pub struct DeviceConfig {
@@ -49,19 +51,44 @@ impl WarboyConfigBuilder {
     }
 }
 
-pub async fn find_devices_in(
-    devices: &[Device],
+pub(crate) struct DeviceWithStatus {
+    pub device: Device,
+    pub statuses: HashMap<CoreIdx, CoreStatus>,
+}
+
+impl Deref for DeviceWithStatus {
+    type Target = Device;
+
+    fn deref(&self) -> &Self::Target {
+        &self.device
+    }
+}
+
+pub(crate) async fn expand_status(devices: Vec<Device>) -> DeviceResult<Vec<DeviceWithStatus>> {
+    let mut new_devices = Vec::with_capacity(devices.len());
+    for device in devices.into_iter() {
+        new_devices.push(DeviceWithStatus {
+            statuses: device.get_status_all().await?,
+            device,
+        })
+    }
+    Ok(new_devices)
+}
+
+pub(crate) fn find_devices_in(
     config: &DeviceConfig,
+    devices: &[DeviceWithStatus],
 ) -> DeviceResult<Vec<DeviceFile>> {
     let mut allocated: HashMap<u8, HashSet<u8>> = HashMap::with_capacity(devices.len());
+
     for device in devices {
-        let status = device.get_status_all().await?;
         allocated.insert(
             device.device_index(),
-            status
-                .into_iter()
-                .filter(|(_, status)| *status != CoreStatus::Available)
-                .map(|(core, _)| core)
+            device
+                .statuses
+                .iter()
+                .filter(|(_, status)| **status != CoreStatus::Available)
+                .map(|(core, _)| *core)
                 .collect(),
         );
     }
@@ -109,17 +136,19 @@ pub async fn find_devices_in(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::list::list_devices_with;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_find_devices() -> DeviceResult<()> {
         // test directory contains 2 warboy NPUs
         let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
+        let devices_with_statuses = expand_status(devices).await?;
 
         // try lookup 4 different single cores
         let config = DeviceConfig::warboy().count(4);
-        let found = find_devices_in(&devices, &config).await?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -128,19 +157,19 @@ mod tests {
 
         // looking for 5 different cores should fail
         let config = DeviceConfig::warboy().count(5);
-        let found = find_devices_in(&devices, &config).await?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found, vec![]);
 
         // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
-        let found = find_devices_in(&devices, &config).await?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].filename(), "npu0pe0-1");
         assert_eq!(found[1].filename(), "npu1pe0-1");
 
         // looking for 3 different fused cores should fail
         let config = DeviceConfig::warboy().fused().count(3);
-        let found = find_devices_in(&devices, &config).await?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found, vec![]);
 
         Ok(())

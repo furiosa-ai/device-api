@@ -6,17 +6,20 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::fmt::{self, Display, Formatter};
+use std::io;
+use std::io::ErrorKind;
+use std::str::FromStr;
 
 use crate::arch::Arch;
 use crate::status::{get_device_status, DeviceStatus};
-use crate::{DeviceError, DeviceResult};
+use crate::{sysfs, DeviceError, DeviceResult};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Device {
     device_index: u8,
     device_info: DeviceInfo,
-    cores: Vec<CoreIdx>,
-    dev_files: Vec<DeviceFile>,
+    pub(crate) cores: Vec<CoreIdx>,
+    pub(crate) dev_files: Vec<DeviceFile>,
 }
 
 impl Device {
@@ -86,11 +89,8 @@ impl Device {
     }
 
     pub async fn get_status_all(&self) -> DeviceResult<HashMap<CoreIdx, CoreStatus>> {
-        let mut status_map: HashMap<CoreIdx, CoreStatus> = self
-            .cores
-            .iter()
-            .map(|k| (*k, CoreStatus::Available))
-            .collect();
+        let mut status_map = self.new_status_map();
+
         for file in &self.dev_files {
             if get_device_status(&file.path).await? == DeviceStatus::Occupied {
                 for core in file.indices.iter().chain(
@@ -104,6 +104,13 @@ impl Device {
             }
         }
         Ok(status_map)
+    }
+
+    pub(crate) fn new_status_map(&self) -> HashMap<CoreIdx, CoreStatus> {
+        self.cores
+            .iter()
+            .map(|k| (*k, CoreStatus::Available))
+            .collect()
     }
 }
 
@@ -165,6 +172,27 @@ impl DeviceInfo {
     }
 }
 
+impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
+    type Error = DeviceError;
+
+    fn try_from(mut map: HashMap<&'static str, String>) -> Result<Self, Self::Error> {
+        use sysfs::npu_mgmt::*;
+
+        let contents = map.remove(DEVICE_TYPE).ok_or_else(|| {
+            io::Error::new(ErrorKind::NotFound, format!("{} not found", DEVICE_TYPE))
+        })?;
+        let arch = Arch::from_str(&contents).map_err(|_| DeviceError::UnknownArch {
+            arch: contents.to_string(),
+        })?;
+
+        let busname = map.remove(BUSNAME);
+        let pci_dev = map.remove(DEV);
+        let firmware_version = map.remove(FW_VERSION);
+
+        Ok(DeviceInfo::new(arch, busname, pci_dev, firmware_version))
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreStatus {
     Available,
@@ -173,7 +201,7 @@ pub enum CoreStatus {
 }
 
 impl Display for CoreStatus {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             CoreStatus::Available => write!(f, "available"),
             CoreStatus::Occupied(devfile) => write!(f, "occupied by {}", devfile),
@@ -182,13 +210,13 @@ impl Display for CoreStatus {
     }
 }
 
-type CoreIdx = u8;
+pub(crate) type CoreIdx = u8;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct DeviceFile {
-    path: PathBuf,
-    indices: Vec<CoreIdx>,
-    mode: DeviceMode,
+    pub(crate) path: PathBuf,
+    pub(crate) indices: Vec<CoreIdx>,
+    pub(crate) mode: DeviceMode,
 }
 
 impl Display for DeviceFile {
