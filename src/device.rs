@@ -201,7 +201,7 @@ pub enum CoreStatus {
 }
 
 impl Display for CoreStatus {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             CoreStatus::Available => write!(f, "available"),
             CoreStatus::Occupied(devfile) => write!(f, "occupied by {}", devfile),
