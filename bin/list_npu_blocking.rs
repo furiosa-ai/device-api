@@ -1,8 +1,8 @@
 use cli_table::{print_stdout, Cell, Style, Table};
 use itertools::join;
 
-use furiosa_device::{DeviceError, Device};
-use furiosa_device::blocking::{list_devices, get_status_all};
+use furiosa_device::blocking::{get_status_all, list_devices};
+use furiosa_device::{Device, DeviceError};
 
 fn main() -> Result<(), DeviceError> {
     tracing_subscriber::fmt::init();
@@ -19,7 +19,7 @@ fn main() -> Result<(), DeviceError> {
     let mut rows = vec![];
 
     for device in found.iter() {
-        let status = get_status_all(&device)?;
+        let status = get_status_all(device)?;
         let mut status: Vec<(u8, _)> = status.into_iter().collect();
         status.sort_by(|a, b| a.0.cmp(&b.0));
         let msg = join(

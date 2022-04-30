@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
-use lazy_static::lazy_static;
-use regex::{Captures, Regex};
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::io::ErrorKind;
@@ -12,7 +10,7 @@ use std::str::FromStr;
 
 use crate::arch::Arch;
 use crate::status::{get_device_status, DeviceStatus};
-use crate::{sysfs, DeviceError, DeviceResult};
+use crate::{devfs, sysfs, DeviceError, DeviceResult};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Device {
@@ -252,52 +250,29 @@ impl DeviceFile {
     }
 }
 
-lazy_static! {
-    static ref REGEX_MULTICORE: Regex = Regex::new(r"^(npu)(?P<npu>\d*)$").unwrap();
-    static ref REGEX_PE: Regex = Regex::new(r"^(npu)(?P<npu>\d*)(pe)(?P<pe>\d+)$").unwrap();
-    static ref REGEX_FUSION: Regex =
-        Regex::new(r"^(npu)(?P<npu>\d*)(pe)(?P<pe>(\d+-)+\d+)$").unwrap();
-}
-
-fn capture_to_str<'a>(c: &'a Captures<'_>, key: &'a str) -> &'a str {
-    c.name(key).unwrap().as_str()
-}
-
 impl TryFrom<&PathBuf> for DeviceFile {
     type Error = DeviceError;
 
     fn try_from(path: &PathBuf) -> Result<Self, Self::Error> {
-        let item = path
+        let file_name = path
             .file_name()
             .expect("not a file")
             .to_string_lossy()
             .to_string();
-        if REGEX_MULTICORE.captures(&item).is_some() {
-            Ok(DeviceFile {
-                path: path.clone(),
-                indices: vec![],
-                mode: DeviceMode::MultiCore,
-            })
-        } else if let Some(x) = REGEX_PE.captures(&item) {
-            Ok(DeviceFile {
-                path: path.clone(),
-                indices: vec![capture_to_str(&x, "pe").parse().unwrap()],
-                mode: DeviceMode::Single,
-            })
-        } else if let Some(x) = REGEX_FUSION.captures(&item) {
-            Ok(DeviceFile {
-                path: path.clone(),
-                indices: capture_to_str(&x, "pe")
-                    .split('-')
-                    .map(|s| s.parse().unwrap())
-                    .collect(),
-                mode: DeviceMode::Fusion,
-            })
-        } else {
-            Err(DeviceError::IncompatibleDriver {
-                cause: format!("{} file cannot be recognized", path.display()),
-            })
-        }
+
+        let (_, core_ids) = devfs::parse_indices(&file_name)?;
+
+        let mode = match core_ids.len() {
+            0 => DeviceMode::MultiCore,
+            1 => DeviceMode::Single,
+            _ => DeviceMode::Fusion,
+        };
+
+        Ok(DeviceFile {
+            path: path.clone(),
+            indices: core_ids,
+            mode,
+        })
     }
 }
 
@@ -348,9 +323,9 @@ mod tests {
             }
         );
         assert_eq!(
-            DeviceFile::try_from(&PathBuf::from("./npu0pe0-1-2"))?,
+            DeviceFile::try_from(&PathBuf::from("./npu0pe0-2"))?,
             DeviceFile {
-                path: PathBuf::from("./npu0pe0-1-2"),
+                path: PathBuf::from("./npu0pe0-2"),
                 indices: vec![0, 1, 2],
                 mode: DeviceMode::Fusion,
             }
