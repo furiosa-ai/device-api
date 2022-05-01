@@ -4,8 +4,6 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 
 use std::fmt::{self, Display, Formatter};
-use std::io;
-use std::io::ErrorKind;
 use std::str::FromStr;
 
 use crate::arch::Arch;
@@ -77,7 +75,7 @@ impl Device {
 
     pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
         for file in &self.dev_files {
-            if (file.is_multicore() || file.indices().contains(&core))
+            if (file.is_multicore() || file.core_indices().contains(&core))
                 && get_device_status(&file.path).await? == DeviceStatus::Occupied
             {
                 return Ok(CoreStatus::Occupied(file.to_string()));
@@ -91,7 +89,7 @@ impl Device {
 
         for file in &self.dev_files {
             if get_device_status(&file.path).await? == DeviceStatus::Occupied {
-                for core in file.indices.iter().chain(
+                for core in file.core_indices.iter().chain(
                     file.is_multicore()
                         .then(|| self.cores.iter())
                         .into_iter()
@@ -176,9 +174,9 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
     fn try_from(mut map: HashMap<&'static str, String>) -> Result<Self, Self::Error> {
         use sysfs::npu_mgmt::*;
 
-        let contents = map.remove(DEVICE_TYPE).ok_or_else(|| {
-            io::Error::new(ErrorKind::NotFound, format!("{} not found", DEVICE_TYPE))
-        })?;
+        let contents = map
+            .remove(DEVICE_TYPE)
+            .ok_or_else(|| DeviceError::file_not_found(DEVICE_TYPE))?;
         let arch = Arch::from_str(&contents).map_err(|_| DeviceError::UnknownArch {
             arch: contents.to_string(),
         })?;
@@ -212,8 +210,9 @@ pub(crate) type CoreIdx = u8;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct DeviceFile {
+    pub(crate) device_index: u8,
+    pub(crate) core_indices: Vec<CoreIdx>,
     pub(crate) path: PathBuf,
-    pub(crate) indices: Vec<CoreIdx>,
     pub(crate) mode: DeviceMode,
 }
 
@@ -237,8 +236,12 @@ impl DeviceFile {
             .expect("invalid UTF-8 encoding")
     }
 
-    pub fn indices(&self) -> &Vec<CoreIdx> {
-        &self.indices
+    pub fn device_index(&self) -> u8 {
+        self.device_index
+    }
+
+    pub fn core_indices(&self) -> &Vec<CoreIdx> {
+        &self.core_indices
     }
 
     pub fn mode(&self) -> DeviceMode {
@@ -260,17 +263,18 @@ impl TryFrom<&PathBuf> for DeviceFile {
             .to_string_lossy()
             .to_string();
 
-        let (_, core_ids) = devfs::parse_indices(&file_name)?;
+        let (device_index, core_indices) = devfs::parse_indices(&file_name)?;
 
-        let mode = match core_ids.len() {
+        let mode = match core_indices.len() {
             0 => DeviceMode::MultiCore,
             1 => DeviceMode::Single,
             _ => DeviceMode::Fusion,
         };
 
         Ok(DeviceFile {
+            device_index,
+            core_indices,
             path: path.clone(),
-            indices: core_ids,
             mode,
         })
     }
@@ -292,8 +296,9 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0"))?,
             DeviceFile {
+                device_index: 0,
                 path: PathBuf::from("./npu0"),
-                indices: vec![],
+                core_indices: vec![],
                 mode: DeviceMode::MultiCore,
             }
         );
@@ -301,32 +306,36 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0"))?,
             DeviceFile {
+                device_index: 0,
                 path: PathBuf::from("./npu0pe0"),
-                indices: vec![0],
+                core_indices: vec![0],
                 mode: DeviceMode::Single,
             }
         );
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe1"))?,
             DeviceFile {
+                device_index: 0,
                 path: PathBuf::from("./npu0pe1"),
-                indices: vec![1],
+                core_indices: vec![1],
                 mode: DeviceMode::Single,
             }
         );
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-1"))?,
             DeviceFile {
+                device_index: 0,
                 path: PathBuf::from("./npu0pe0-1"),
-                indices: vec![0, 1],
+                core_indices: vec![0, 1],
                 mode: DeviceMode::Fusion,
             }
         );
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-2"))?,
             DeviceFile {
+                device_index: 0,
                 path: PathBuf::from("./npu0pe0-2"),
-                indices: vec![0, 1, 2],
+                core_indices: vec![0, 1, 2],
                 mode: DeviceMode::Fusion,
             }
         );

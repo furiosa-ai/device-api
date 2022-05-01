@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::FileType;
 use std::io;
-use std::os::unix::fs::FileTypeExt;
 
 use std::path::{Path, PathBuf};
 
 use crate::devfs;
+use crate::devfs::is_character_device;
 use tokio::fs;
 
 use crate::device::{Device, DeviceFile, DeviceInfo};
@@ -44,29 +44,20 @@ pub(crate) fn collect_devices(
 
     for path in paths {
         let file = DeviceFile::try_from(&path)?;
-        cores.extend(file.indices());
+        cores.extend(file.core_indices());
         dev_files.push(file);
     }
 
     let mut cores: Vec<u8> = cores.into_iter().collect();
     cores.sort_unstable();
     dev_files.sort_by(|x, y| {
-        x.indices()
+        x.core_indices()
             .len()
-            .cmp(&y.indices().len())
+            .cmp(&y.core_indices().len())
             .then(x.path().cmp(y.path()))
     });
 
     Ok(Device::new(idx, device_info, cores, dev_files))
-}
-
-fn is_character_device(file_type: FileType) -> bool {
-    // allow just a file too for unit testing
-    if cfg!(test) {
-        file_type.is_file()
-    } else {
-        file_type.is_char_device()
-    }
 }
 
 pub(crate) struct DevFile {

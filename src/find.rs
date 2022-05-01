@@ -112,7 +112,7 @@ pub(crate) fn find_devices_in(
                 .iter()
                 .filter(|d| d.mode() == config.mode)
             {
-                for idx in dev_file.indices() {
+                for idx in dev_file.core_indices() {
                     if allocated.get(&device.device_index()).unwrap().contains(idx) {
                         continue 'inner;
                     }
@@ -121,7 +121,7 @@ pub(crate) fn find_devices_in(
                 found.push(dev_file.clone());
 
                 let used = allocated.get_mut(&device.device_index()).unwrap();
-                used.extend(dev_file.indices());
+                used.extend(dev_file.core_indices());
                 if dev_file.is_multicore() {
                     used.extend(device.cores());
                 }

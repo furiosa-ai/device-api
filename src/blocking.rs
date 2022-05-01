@@ -1,15 +1,16 @@
 use std::collections::HashMap;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::Path;
 
+use crate::devfs::is_character_device;
 use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
 use crate::find::DeviceWithStatus;
 use crate::list::{collect_devices, filter_dev_files, DevFile, MGMT_FILES};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
 use crate::sysfs::npu_mgmt::PLATFORM_TYPE;
-use crate::{find_devices_in, Device, DeviceConfig, DeviceFile, DeviceResult};
+use crate::{devfs, find_devices_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult};
 
 pub fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys")
@@ -18,6 +19,34 @@ pub fn list_devices() -> DeviceResult<Vec<Device>> {
 pub fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
     let devices = expand_status(list_devices()?)?;
     find_devices_in(config, &devices)
+}
+
+/// Return a specific device if it exists.
+///
+/// # Arguments
+///
+/// * `device_name` - A device name (e.g., npu0, npu0pe0, npu0pe0-1)
+#[inline]
+pub fn get_device<S: AsRef<str>>(device_name: S) -> DeviceResult<DeviceFile> {
+    get_with("/dev", device_name.as_ref())
+}
+
+pub(crate) fn get_with(devfs: &str, device_name: &str) -> DeviceResult<DeviceFile> {
+    let path = devfs::path(devfs, device_name);
+    if !path.exists() {
+        return Err(DeviceError::DeviceNotFound {
+            name: device_name.to_string(),
+        });
+    }
+
+    let file = File::open(&path)?;
+    if !is_character_device(file.metadata()?.file_type()) {
+        return Err(DeviceError::invalid_device_file(path.display()));
+    }
+
+    devfs::parse_indices(path.file_name().expect("not a file").to_string_lossy())?;
+
+    DeviceFile::try_from(&path)
 }
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
@@ -106,7 +135,7 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
 
     for file in &device.dev_files {
         if get_device_status(&file.path)? == DeviceStatus::Occupied {
-            for core in file.indices.iter().chain(
+            for core in file.core_indices.iter().chain(
                 file.is_multicore()
                     .then(|| device.cores.iter())
                     .into_iter()
@@ -154,6 +183,21 @@ mod tests {
         let config = DeviceConfig::warboy().fused().count(3);
         let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found, vec![]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_device() -> DeviceResult<()> {
+        get_with("test_data/test-0/dev", "npu0")?;
+        assert!(get_with("test_data/test-0/dev", "npu0pe0").is_ok());
+        assert!(get_with("test_data/test-0/dev", "npu0pe1").is_ok());
+        assert!(get_with("test_data/test-0/dev", "npu0pe0-1").is_ok());
+
+        assert!(matches!(
+            get_with("test_data/test-0/dev", "npu9"),
+            Err(DeviceError::DeviceNotFound { .. })
+        ));
 
         Ok(())
     }
