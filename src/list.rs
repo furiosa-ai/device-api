@@ -5,18 +5,13 @@ use std::os::unix::fs::FileTypeExt;
 
 use std::path::{Path, PathBuf};
 
-use lazy_static::lazy_static;
-use regex::Regex;
+use crate::devfs;
 use tokio::fs;
 
 use crate::device::{Device, DeviceFile, DeviceInfo};
 
-use crate::error::{DeviceError, DeviceResult};
+use crate::error::DeviceResult;
 use crate::sysfs::npu_mgmt::{self, BUSNAME, DEV, DEVICE_TYPE, FW_VERSION, PLATFORM_TYPE};
-
-lazy_static! {
-    static ref REGEX_DEVICE_INDEX: Regex = Regex::new(r"^(npu)(?P<idx>\d+)($|pe.*$)").unwrap();
-}
 
 pub(crate) static MGMT_FILES: [&str; 4] = [DEVICE_TYPE, BUSNAME, DEV, FW_VERSION];
 
@@ -104,15 +99,10 @@ pub(crate) fn filter_dev_files(dev_files: Vec<DevFile>) -> DeviceResult<HashMap<
                 .expect("No file")
                 .to_string_lossy()
                 .to_string();
-            if let Some(x) = REGEX_DEVICE_INDEX.captures(&filename) {
-                let idx: u8 = x
-                    .name("idx")
-                    .ok_or_else(|| DeviceError::unrecognized_file(&filename))?
-                    .as_str()
-                    .parse()
-                    .map_err(|_| DeviceError::unrecognized_file(&filename))?;
+
+            if let Ok((device_id, _)) = devfs::parse_indices(&filename) {
                 npu_dev_files
-                    .entry(idx)
+                    .entry(device_id)
                     .or_insert_with(Vec::new)
                     .push(path.canonicalize()?); // make an absolute path
             }

@@ -7,6 +7,7 @@ use crate::list::list_devices_with;
 mod arch;
 #[cfg(feature = "blocking")]
 pub mod blocking;
+mod devfs;
 mod device;
 mod error;
 mod find;
