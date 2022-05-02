@@ -1,8 +1,10 @@
-pub use crate::device::{Device, DeviceFile};
+pub use crate::arch::Arch;
+pub use crate::device::{CoreStatus, Device, DeviceFile, DeviceMode};
 pub use crate::error::{DeviceError, DeviceResult};
 pub use crate::find::DeviceConfig;
 use crate::find::{expand_status, find_devices_in};
 use crate::list::list_devices_with;
+pub use crate::status::DeviceStatus;
 
 mod arch;
 #[cfg(feature = "blocking")]
