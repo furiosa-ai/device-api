@@ -1,8 +1,8 @@
+use lazy_static::lazy_static;
 use std::fs::FileType;
 use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
 
-use lazy_static::lazy_static;
 use regex::{Match, Regex};
 
 use crate::{DeviceError, DeviceResult};
@@ -12,8 +12,6 @@ lazy_static! {
     static ref DEVICE_FILE_PATTERN: Regex =
     Regex::new(r"^npu(?P<device_id>\d+)((?:pe)(?P<start_core>\d+)(-(?P<end_core>\d+))?)?$").unwrap();
 }
-
-const MATCH_PATTERN_NUM: usize = 6;
 
 pub(crate) fn path<P: AsRef<Path>>(base_path: P, filename: &str) -> PathBuf {
     base_path.as_ref().join(filename)
@@ -30,14 +28,10 @@ pub(crate) fn is_character_device(file_type: FileType) -> bool {
 
 pub(crate) fn parse_indices<S: AsRef<str>>(filename: S) -> DeviceResult<(u8, Vec<u8>)> {
     let name = filename.as_ref();
-    let matches = DEVICE_FILE_PATTERN.captures(name);
+    let matches = DEVICE_FILE_PATTERN
+        .captures(name)
+        .ok_or_else(|| DeviceError::unrecognized_file(name))?;
 
-    // exits earlier if the filename is not matched to the pattern
-    if matches.is_none() || matches.as_ref().map(|m| m.len()).unwrap_or(0) != MATCH_PATTERN_NUM {
-        return Err(DeviceError::unrecognized_file(name));
-    }
-
-    let matches = matches.unwrap(); // already checked above
     let device_id = parse_id(name, matches.name("device_id"));
     let core_start = parse_id(name, matches.name("start_core"));
     let end_core = parse_id(name, matches.name("end_core"));
@@ -70,14 +64,12 @@ mod tests {
     fn test_file_pattern() {
         let items = DEVICE_FILE_PATTERN.captures("npu0").unwrap();
 
-        assert_eq!(MATCH_PATTERN_NUM, items.len());
         assert_eq!("npu0", items.get(0).unwrap().as_str());
         assert_eq!("0", items.name("device_id").unwrap().as_str());
         assert!(items.name("start_core").is_none());
 
         // Only start_core
         let items = DEVICE_FILE_PATTERN.captures("npu0pe4").unwrap();
-        assert_eq!(MATCH_PATTERN_NUM, items.len());
         assert_eq!("npu0pe4", items.get(0).unwrap().as_str());
         assert_eq!("0", items.name("device_id").unwrap().as_str());
         assert_eq!("4", items.name("start_core").unwrap().as_str());
@@ -85,7 +77,6 @@ mod tests {
 
         // Only start_core - end_core
         let items = DEVICE_FILE_PATTERN.captures("npu0pe4-7").unwrap();
-        assert_eq!(MATCH_PATTERN_NUM, items.len());
         assert_eq!("npu0pe4-7", items.get(0).unwrap().as_str());
         assert_eq!("0", items.name("device_id").unwrap().as_str());
         assert_eq!("4", items.name("start_core").unwrap().as_str());
