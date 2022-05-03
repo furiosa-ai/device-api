@@ -20,20 +20,20 @@ pub enum DeviceError {
 }
 
 impl DeviceError {
-    pub fn file_not_found<F: Display>(file: F) -> DeviceError {
+    pub(crate) fn file_not_found<F: Display>(file: F) -> DeviceError {
         use io::ErrorKind;
         IoError {
             cause: io::Error::new(ErrorKind::NotFound, format!("{} not found", file)),
         }
     }
 
-    pub fn unrecognized_file<F: Display>(file: F) -> DeviceError {
+    pub(crate) fn unrecognized_file<F: Display>(file: F) -> DeviceError {
         IncompatibleDriver {
             cause: format!("{} file cannot be recognized", file),
         }
     }
 
-    pub fn invalid_device_file<F: Display>(file: F) -> DeviceError {
+    pub(crate) fn invalid_device_file<F: Display>(file: F) -> DeviceError {
         IncompatibleDriver {
             cause: format!("{} is not a valid device file", file),
         }
