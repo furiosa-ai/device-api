@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use strum_macros::{AsRefStr, EnumString};
 
+/// Enum for the NPU architecture.
 #[derive(AsRefStr, Clone, Copy, Debug, EnumString, Eq, PartialEq)]
 pub enum Arch {
     Warboy,

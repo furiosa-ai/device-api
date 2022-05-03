@@ -31,6 +31,7 @@ pub struct DeviceConfig {
 }
 
 impl DeviceConfig {
+    /// Returns a builder associated with Warboy NPUs.
     pub fn warboy() -> WarboyConfigBuilder {
         let builder = DeviceConfig {
             arch: Arch::Warboy,

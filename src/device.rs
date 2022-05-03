@@ -27,7 +27,7 @@ use crate::{devfs, sysfs, DeviceError, DeviceResult};
 /// above. They can be listed by calling [`dev_files`][Device::dev_files]
 /// method, which returns a list of [`DeviceFile`]s.
 /// Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
-/// identify its DeviceMode.
+/// identify its [`DeviceMode`].
 pub struct Device {
     device_index: u8,
     device_info: DeviceInfo,
@@ -60,6 +60,7 @@ impl Device {
         self.device_index
     }
 
+    /// Returns the `DeviceInfo` struct.
     pub fn device_info(&self) -> &DeviceInfo {
         &self.device_info
     }
@@ -217,6 +218,7 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
     }
 }
 
+/// Enum for NPU core status.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreStatus {
     Available,
@@ -314,6 +316,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
     }
 }
 
+/// Enum for NPU's operating mode.
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum DeviceMode {
     Single,
