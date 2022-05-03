@@ -5,6 +5,24 @@ use crate::arch::Arch;
 use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile, DeviceMode};
 use crate::error::DeviceResult;
 
+/// Describes a required set of devices for [`find_devices`][crate::find_devices].
+///
+/// # Examples
+/// ```rust
+/// use furiosa_device::DeviceConfig;
+///
+/// // 1 core
+/// DeviceConfig::warboy().build();
+///
+/// // 1 core x 2
+/// DeviceConfig::warboy().count(2);
+///
+/// // Fused 2 cores x 2
+/// DeviceConfig::warboy().fused().count(2);
+/// ```
+///
+/// See also [struct `Device`][`Device`].
+
 #[derive(Copy, Clone)]
 pub struct DeviceConfig {
     arch: Arch,
@@ -28,6 +46,7 @@ impl Default for DeviceConfig {
         DeviceConfig::warboy().fused().count(1)
     }
 }
+
 pub struct WarboyConfigBuilder(DeviceConfig);
 
 impl WarboyConfigBuilder {
