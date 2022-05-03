@@ -1,6 +1,11 @@
-use crate::{DeviceError, DeviceResult};
 use lazy_static::lazy_static;
+use std::fs::FileType;
+use std::os::unix::fs::FileTypeExt;
+use std::path::{Path, PathBuf};
+
 use regex::{Match, Regex};
+
+use crate::{DeviceError, DeviceResult};
 
 lazy_static! {
     // Update MATCH_PATTERN_NUM when you change this pattern
@@ -8,9 +13,23 @@ lazy_static! {
     Regex::new(r"^npu(?P<device_id>\d+)((?:pe)(?P<start_core>\d+)(-(?P<end_core>\d+))?)?$").unwrap();
 }
 
+pub(crate) fn path<P: AsRef<Path>>(base_path: P, filename: &str) -> PathBuf {
+    base_path.as_ref().join(filename)
+}
+
+pub(crate) fn is_character_device(file_type: FileType) -> bool {
+    // allow just a file too for unit testing
+    if cfg!(test) {
+        file_type.is_file()
+    } else {
+        file_type.is_char_device()
+    }
+}
+
 pub(crate) fn parse_indices<S: AsRef<str>>(filename: S) -> DeviceResult<(u8, Vec<u8>)> {
     let name = filename.as_ref();
-    let matches = DEVICE_FILE_PATTERN.captures(name)
+    let matches = DEVICE_FILE_PATTERN
+        .captures(name)
         .ok_or_else(|| DeviceError::unrecognized_file(name))?;
 
     let device_id = parse_id(name, matches.name("device_id"));
