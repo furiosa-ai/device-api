@@ -13,7 +13,12 @@ use crate::device::{Device, DeviceFile, DeviceInfo};
 use crate::error::DeviceResult;
 use crate::sysfs::npu_mgmt::{self, BUSNAME, DEV, DEVICE_TYPE, FW_VERSION, PLATFORM_TYPE};
 
-pub(crate) static MGMT_FILES: [&str; 4] = [DEVICE_TYPE, BUSNAME, DEV, FW_VERSION];
+pub(crate) static MGMT_FILES: [(&str, bool); 4] = [
+    (DEVICE_TYPE, true),
+    (BUSNAME, true),
+    (DEV, true),
+    (FW_VERSION, false),
+];
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
@@ -113,10 +118,17 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
 
 async fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
     let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-    for mgmt_file in MGMT_FILES {
+    for (mgmt_file, required) in MGMT_FILES {
         let path = npu_mgmt::path(sysfs, mgmt_file, idx);
         let contents = tokio::fs::read_to_string(&path)
             .await
+            .or_else(|err| {
+                if required {
+                    Err(err)
+                } else {
+                    Ok(String::new())
+                }
+            })
             .map(|s| s.trim().to_string())?;
         if mgmt_files.insert(mgmt_file, contents).is_some() {
             unreachable!("duplicate {} file at {}", mgmt_file, path.display());
