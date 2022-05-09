@@ -1,9 +1,13 @@
-//! A set of APIs to list and retrieve information of Furiosa NPU devices.
+//! A set of APIs to list and retrieve information of FuriosaAI's NPU devices.
 //! For more information, see <https://furiosa.ai>.
 //!
-//! # Dependencies
+//! # Before you start
 //!
-//! To be filled.
+//! FuriosaAI software components include kernel driver, firmware, runtime,
+//! C SDK, Python SDK, and command lines tools. Currently, we offer them for
+//! only users who register Early Access Program (EAP) and agree to
+//! End User Licence Agreement (EULA).
+//! Please contact <contact@furiosa.ai> to learn how to start the EAP.
 //!
 //! # Usage
 //!
