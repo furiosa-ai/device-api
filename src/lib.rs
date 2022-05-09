@@ -46,6 +46,9 @@
 //! let device = furiosa_device::get_device("npu0pe0").await?;
 //! ```
 
+// Allows displaying feature flags in the documentation.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 pub use crate::arch::Arch;
 pub use crate::device::{CoreStatus, Device, DeviceFile, DeviceMode};
 pub use crate::error::{DeviceError, DeviceResult};
@@ -55,6 +58,7 @@ use crate::list::list_devices_with;
 
 mod arch;
 #[cfg(feature = "blocking")]
+#[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 pub mod blocking;
 mod devfs;
 mod device;
