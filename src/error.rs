@@ -8,7 +8,7 @@ use crate::DeviceError::{IncompatibleDriver, IoError};
 /// Type alias for `Result<T, DeviceError>`.
 pub type DeviceResult<T> = Result<T, DeviceError>;
 
-/// An error that occurred during parsing or retreiving devices.
+/// An error that occurred during parsing or retrieving devices.
 #[derive(Debug, Error)]
 pub enum DeviceError {
     #[error("Device {name} not found")]
