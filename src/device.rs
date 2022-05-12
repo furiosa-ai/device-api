@@ -16,10 +16,16 @@ use crate::{devfs, sysfs, DeviceError, DeviceResult};
 ///
 /// # About Furiosa NPU
 ///
-/// A Furiosa NPU device contains a number of cores and offers several ways to
-/// utilize these cores. One can utilize them as individual processing
-/// units, fuse the cores for higher performance, or exploit the multicore
-/// mode with customized `send`/`recv` scheduling.
+/// A Furiosa NPU device contains a number of cores and offers several ways called
+/// [`DeviceMode`][crate::DeviceMode] to combine multiple cores to a single logical device,
+/// as following:
+/// * [`Single`][crate::DeviceMode::Single]: A logical device is composed of a single core.
+/// * [`Fusion`][crate::DeviceMode::Fusion]: Multiple cores work together as if
+///     they were one device. This mode is useful when a DNN model requires
+///      much computation power and large memory capacity.
+/// * [`MultiCore`][crate::DeviceMode::MultiCore]: A logical device uses multiple cores,
+///     each of which communicates to one another through interconnect.
+///     In this mode, partitions of a model or multiple models can be pipelined.
 /// (See [`DeviceConfig`][crate::DeviceConfig] and
 /// [`find_devices`][crate::find_devices]).
 ///
