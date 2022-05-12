@@ -48,6 +48,7 @@ impl Default for DeviceConfig {
     }
 }
 
+/// A builder struct for `DeviceConfig` with Warboy NPUs.
 pub struct WarboyConfigBuilder(DeviceConfig);
 
 impl WarboyConfigBuilder {
