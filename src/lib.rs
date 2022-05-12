@@ -1,13 +1,13 @@
 //! A set of APIs to list and retrieve information of FuriosaAI's NPU devices.
-//! For more information, see <https://furiosa.ai>.
+//! To learn more about FuriosaAI's NPU, please visit <https://furiosa.ai>.
 //!
 //! # Before you start
 //!
-//! FuriosaAI software components include kernel driver, firmware, runtime,
-//! C SDK, Python SDK, and command lines tools. Currently, we offer them for
-//! only users who register Early Access Program (EAP) and agree to
-//! End User Licence Agreement (EULA).
-//! Please contact <contact@furiosa.ai> to learn how to start the EAP.
+//! This crate requires FuriosaAI's NPU device and its kernel driver. Currently, FuriosaAI offers
+//! NPU devices for only users who register Early Access Program (EAP). Please contact
+//! <contact@furiosa.ai> to learn how to start the EAP. You can also refer to
+//! [Driver, Firmware, and Runtime Installation](https://furiosa-ai.github.io/docs/latest/en/software/installation.html)
+//! to learn the kernel driver installation.
 //!
 //! # Usage
 //!
@@ -28,12 +28,12 @@
 //! let devices = list_devices().await?;
 //! ```
 //!
-//! [Struct `Device`][`Device`] offers methods for further information of the
+//! [Struct `Device`][`Device`] offers methods for further information of each
 //! device.
 //!
-//! 2. If you have a desired configuration, describe it with [`DeviceConfig`]
-//! and pass it to [`find_devices`]. It will lookup and return a set of
-//! [`DeviceFile`]s, if available.
+//! 2. If you have a desired configuration, call [`find_devices`] with your device configuration
+//! described by a [`DeviceConfig`]. [`find_devices`] will return a list of
+//! [`DeviceFile`]s if there are matched devices.
 //! ```rust,ignore
 //! // Find two Warboy devices, fused.
 //! let config = DeviceConfig::warboy().fused().count(2);
