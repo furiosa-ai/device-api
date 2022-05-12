@@ -116,7 +116,7 @@ pub(crate) fn expand_status(devices: Vec<Device>) -> DeviceResult<Vec<DeviceWith
     Ok(new_devices)
 }
 
-pub fn get_device_status<P>(path: P) -> DeviceResult<DeviceStatus>
+fn get_device_status<P>(path: P) -> DeviceResult<DeviceStatus>
 where
     P: AsRef<Path>,
 {
