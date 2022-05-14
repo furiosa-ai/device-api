@@ -17,7 +17,7 @@ jobs:
       - name: Install components
         run: rustup component add clippy rustfmt
       - name: lint
-        run: cargo fmt --all && cargo -q clippy --all-targets --features blocking -- -D rust_2018_idioms
+        run: cargo fmt --all --check && cargo -q clippy --all-targets --features blocking -- -D rust_2018_idioms -D warnings
       - name: Run build
         run: cargo build --features blocking
       - name: Run tests

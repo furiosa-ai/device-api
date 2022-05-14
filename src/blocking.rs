@@ -95,9 +95,17 @@ fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
 
 fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
     let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-    for mgmt_file in MGMT_FILES {
+    for (mgmt_file, required) in MGMT_FILES {
         let path = npu_mgmt::path(sysfs, mgmt_file, idx);
-        let contents = std::fs::read_to_string(&path).map(|s| s.trim().to_string())?;
+        let contents = std::fs::read_to_string(&path)
+            .or_else(|err| {
+                if required {
+                    Err(err)
+                } else {
+                    Ok(String::new())
+                }
+            })
+            .map(|s| s.trim().to_string())?;
         if mgmt_files.insert(mgmt_file, contents).is_some() {
             unreachable!("duplicate {} file at {}", mgmt_file, path.display());
         }
