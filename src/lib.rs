@@ -25,7 +25,7 @@
 //! 1. [`list_devices`] enumerates all Furiosa NPU devices in the system.
 //! One can simply call as below:
 //! ```rust,ignore
-//! let devices = list_devices().await?;
+//! let devices = furiosa_device::list_devices().await?;
 //! ```
 //!
 //! [Struct `Device`][`Device`] offers methods for further information of each
@@ -35,6 +35,8 @@
 //! described by a [`DeviceConfig`]. [`find_devices`] will return a list of
 //! [`DeviceFile`]s if there are matched devices.
 //! ```rust,ignore
+//! use furiosa_device::{DeviceConfig, find_devices};
+//!
 //! // Find two Warboy devices, fused.
 //! let config = DeviceConfig::warboy().fused().count(2);
 //! let dev_files = find_devices(&config).await?;
