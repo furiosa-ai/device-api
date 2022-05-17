@@ -323,7 +323,8 @@ impl TryFrom<&PathBuf> for DeviceFile {
 }
 
 /// Enum for NPU's operating mode.
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, enum_utils::FromStr)]
+#[enumeration(case_insensitive)]
 pub enum DeviceMode {
     Single,
     Fusion,
@@ -395,5 +396,16 @@ mod tests {
             format!("{}", CoreStatus::Occupied(String::from("npu0pe0"))),
             "occupied by npu0pe0"
         );
+    }
+
+    #[test]
+    fn test_device_mode_from_str() {
+        assert_eq!("single".parse(), Ok(DeviceMode::Single));
+        assert_eq!("SiNgLe".parse(), Ok(DeviceMode::Single));
+        assert_eq!("fusion".parse(), Ok(DeviceMode::Fusion));
+        assert_eq!("fUsIoN".parse(), Ok(DeviceMode::Fusion));
+        assert_eq!("multicore".parse(), Ok(DeviceMode::MultiCore));
+        assert_eq!("MultiCore".parse(), Ok(DeviceMode::MultiCore));
+        assert_eq!("invalid".parse::<DeviceMode>(), Err(()));
     }
 }
