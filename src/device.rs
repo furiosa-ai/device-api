@@ -11,6 +11,29 @@ use crate::status::{get_device_status, DeviceStatus};
 use crate::{devfs, sysfs, DeviceError, DeviceResult};
 
 #[derive(Debug, Eq, PartialEq)]
+
+/// Abstraction for a single Furiosa NPU device.
+///
+/// # About Furiosa NPU
+///
+/// A Furiosa NPU device contains a number of cores and offers several ways called
+/// [`DeviceMode`][crate::DeviceMode] to combine multiple cores to a single logical device,
+/// as following:
+/// * [`Single`][crate::DeviceMode::Single]: A logical device is composed of a single core.
+/// * [`Fusion`][crate::DeviceMode::Fusion]: Multiple cores work together as if
+///     they were one device. This mode is useful when a DNN model requires
+///      much computation power and large memory capacity.
+/// * [`MultiCore`][crate::DeviceMode::MultiCore]: A logical device uses multiple cores,
+///     each of which communicates to one another through interconnect.
+///     In this mode, partitions of a model or multiple models can be pipelined.
+/// (See [`DeviceConfig`][crate::DeviceConfig] and
+/// [`find_devices`][crate::find_devices]).
+///
+/// Hence a Furiosa NPU device exposes several devfs files for each purpose
+/// above. They can be listed by calling [`dev_files`][Device::dev_files]
+/// method, which returns a list of [`DeviceFile`]s.
+/// Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
+/// identify its [`DeviceMode`].
 pub struct Device {
     device_index: u8,
     device_info: DeviceInfo,
@@ -33,46 +56,57 @@ impl Device {
         }
     }
 
+    /// Returns the name of the device (e.g., npu0).
     pub fn name(&self) -> String {
         format!("npu{}", self.device_index)
     }
 
+    /// Returns the device index (e.g., 0 for npu0).
     pub fn device_index(&self) -> u8 {
         self.device_index
     }
 
+    /// Returns the `DeviceInfo` struct.
     pub fn device_info(&self) -> &DeviceInfo {
         &self.device_info
     }
 
+    /// Returns `Arch` of the device(e.g., `Warboy`).
     pub fn arch(&self) -> Arch {
         self.device_info().arch()
     }
 
+    /// Returns PCI bus number of the device.
     pub fn busname(&self) -> Option<&str> {
         self.device_info().busname()
     }
 
+    /// Returns PCI device ID of the device.
     pub fn pci_dev(&self) -> Option<&str> {
         self.device_info().pci_dev()
     }
 
+    /// Retrieves firmware revision from the device.
     pub fn firmware_version(&self) -> Option<&str> {
         self.device_info().firmware_version()
     }
 
+    /// Counts the number of cores.
     pub fn core_num(&self) -> u8 {
         u8::try_from(self.cores.len()).unwrap()
     }
 
+    /// List the core indices.
     pub fn cores(&self) -> &Vec<CoreIdx> {
         &self.cores
     }
 
+    /// List device files under this device.
     pub fn dev_files(&self) -> &Vec<DeviceFile> {
         &self.dev_files
     }
 
+    /// Examine a specific core of the device, whether it is available or not.
     pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
         for file in &self.dev_files {
             if (file.is_multicore() || file.core_indices().contains(&core))
@@ -84,6 +118,7 @@ impl Device {
         Ok(CoreStatus::Available)
     }
 
+    /// Examine each core of the device, whether it is available or not.
     pub async fn get_status_all(&self) -> DeviceResult<HashMap<CoreIdx, CoreStatus>> {
         let mut status_map = self.new_status_map();
 
@@ -189,6 +224,7 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
     }
 }
 
+/// Enum for NPU core status.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreStatus {
     Available,
@@ -208,6 +244,7 @@ impl Display for CoreStatus {
 
 pub(crate) type CoreIdx = u8;
 
+/// An abstraction for a device file and its mode.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct DeviceFile {
     pub(crate) device_index: u8,
@@ -223,10 +260,12 @@ impl Display for DeviceFile {
 }
 
 impl DeviceFile {
+    /// Returns `PathBuf` to the device file.
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
 
+    /// Returns the file name (e.g., npu0pe0 for /dev/npu0pe0).
     pub fn filename(&self) -> &str {
         // We should guarantee that it returns a filename
         self.path
@@ -236,14 +275,17 @@ impl DeviceFile {
             .expect("invalid UTF-8 encoding")
     }
 
+    /// Returns the device index (e.g., 1 for npu1pe0).
     pub fn device_index(&self) -> u8 {
         self.device_index
     }
 
+    /// Returns indices of cores this device file may occupy.
     pub fn core_indices(&self) -> &Vec<CoreIdx> {
         &self.core_indices
     }
 
+    /// Return the mode of this device file.
     pub fn mode(&self) -> DeviceMode {
         self.mode
     }
@@ -280,6 +322,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
     }
 }
 
+/// Enum for NPU's operating mode.
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum DeviceMode {
     Single,

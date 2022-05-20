@@ -1,3 +1,5 @@
+//! A set of synchronous APIs. This requires the optional blocking feature to be enabled.
+
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -12,10 +14,12 @@ use crate::sysfs::npu_mgmt;
 use crate::sysfs::npu_mgmt::PLATFORM_TYPE;
 use crate::{devfs, find_devices_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult};
 
+/// List all Furiosa NPU devices in the system.
 pub fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys")
 }
 
+/// Find a set of devices with specific configuration.
 pub fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
     let devices = expand_status(list_devices()?)?;
     find_devices_in(config, &devices)
@@ -120,7 +124,7 @@ pub(crate) fn expand_status(devices: Vec<Device>) -> DeviceResult<Vec<DeviceWith
     Ok(new_devices)
 }
 
-pub fn get_device_status<P>(path: P) -> DeviceResult<DeviceStatus>
+fn get_device_status<P>(path: P) -> DeviceResult<DeviceStatus>
 where
     P: AsRef<Path>,
 {
@@ -138,6 +142,7 @@ where
     }
 }
 
+/// Examine each core of the device, whether it is available or not.
 pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStatus>> {
     let mut status_map = device.new_status_map();
 

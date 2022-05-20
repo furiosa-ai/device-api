@@ -1,12 +1,14 @@
 use std::fmt::{Display, Formatter};
 use strum_macros::{AsRefStr, EnumString};
 
+/// Enum for the NPU architecture.
 #[derive(AsRefStr, Clone, Copy, Debug, EnumString, Eq, PartialEq)]
 pub enum Arch {
     Warboy,
     WarboyB0,
     Renegade,
-    U250, // TODO - It's somewhat ambiguous. We need two attributes to distinguish both HW type and NPU family.
+    U250, /* TODO - It's somewhat ambiguous. We need two attributes to distinguish both HW type
+           * and NPU family. */
 }
 
 impl Display for Arch {
