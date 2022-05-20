@@ -7,6 +7,7 @@ description = "APIs that offer FuriosaAI NPU devices' information and allow to c
 license = "Apache-2.0"
 homepage = "https://furiosa.ai"
 repository = "https://github.com/furiosa-ai/device-api"
+readme = "README.md"
 
 [features]
 blocking = [] # Enable blocking APIs
