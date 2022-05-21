@@ -25,17 +25,17 @@ required-features = ["blocking"]
 [dependencies]
 array_tool = "1"
 cli-table = "0.4"
-lazy_static = "1.4"
 enum-display-derive = "0.1"
 enum-utils = "0.1.2"
 itertools = "0.10"
+lazy_static = "1.4"
 regex = "1.5"
 strum = "0.24"
 strum_macros = "0.24"
 thiserror = "1"
+tokio = { version = "1.17.0", features = ["fs", "rt-multi-thread", "macros"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter", "json"] }
-tokio = { version = "1.17.0", features = ["fs", "rt-multi-thread", "macros"] }
 
 [package.metadata.docs.rs]
 all-features = true
