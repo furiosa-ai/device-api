@@ -14,7 +14,7 @@
 //! Add this to your 'Cargo.toml':
 //! ```toml
 //! [dependencies]
-//! furiosa_device = "0.1"
+//! furiosa-device = "0.1"
 //! ```
 //!
 //! ## Listing devices from the system
