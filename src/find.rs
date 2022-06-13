@@ -1,5 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
+use std::str::FromStr;
+
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::character::complete::digit1;
+use nom::combinator::{all_consuming, map, map_res, opt};
+use nom::sequence::{delimited, separated_pair};
+use nom::Parser;
 
 use crate::arch::Arch;
 use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile, DeviceMode};
@@ -24,12 +32,21 @@ use crate::error::DeviceResult;
 /// See also [struct `Device`][`Device`].
 #[derive(Copy, Clone)]
 pub enum DeviceConfig {
-    NamedDeviceConfig,
+    NamedDeviceConfig {
+        device_id: u8,
+        core_id: CoreId,
+    },
     UnnamedDeviceConfig {
         arch: Arch,
         mode: DeviceMode,
         count: u8,
     },
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CoreId {
+    Id(u8),
+    Range(u8, u8),
 }
 
 impl DeviceConfig {
@@ -46,6 +63,58 @@ impl DeviceConfig {
 impl Default for DeviceConfig {
     fn default() -> Self {
         DeviceConfig::warboy().fused().count(1)
+    }
+}
+
+impl FromStr for DeviceConfig {
+    type Err = nom::Err<()>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // try parsing named configs, from patterns e.g., "0:0" or "0:0-1"
+        let parsed_named = all_consuming::<_, _, (), _>(separated_pair(
+            map_res(digit1, |s: &str| s.parse::<u8>()),
+            tag(":"),
+            alt((
+                map(
+                    separated_pair(
+                        map_res(digit1, |s: &str| s.parse::<u8>()),
+                        tag("-"),
+                        map_res(digit1, |s: &str| s.parse::<u8>()),
+                    ),
+                    |(s, e)| CoreId::Range(s, e),
+                ),
+                map(map_res(digit1, |s: &str| s.parse::<u8>()), |idx| {
+                    CoreId::Id(idx)
+                }),
+            )),
+        ))(s);
+
+        match parsed_named {
+            Ok((_, (device_id, core_id))) => {
+                Ok(DeviceConfig::NamedDeviceConfig { device_id, core_id })
+            }
+            Err(_) => {
+                // try parsing unnamed configs, from patterns e.g., "warboy*1" or "warboy(1)*2"
+                let (_, ((arch, mode), count)) = all_consuming(separated_pair(
+                    map_res(tag("warboy"), |s: &str| s.parse::<Arch>()).and(opt(delimited(
+                        tag("("),
+                        map_res(digit1, |s: &str| s.parse::<u8>()),
+                        tag(")"),
+                    ))),
+                    tag("*"),
+                    map_res(digit1, |s: &str| s.parse::<u8>()),
+                ))(s)?;
+                let mode = match mode {
+                    None => Ok(DeviceMode::MultiCore),
+                    Some(1) => Ok(DeviceMode::Single),
+                    // TODO: Improve below
+                    Some(2) => Ok(DeviceMode::Fusion),
+                    _ => Err(Self::Err::Failure(())),
+                }?;
+
+                Ok(DeviceConfig::UnnamedDeviceConfig { arch, mode, count })
+            }
+        }
     }
 }
 
@@ -129,7 +198,10 @@ pub(crate) fn find_devices_in(
 
     let (&config_arch, &config_mode, &config_count) = match config {
         // TODO: implementation
-        DeviceConfig::NamedDeviceConfig => unimplemented!(),
+        DeviceConfig::NamedDeviceConfig {
+            device_id: _,
+            core_id: _,
+        } => unimplemented!(),
         DeviceConfig::UnnamedDeviceConfig { arch, mode, count } => (arch, mode, count),
     };
 
@@ -211,6 +283,32 @@ mod tests {
         let config = DeviceConfig::warboy().fused().count(3);
         let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found, vec![]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_from_named_text_repr() -> Result<(), nom::Err<()>> {
+        assert!("0".parse::<DeviceConfig>().is_err());
+        assert!("0:".parse::<DeviceConfig>().is_err());
+        assert!(":0".parse::<DeviceConfig>().is_err());
+        assert!("0:0".parse::<DeviceConfig>().is_ok());
+        assert!("0:1".parse::<DeviceConfig>().is_ok());
+        assert!("1:1".parse::<DeviceConfig>().is_ok());
+        assert!("0:0-1".parse::<DeviceConfig>().is_ok());
+        assert!("0:0-1-".parse::<DeviceConfig>().is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_from_unnamed_text_repr() -> Result<(), nom::Err<()>> {
+        assert!("warboy".parse::<DeviceConfig>().is_err());
+        assert!("warboy*".parse::<DeviceConfig>().is_err());
+        assert!("*1".parse::<DeviceConfig>().is_err());
+        assert!("some_npu*10".parse::<DeviceConfig>().is_err());
+        assert!("warboy*12".parse::<DeviceConfig>().is_ok());
+        //        assert!("npu*10".parse::<DeviceConfig>().is_ok());
 
         Ok(())
     }
