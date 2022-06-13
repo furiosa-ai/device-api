@@ -30,7 +30,7 @@ use crate::error::DeviceResult;
 /// ```
 ///
 /// See also [struct `Device`][`Device`].
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DeviceConfig {
     NamedDeviceConfig {
         device_id: u8,
@@ -292,11 +292,36 @@ mod tests {
         assert!("0".parse::<DeviceConfig>().is_err());
         assert!("0:".parse::<DeviceConfig>().is_err());
         assert!(":0".parse::<DeviceConfig>().is_err());
-        assert!("0:0".parse::<DeviceConfig>().is_ok());
-        assert!("0:1".parse::<DeviceConfig>().is_ok());
-        assert!("1:1".parse::<DeviceConfig>().is_ok());
-        assert!("0:0-1".parse::<DeviceConfig>().is_ok());
         assert!("0:0-1-".parse::<DeviceConfig>().is_err());
+
+        assert_eq!(
+            "0:0".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::NamedDeviceConfig {
+                device_id: 0,
+                core_id: CoreId::Id(0)
+            })
+        );
+        assert_eq!(
+            "0:1".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::NamedDeviceConfig {
+                device_id: 0,
+                core_id: CoreId::Id(1)
+            })
+        );
+        assert_eq!(
+            "1:1".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::NamedDeviceConfig {
+                device_id: 1,
+                core_id: CoreId::Id(1)
+            })
+        );
+        assert_eq!(
+            "0:0-1".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::NamedDeviceConfig {
+                device_id: 0,
+                core_id: CoreId::Range(0, 1)
+            })
+        );
 
         Ok(())
     }
@@ -307,8 +332,32 @@ mod tests {
         assert!("warboy*".parse::<DeviceConfig>().is_err());
         assert!("*1".parse::<DeviceConfig>().is_err());
         assert!("some_npu*10".parse::<DeviceConfig>().is_err());
-        assert!("warboy*12".parse::<DeviceConfig>().is_ok());
-        //        assert!("npu*10".parse::<DeviceConfig>().is_ok());
+        assert!("warboy(2*10".parse::<DeviceConfig>().is_err());
+        assert_eq!(
+            "warboy(1)*2".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::UnnamedDeviceConfig {
+                arch: Arch::Warboy,
+                mode: DeviceMode::Single,
+                count: 2
+            })
+        );
+        assert_eq!(
+            "warboy(2)*4".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::UnnamedDeviceConfig {
+                arch: Arch::Warboy,
+                mode: DeviceMode::Fusion,
+                count: 4
+            })
+        );
+        assert_eq!(
+            "warboy*12".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::UnnamedDeviceConfig {
+                arch: Arch::Warboy,
+                mode: DeviceMode::MultiCore,
+                count: 12
+            })
+        );
+        // assert!("npu*10".parse::<DeviceConfig>().is_ok());
 
         Ok(())
     }
