@@ -11,7 +11,7 @@ use nom::Parser;
 
 use crate::arch::Arch;
 use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile, DeviceMode};
-use crate::error::DeviceResult;
+use crate::error::{DeviceError, DeviceResult};
 
 /// Describes a required set of devices for [`find_devices`][crate::find_devices].
 ///
@@ -32,6 +32,7 @@ use crate::error::DeviceResult;
 /// See also [struct `Device`][`Device`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DeviceConfig {
+    // TODO: Named cannot describe MultiCore yet.
     Named {
         device_id: u8,
         core_id: CoreId,
@@ -47,6 +48,15 @@ pub enum DeviceConfig {
 pub enum CoreId {
     Id(u8),
     Range(u8, u8),
+}
+
+impl CoreId {
+    fn iter(&self) -> impl Iterator<Item = u8> {
+        match self {
+            Self::Id(id) => *id..=*id,
+            Self::Range(s, e) => *s..=*e,
+        }
+    }
 }
 
 impl DeviceConfig {
@@ -195,11 +205,35 @@ pub(crate) fn find_devices_in(
     }
 
     let (&config_arch, &config_mode, &config_count) = match config {
-        // TODO: implementation
-        DeviceConfig::Named {
-            device_id: _,
-            core_id: _,
-        } => unimplemented!(),
+        DeviceConfig::Named { device_id, core_id } => {
+            let mut parent = None;
+            for device in devices {
+                if device.device_index() == *device_id {
+                    parent = Some(device);
+                }
+            }
+
+            if let Some(parent) = parent {
+                for dev_file in parent.dev_files().iter() {
+                    if dev_file
+                        .core_indices()
+                        .iter()
+                        .map(|x| *x)
+                        .collect::<HashSet<u8>>()
+                        == core_id.iter().collect::<HashSet<u8>>()
+                    {
+                        for idx in dev_file.core_indices() {
+                            if allocated.get(&dev_file.device_index()).unwrap().contains(idx) {
+                                return Ok(vec![]);
+                            }
+                        }
+                        return Ok(vec![dev_file.clone()]);
+                    }
+                }
+            }
+
+            return Err(DeviceError::DeviceNotFound { name: format!("dev_id: {:?}, core_id: {:?}", device_id, core_id) });
+        }
         DeviceConfig::Unnamed { arch, mode, count } => (arch, mode, count),
     };
 
