@@ -32,11 +32,11 @@ use crate::error::DeviceResult;
 /// See also [struct `Device`][`Device`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DeviceConfig {
-    NamedDeviceConfig {
+    Named {
         device_id: u8,
         core_id: CoreId,
     },
-    UnnamedDeviceConfig {
+    Unnamed {
         arch: Arch,
         mode: DeviceMode,
         count: u8,
@@ -90,9 +90,7 @@ impl FromStr for DeviceConfig {
         ))(s);
 
         match parsed_named {
-            Ok((_, (device_id, core_id))) => {
-                Ok(DeviceConfig::NamedDeviceConfig { device_id, core_id })
-            }
+            Ok((_, (device_id, core_id))) => Ok(DeviceConfig::Named { device_id, core_id }),
             Err(_) => {
                 // try parsing unnamed configs, from patterns e.g., "warboy*1" or "warboy(1)*2"
                 let (_, ((arch, mode), count)) = all_consuming(separated_pair(
@@ -112,7 +110,7 @@ impl FromStr for DeviceConfig {
                     _ => Err(Self::Err::Failure(())),
                 }?;
 
-                Ok(DeviceConfig::UnnamedDeviceConfig { arch, mode, count })
+                Ok(DeviceConfig::Unnamed { arch, mode, count })
             }
         }
     }
@@ -138,7 +136,7 @@ impl WarboyConfigBuilder {
 
     pub fn count(mut self, count: u8) -> DeviceConfig {
         self.count = count;
-        DeviceConfig::UnnamedDeviceConfig {
+        DeviceConfig::Unnamed {
             arch: self.arch,
             mode: self.mode,
             count: self.count,
@@ -146,7 +144,7 @@ impl WarboyConfigBuilder {
     }
 
     pub fn build(self) -> DeviceConfig {
-        DeviceConfig::UnnamedDeviceConfig {
+        DeviceConfig::Unnamed {
             arch: self.arch,
             mode: self.mode,
             count: self.count,
@@ -198,11 +196,11 @@ pub(crate) fn find_devices_in(
 
     let (&config_arch, &config_mode, &config_count) = match config {
         // TODO: implementation
-        DeviceConfig::NamedDeviceConfig {
+        DeviceConfig::Named {
             device_id: _,
             core_id: _,
         } => unimplemented!(),
-        DeviceConfig::UnnamedDeviceConfig { arch, mode, count } => (arch, mode, count),
+        DeviceConfig::Unnamed { arch, mode, count } => (arch, mode, count),
     };
 
     let mut found: Vec<DeviceFile> = Vec::with_capacity(config_count.into());
@@ -296,28 +294,28 @@ mod tests {
 
         assert_eq!(
             "0:0".parse::<DeviceConfig>(),
-            Ok(DeviceConfig::NamedDeviceConfig {
+            Ok(DeviceConfig::Named {
                 device_id: 0,
                 core_id: CoreId::Id(0)
             })
         );
         assert_eq!(
             "0:1".parse::<DeviceConfig>(),
-            Ok(DeviceConfig::NamedDeviceConfig {
+            Ok(DeviceConfig::Named {
                 device_id: 0,
                 core_id: CoreId::Id(1)
             })
         );
         assert_eq!(
             "1:1".parse::<DeviceConfig>(),
-            Ok(DeviceConfig::NamedDeviceConfig {
+            Ok(DeviceConfig::Named {
                 device_id: 1,
                 core_id: CoreId::Id(1)
             })
         );
         assert_eq!(
             "0:0-1".parse::<DeviceConfig>(),
-            Ok(DeviceConfig::NamedDeviceConfig {
+            Ok(DeviceConfig::Named {
                 device_id: 0,
                 core_id: CoreId::Range(0, 1)
             })
@@ -335,7 +333,7 @@ mod tests {
         assert!("warboy(2*10".parse::<DeviceConfig>().is_err());
         assert_eq!(
             "warboy(1)*2".parse::<DeviceConfig>(),
-            Ok(DeviceConfig::UnnamedDeviceConfig {
+            Ok(DeviceConfig::Unnamed {
                 arch: Arch::Warboy,
                 mode: DeviceMode::Single,
                 count: 2
@@ -343,7 +341,7 @@ mod tests {
         );
         assert_eq!(
             "warboy(2)*4".parse::<DeviceConfig>(),
-            Ok(DeviceConfig::UnnamedDeviceConfig {
+            Ok(DeviceConfig::Unnamed {
                 arch: Arch::Warboy,
                 mode: DeviceMode::Fusion,
                 count: 4
@@ -351,7 +349,7 @@ mod tests {
         );
         assert_eq!(
             "warboy*12".parse::<DeviceConfig>(),
-            Ok(DeviceConfig::UnnamedDeviceConfig {
+            Ok(DeviceConfig::Unnamed {
                 arch: Arch::Warboy,
                 mode: DeviceMode::MultiCore,
                 count: 12
