@@ -202,7 +202,7 @@ mod tests {
         let devices_with_statuses = expand_status(devices).await?;
 
         // try lookup 4 different single cores
-        let config = DeviceConfig::warboy().count(4);
+        let config = DeviceConfig::warboy().single().count(4);
         let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
@@ -211,7 +211,7 @@ mod tests {
         assert_eq!(found[3].filename(), "npu1pe1");
 
         // looking for 5 different cores should fail
-        let config = DeviceConfig::warboy().count(5);
+        let config = DeviceConfig::warboy().single().count(5);
         let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found, vec![]);
 
