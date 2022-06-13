@@ -218,12 +218,16 @@ pub(crate) fn find_devices_in(
                     if dev_file
                         .core_indices()
                         .iter()
-                        .map(|x| *x)
+                        .copied()
                         .collect::<HashSet<u8>>()
                         == core_id.iter().collect::<HashSet<u8>>()
                     {
                         for idx in dev_file.core_indices() {
-                            if allocated.get(&dev_file.device_index()).unwrap().contains(idx) {
+                            if allocated
+                                .get(&dev_file.device_index())
+                                .unwrap()
+                                .contains(idx)
+                            {
                                 return Ok(vec![]);
                             }
                         }
@@ -232,7 +236,9 @@ pub(crate) fn find_devices_in(
                 }
             }
 
-            return Err(DeviceError::DeviceNotFound { name: format!("dev_id: {:?}, core_id: {:?}", device_id, core_id) });
+            return Err(DeviceError::DeviceNotFound {
+                name: format!("dev_id: {:?}, core_id: {:?}", device_id, core_id),
+            });
         }
         DeviceConfig::Unnamed { arch, mode, count } => (arch, mode, count),
     };
