@@ -22,23 +22,24 @@ use crate::error::DeviceResult;
 /// ```
 ///
 /// See also [struct `Device`][`Device`].
-
 #[derive(Copy, Clone)]
-pub struct DeviceConfig {
-    arch: Arch,
-    mode: DeviceMode,
-    count: u8,
+pub enum DeviceConfig {
+    NamedDeviceConfig,
+    UnnamedDeviceConfig {
+        arch: Arch,
+        mode: DeviceMode,
+        count: u8,
+    },
 }
 
 impl DeviceConfig {
     /// Returns a builder associated with Warboy NPUs.
     pub fn warboy() -> WarboyConfigBuilder {
-        let builder = DeviceConfig {
+        WarboyConfigBuilder {
             arch: Arch::Warboy,
             mode: DeviceMode::Single,
             count: 1,
-        };
-        WarboyConfigBuilder(builder)
+        }
     }
 }
 
@@ -49,26 +50,38 @@ impl Default for DeviceConfig {
 }
 
 /// A builder struct for `DeviceConfig` with Warboy NPUs.
-pub struct WarboyConfigBuilder(DeviceConfig);
+pub struct WarboyConfigBuilder {
+    arch: Arch,
+    mode: DeviceMode,
+    count: u8,
+}
 
 impl WarboyConfigBuilder {
     pub fn multicore(mut self) -> Self {
-        self.0.mode = DeviceMode::MultiCore;
+        self.mode = DeviceMode::MultiCore;
         self
     }
 
     pub fn fused(mut self) -> Self {
-        self.0.mode = DeviceMode::Fusion;
+        self.mode = DeviceMode::Fusion;
         self
     }
 
     pub fn count(mut self, count: u8) -> DeviceConfig {
-        self.0.count = count;
-        self.0
+        self.count = count;
+        DeviceConfig::UnnamedDeviceConfig {
+            arch: self.arch,
+            mode: self.mode,
+            count: self.count,
+        }
     }
 
     pub fn build(self) -> DeviceConfig {
-        self.0
+        DeviceConfig::UnnamedDeviceConfig {
+            arch: self.arch,
+            mode: self.mode,
+            count: self.count,
+        }
     }
 }
 
@@ -114,15 +127,21 @@ pub(crate) fn find_devices_in(
         );
     }
 
-    let mut found: Vec<DeviceFile> = Vec::with_capacity(config.count.into());
+    let (&config_arch, &config_mode, &config_count) = match config {
+        // TODO: implementation
+        DeviceConfig::NamedDeviceConfig => unimplemented!(),
+        DeviceConfig::UnnamedDeviceConfig { arch, mode, count } => (arch, mode, count),
+    };
 
-    'outer: for _ in 0..config.count {
+    let mut found: Vec<DeviceFile> = Vec::with_capacity(config_count.into());
+
+    'outer: for _ in 0..config_count {
         for device in devices {
-            if config.arch != device.arch() {
+            if config_arch != device.arch() {
                 continue;
             }
             // early exit for multicore
-            if config.mode == DeviceMode::MultiCore
+            if config_mode == DeviceMode::MultiCore
                 && !allocated.get(&device.device_index()).unwrap().is_empty()
             {
                 continue;
@@ -131,7 +150,7 @@ pub(crate) fn find_devices_in(
             'inner: for dev_file in device
                 .dev_files()
                 .iter()
-                .filter(|d| d.mode() == config.mode)
+                .filter(|d| d.mode() == config_mode)
             {
                 for idx in dev_file.core_indices() {
                     if allocated.get(&device.device_index()).unwrap().contains(idx) {
