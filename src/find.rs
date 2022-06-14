@@ -80,22 +80,19 @@ impl FromStr for DeviceConfig {
     type Err = nom::Err<()>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        fn digit_to_u8<'a>() -> impl FnMut(&'a str) -> nom::IResult<&'a str, u8, ()> {
+            map_res(digit1, |s: &str| s.parse::<u8>())
+        }
         // try parsing named configs, from patterns e.g., "0:0" or "0:0-1"
         let parsed_named = all_consuming::<_, _, (), _>(separated_pair(
-            map_res(digit1, |s: &str| s.parse::<u8>()),
+            digit_to_u8(),
             tag(":"),
             alt((
                 map(
-                    separated_pair(
-                        map_res(digit1, |s: &str| s.parse::<u8>()),
-                        tag("-"),
-                        map_res(digit1, |s: &str| s.parse::<u8>()),
-                    ),
+                    separated_pair(digit_to_u8(), tag("-"), digit_to_u8()),
                     |(s, e)| CoreId::Range(s, e),
                 ),
-                map(map_res(digit1, |s: &str| s.parse::<u8>()), |idx| {
-                    CoreId::Id(idx)
-                }),
+                map(digit_to_u8(), CoreId::Id),
             )),
         ))(s);
 
@@ -106,11 +103,11 @@ impl FromStr for DeviceConfig {
                 let (_, ((arch, mode), count)) = all_consuming(separated_pair(
                     map_res(tag("warboy"), |s: &str| s.parse::<Arch>()).and(opt(delimited(
                         tag("("),
-                        map_res(digit1, |s: &str| s.parse::<u8>()),
+                        digit_to_u8(),
                         tag(")"),
                     ))),
                     tag("*"),
-                    map_res(digit1, |s: &str| s.parse::<u8>()),
+                    digit_to_u8(),
                 ))(s)?;
                 let mode = match mode {
                     None => Ok(DeviceMode::MultiCore),
