@@ -88,9 +88,15 @@ impl FromStr for DeviceConfig {
             digit_to_u8(),
             tag(":"),
             alt((
-                map(
+                map_res(
                     separated_pair(digit_to_u8(), tag("-"), digit_to_u8()),
-                    |(s, e)| CoreId::Range(s, e),
+                    |(s, e)| {
+                        if s < e {
+                            Ok(CoreId::Range(s, e))
+                        } else {
+                            Err(Self::Err::Failure(()))
+                        }
+                    },
                 ),
                 map(digit_to_u8(), CoreId::Id),
             )),
@@ -328,6 +334,7 @@ mod tests {
         assert!("0:".parse::<DeviceConfig>().is_err());
         assert!(":0".parse::<DeviceConfig>().is_err());
         assert!("0:0-1-".parse::<DeviceConfig>().is_err());
+        assert!("0:1-0".parse::<DeviceConfig>().is_err());
 
         assert_eq!(
             "0:0".parse::<DeviceConfig>(),
