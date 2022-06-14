@@ -55,7 +55,7 @@ pub use crate::arch::Arch;
 pub use crate::device::{CoreStatus, Device, DeviceFile, DeviceMode};
 pub use crate::error::{DeviceError, DeviceResult};
 use crate::find::{expand_status, find_devices_in};
-pub use crate::find::{DeviceConfig, WarboyConfigBuilder};
+pub use crate::find::{DeviceConfig, DeviceConfigBuilder};
 use crate::list::list_devices_with;
 
 mod arch;

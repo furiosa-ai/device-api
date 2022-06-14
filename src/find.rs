@@ -32,13 +32,12 @@ pub struct DeviceConfig {
 
 impl DeviceConfig {
     /// Returns a builder associated with Warboy NPUs.
-    pub fn warboy() -> WarboyConfigBuilder {
-        let builder = DeviceConfig {
+    pub fn warboy() -> DeviceConfigBuilder<NotDetermined> {
+        DeviceConfigBuilder {
             arch: Arch::Warboy,
-            mode: DeviceMode::Single,
+            mode: NotDetermined,
             count: 1,
-        };
-        WarboyConfigBuilder(builder)
+        }
     }
 }
 
@@ -48,27 +47,62 @@ impl Default for DeviceConfig {
     }
 }
 
-/// A builder struct for `DeviceConfig` with Warboy NPUs.
-pub struct WarboyConfigBuilder(DeviceConfig);
+pub struct NotDetermined;
 
-impl WarboyConfigBuilder {
-    pub fn multicore(mut self) -> Self {
-        self.0.mode = DeviceMode::MultiCore;
-        self
+impl From<NotDetermined> for DeviceMode {
+    fn from(_: NotDetermined) -> Self {
+        DeviceMode::Fusion
+    }
+}
+
+/// A builder struct for `DeviceConfig`.
+pub struct DeviceConfigBuilder<M> {
+    arch: Arch,
+    mode: M,
+    count: u8,
+}
+
+impl DeviceConfigBuilder<NotDetermined> {
+    pub fn multicore(self) -> DeviceConfigBuilder<DeviceMode> {
+        DeviceConfigBuilder {
+            arch: self.arch,
+            mode: DeviceMode::MultiCore,
+            count: self.count,
+        }
     }
 
-    pub fn fused(mut self) -> Self {
-        self.0.mode = DeviceMode::Fusion;
-        self
+    pub fn single(self) -> DeviceConfigBuilder<DeviceMode> {
+        DeviceConfigBuilder {
+            arch: self.arch,
+            mode: DeviceMode::Single,
+            count: self.count,
+        }
     }
 
+    pub fn fused(self) -> DeviceConfigBuilder<DeviceMode> {
+        DeviceConfigBuilder {
+            arch: self.arch,
+            mode: DeviceMode::Fusion,
+            count: self.count,
+        }
+    }
+}
+
+impl<M> DeviceConfigBuilder<M>
+where
+    DeviceMode: From<M>,
+{
     pub fn count(mut self, count: u8) -> DeviceConfig {
-        self.0.count = count;
-        self.0
+        self.count = count;
+        self.build()
     }
 
     pub fn build(self) -> DeviceConfig {
-        self.0
+        DeviceConfig {
+            arch: self.arch,
+            mode: DeviceMode::from(self.mode),
+            count: self.count,
+        }
     }
 }
 
