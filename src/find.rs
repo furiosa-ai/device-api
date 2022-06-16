@@ -35,7 +35,7 @@ pub enum DeviceConfig {
     // TODO: Named cannot describe MultiCore yet.
     Named {
         device_id: u8,
-        core_id: CoreId,
+        core_id: CoreIdConfig,
     },
     Unnamed {
         arch: Arch,
@@ -45,12 +45,12 @@ pub enum DeviceConfig {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum CoreId {
+pub enum CoreIdConfig {
     Id(u8),
     Range(u8, u8),
 }
 
-impl CoreId {
+impl CoreIdConfig {
     fn iter(&self) -> impl Iterator<Item = u8> {
         match self {
             Self::Id(id) => *id..=*id,
@@ -59,17 +59,17 @@ impl CoreId {
     }
 }
 
-impl From<u8> for CoreId {
+impl From<u8> for CoreIdConfig {
     fn from(id: u8) -> Self {
         Self::Id(id)
     }
 }
 
-impl TryFrom<(u8, u8)> for CoreId {
+impl TryFrom<(u8, u8)> for CoreIdConfig {
     type Error = nom::Err<()>;
     fn try_from(v: (u8, u8)) -> Result<Self, Self::Error> {
         if v.0 < v.1 {
-            Ok(CoreId::Range(v.0, v.1))
+            Ok(CoreIdConfig::Range(v.0, v.1))
         } else {
             Err(nom::Err::Failure(()))
         }
@@ -107,9 +107,9 @@ impl FromStr for DeviceConfig {
             alt((
                 map_res(
                     separated_pair(digit_to_u8(), tag("-"), digit_to_u8()),
-                    CoreId::try_from,
+                    CoreIdConfig::try_from,
                 ),
-                map(digit_to_u8(), CoreId::from),
+                map(digit_to_u8(), CoreIdConfig::from),
             )),
         ))(s);
 
@@ -351,28 +351,28 @@ mod tests {
             "0:0".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreId::Id(0)
+                core_id: CoreIdConfig::Id(0)
             })
         );
         assert_eq!(
             "0:1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreId::Id(1)
+                core_id: CoreIdConfig::Id(1)
             })
         );
         assert_eq!(
             "1:1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 1,
-                core_id: CoreId::Id(1)
+                core_id: CoreIdConfig::Id(1)
             })
         );
         assert_eq!(
             "0:0-1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreId::Range(0, 1)
+                core_id: CoreIdConfig::Range(0, 1)
             })
         );
 
