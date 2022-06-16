@@ -59,6 +59,23 @@ impl CoreId {
     }
 }
 
+impl From<u8> for CoreId {
+    fn from(id: u8) -> Self {
+        Self::Id(id)
+    }
+}
+
+impl TryFrom<(u8, u8)> for CoreId {
+    type Error = nom::Err<()>;
+    fn try_from(v: (u8, u8)) -> Result<Self, Self::Error> {
+        if v.0 < v.1 {
+            Ok(CoreId::Range(v.0, v.1))
+        } else {
+            Err(nom::Err::Failure(()))
+        }
+    }
+}
+
 impl DeviceConfig {
     /// Returns a builder associated with Warboy NPUs.
     pub fn warboy() -> WarboyConfigBuilder {
@@ -90,15 +107,9 @@ impl FromStr for DeviceConfig {
             alt((
                 map_res(
                     separated_pair(digit_to_u8(), tag("-"), digit_to_u8()),
-                    |(s, e)| {
-                        if s < e {
-                            Ok(CoreId::Range(s, e))
-                        } else {
-                            Err(Self::Err::Failure(()))
-                        }
-                    },
+                    CoreId::try_from,
                 ),
-                map(digit_to_u8(), CoreId::Id),
+                map(digit_to_u8(), CoreId::from),
             )),
         ))(s);
 
