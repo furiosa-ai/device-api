@@ -6,11 +6,11 @@ use std::path::PathBuf;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::arch::Arch;
 use crate::status::{get_device_status, DeviceStatus};
 use crate::{devfs, sysfs, DeviceError, DeviceResult};
-
-#[derive(Debug, Eq, PartialEq)]
 
 /// Abstraction for a single Furiosa NPU device.
 ///
@@ -34,6 +34,7 @@ use crate::{devfs, sysfs, DeviceError, DeviceResult};
 /// method, which returns a list of [`DeviceFile`]s.
 /// Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
 /// identify its [`DeviceMode`].
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Device {
     device_index: u8,
     device_info: DeviceInfo,
@@ -163,7 +164,7 @@ impl PartialOrd for Device {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DeviceInfo {
     arch: Arch,
     busname: Option<String>,
@@ -225,7 +226,7 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
 }
 
 /// Enum for NPU core status.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum CoreStatus {
     Available,
     Occupied(String),
@@ -245,7 +246,7 @@ impl Display for CoreStatus {
 pub(crate) type CoreIdx = u8;
 
 /// An abstraction for a device file and its mode.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct DeviceFile {
     pub(crate) device_index: u8,
     pub(crate) core_indices: Vec<CoreIdx>,
@@ -323,7 +324,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
 }
 
 /// Enum for NPU's operating mode.
-#[derive(Debug, Eq, PartialEq, Copy, Clone, enum_utils::FromStr)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, enum_utils::FromStr, Serialize, Deserialize)]
 #[enumeration(case_insensitive)]
 pub enum DeviceMode {
     Single,

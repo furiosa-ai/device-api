@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use strum_macros::{AsRefStr, EnumString};
 
 /// Enum for the NPU architecture.
-#[derive(AsRefStr, Clone, Copy, Debug, EnumString, Eq, PartialEq)]
+#[derive(AsRefStr, Clone, Copy, Debug, EnumString, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Arch {
     Warboy,
     WarboyB0,
