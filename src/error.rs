@@ -3,6 +3,7 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::hwmon::HwmonError;
 use crate::DeviceError::{IncompatibleDriver, IoError};
 
 /// Type alias for `Result<T, DeviceError>`.
@@ -19,6 +20,8 @@ pub enum DeviceError {
     UnknownArch { arch: String },
     #[error("Incompatible device driver: {cause}")]
     IncompatibleDriver { cause: String },
+    #[error("HwmonError: {cause}")]
+    HwmonError { cause: HwmonError },
 }
 
 impl DeviceError {
@@ -45,5 +48,11 @@ impl DeviceError {
 impl From<io::Error> for DeviceError {
     fn from(e: io::Error) -> Self {
         Self::IoError { cause: e }
+    }
+}
+
+impl From<HwmonError> for DeviceError {
+    fn from(e: HwmonError) -> Self {
+        Self::HwmonError { cause: e }
     }
 }

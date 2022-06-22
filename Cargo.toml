@@ -22,6 +22,10 @@ name = "list_npu_blocking"
 path = "bin/list_npu_blocking.rs"
 required-features = ["blocking"]
 
+[[bin]]
+name = "list_hwmon"
+path = "bin/list_hwmon.rs"
+
 [dependencies]
 array_tool = "1"
 cli-table = "0.4"
