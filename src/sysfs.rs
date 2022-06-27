@@ -20,3 +20,11 @@ pub(crate) mod npu_mgmt {
         contents == "FuriosaAI" || contents == "VITIS"
     }
 }
+
+pub(crate) mod hwmon {
+    use std::path::PathBuf;
+
+    pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
+        PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
+    }
+}
