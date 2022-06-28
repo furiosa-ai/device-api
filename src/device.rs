@@ -78,17 +78,23 @@ impl Device {
 
     /// Returns PCI bus number of the device.
     pub fn busname(&self) -> Option<&str> {
-        self.device_info().busname()
+        self.device_info
+            .get(sysfs::npu_mgmt::BUSNAME)
+            .map(String::as_str)
     }
 
     /// Returns PCI device ID of the device.
     pub fn pci_dev(&self) -> Option<&str> {
-        self.device_info().pci_dev()
+        self.device_info
+            .get(sysfs::npu_mgmt::DEV)
+            .map(String::as_str)
     }
 
     /// Retrieves firmware revision from the device.
     pub fn firmware_version(&self) -> Option<&str> {
-        self.device_info().firmware_version()
+        self.device_info
+            .get(sysfs::npu_mgmt::FW_VERSION)
+            .map(String::as_str)
     }
 
     /// Counts the number of cores.
@@ -166,61 +172,37 @@ impl PartialOrd for Device {
 #[derive(Debug, Eq, PartialEq)]
 pub struct DeviceInfo {
     arch: Arch,
-    busname: Option<String>,
-    pci_dev: Option<String>,
-    firmware_version: Option<String>,
+    metadata: HashMap<&'static str, String>,
 }
 
 impl DeviceInfo {
-    pub(crate) fn new(
-        arch: Arch,
-        busname: Option<String>,
-        pci_dev: Option<String>,
-        firmware_version: Option<String>,
-    ) -> DeviceInfo {
-        Self {
-            arch,
-            busname,
-            pci_dev,
-            firmware_version,
-        }
+    pub(crate) fn new(arch: Arch, metadata: HashMap<&'static str, String>) -> DeviceInfo {
+        Self { arch, metadata }
     }
 
     pub fn arch(&self) -> Arch {
         self.arch
     }
 
-    pub fn busname(&self) -> Option<&str> {
-        self.busname.as_deref()
-    }
-
-    pub fn pci_dev(&self) -> Option<&str> {
-        self.pci_dev.as_deref()
-    }
-
-    pub fn firmware_version(&self) -> Option<&str> {
-        self.firmware_version.as_deref()
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.metadata.get(key)
     }
 }
 
 impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
     type Error = DeviceError;
 
-    fn try_from(mut map: HashMap<&'static str, String>) -> Result<Self, Self::Error> {
+    fn try_from(map: HashMap<&'static str, String>) -> Result<Self, Self::Error> {
         use sysfs::npu_mgmt::*;
 
-        let contents = map
-            .remove(DEVICE_TYPE)
+        let device_type = map
+            .get(DEVICE_TYPE)
             .ok_or_else(|| DeviceError::file_not_found(DEVICE_TYPE))?;
-        let arch = Arch::from_str(&contents).map_err(|_| DeviceError::UnknownArch {
-            arch: contents.to_string(),
+        let arch = Arch::from_str(device_type).map_err(|_| DeviceError::UnknownArch {
+            arch: device_type.clone(),
         })?;
 
-        let busname = map.remove(BUSNAME);
-        let pci_dev = map.remove(DEV);
-        let firmware_version = map.remove(FW_VERSION);
-
-        Ok(DeviceInfo::new(arch, busname, pci_dev, firmware_version))
+        Ok(DeviceInfo::new(arch, map))
     }
 }
 
