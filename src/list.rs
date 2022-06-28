@@ -11,13 +11,30 @@ use tokio::fs;
 use crate::device::{Device, DeviceFile, DeviceInfo};
 
 use crate::error::DeviceResult;
-use crate::sysfs::npu_mgmt::{self, BUSNAME, DEV, DEVICE_TYPE, FW_VERSION, PLATFORM_TYPE};
+use crate::sysfs::npu_mgmt::{self, *};
 
 pub(crate) static MGMT_FILES: &[(&str, bool)] = &[
-    (DEVICE_TYPE, true),
+    (ALIVE, false),
+    (ATR_ERROR, false),
     (BUSNAME, true),
+    (CUR_PE_IDS, false),
     (DEV, true),
+    (DEVICE_STATE, false),
+    (DEVICE_TYPE, true),
+    (DEVICE_UUID, false),
+    (EVB_REV, false),
     (FW_VERSION, false),
+    (HEARTBEAT, false),
+    (NE_CLK_FREQ_INFO, false),
+    (NE_DTM_POLICY, false),
+    (PERFORMANCE_LEVEL, false),
+    (PERFORMANCE_MODE, false),
+    (PLATFORM_TYPE, false),
+    (REBOOT_REASON, false),
+    (SOC_REV, false),
+    (SOC_UID, false),
+    (UEVENT, false),
+    (VERSION, false),
 ];
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
