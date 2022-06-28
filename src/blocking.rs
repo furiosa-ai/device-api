@@ -99,7 +99,7 @@ fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, Str
         let path = npu_mgmt::path(sysfs, mgmt_file, idx);
         let contents = std::fs::read_to_string(&path)
             .or_else(|err| {
-                if required {
+                if *required {
                     Err(err)
                 } else {
                     Ok(String::new())
