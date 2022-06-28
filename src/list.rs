@@ -50,18 +50,15 @@ pub(crate) fn collect_devices(
 
     for path in paths {
         let file = DeviceFile::try_from(&path)?;
-        cores.extend(file.core_indices());
+        let (_, core_indices) =
+            devfs::parse_indices(path.file_name().unwrap().to_string_lossy().to_string())?;
+        cores.extend(core_indices);
         dev_files.push(file);
     }
 
     let mut cores: Vec<u8> = cores.into_iter().collect();
     cores.sort_unstable();
-    dev_files.sort_by(|x, y| {
-        x.core_indices()
-            .len()
-            .cmp(&y.core_indices().len())
-            .then(x.path().cmp(y.path()))
-    });
+    dev_files.sort_by_key(|x| x.core_range());
 
     Ok(Device::new(device_info, hwmon_fetcher, cores, dev_files))
 }
