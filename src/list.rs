@@ -13,7 +13,7 @@ use crate::device::{Device, DeviceFile, DeviceInfo};
 use crate::error::DeviceResult;
 use crate::sysfs::npu_mgmt::{self, BUSNAME, DEV, DEVICE_TYPE, FW_VERSION, PLATFORM_TYPE};
 
-pub(crate) static MGMT_FILES: [(&str, bool); 4] = [
+pub(crate) static MGMT_FILES: &[(&str, bool)] = &[
     (DEVICE_TYPE, true),
     (BUSNAME, true),
     (DEV, true),
@@ -123,7 +123,7 @@ async fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static st
         let contents = tokio::fs::read_to_string(&path)
             .await
             .or_else(|err| {
-                if required {
+                if *required {
                     Err(err)
                 } else {
                     Ok(String::new())
