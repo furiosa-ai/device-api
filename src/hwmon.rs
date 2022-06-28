@@ -6,7 +6,7 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 use itertools::Itertools;
 use tokio::fs::DirEntry;
 
-use crate::sysfs::{hwmon, npu_mgmt};
+use crate::sysfs::hwmon;
 use crate::{DeviceError, DeviceResult};
 
 pub mod error {
@@ -132,7 +132,7 @@ impl TryFrom<DirEntry> for MetricEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct Sensor {
     name: String,
     items: HashMap<String, PathBuf>,
@@ -163,11 +163,12 @@ impl Sensor {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 struct SensorContainer(HashMap<HwmonType, Vec<Sensor>>);
 
 impl SensorContainer {
-    async fn new(base_dir: &str, device_index: u8) -> error::HwmonResult<Self> {
-        let path = Self::build_path(base_dir, device_index).await?;
+    async fn new(base_dir: &str, busname: &str) -> error::HwmonResult<Self> {
+        let path = hwmon::path(base_dir, busname);
         let entries = Self::fetch_entries(path).await?;
         let value_map = Self::build_value_map(entries).await;
 
@@ -188,12 +189,6 @@ impl SensorContainer {
 
     fn get(&self, t: &HwmonType) -> Option<&Vec<Sensor>> {
         self.0.get(t)
-    }
-
-    async fn build_path(base_dir: &str, device_index: u8) -> error::HwmonResult<PathBuf> {
-        let path = npu_mgmt::path(base_dir, "busname", device_index);
-        let bdf = tokio::fs::read_to_string(&path).await?;
-        Ok(hwmon::path(base_dir, bdf.as_str()))
     }
 
     async fn fetch_entries(mut path: PathBuf) -> error::HwmonResult<Vec<MetricEntry>> {
@@ -272,14 +267,15 @@ pub struct SensorValue {
     pub value: i32,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Fetcher {
     device_index: u8,
     sensor_container: SensorContainer,
 }
 
 impl Fetcher {
-    pub async fn new(base_dir: &str, device_index: u8) -> DeviceResult<Self> {
-        let sensor_container = SensorContainer::new(base_dir, device_index)
+    pub(crate) async fn new(base_dir: &str, device_index: u8, busname: &str) -> DeviceResult<Self> {
+        let sensor_container = SensorContainer::new(base_dir, busname)
             .await
             .map_err(|e| DeviceError::hwmon_error(device_index, e))?;
 
@@ -287,10 +283,6 @@ impl Fetcher {
             device_index,
             sensor_container,
         })
-    }
-
-    pub fn get_device_index(&self) -> u8 {
-        self.device_index
     }
 
     pub async fn read_currents(&self) -> DeviceResult<Vec<SensorValue>> {
@@ -360,20 +352,6 @@ mod tests {
             assert_eq!(res.metric_item.item_name, String::from("input"));
             assert_eq!(res.metric_item.path, path);
         }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn sensor_build_path_test() -> error::HwmonResult<()> {
-        let path = SensorContainer::build_path("test_data/test-0/sys", 0).await?;
-        assert_eq!(
-            path,
-            PathBuf::from("test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon")
-        );
-
-        let err_expected = SensorContainer::build_path("invalid-path", 99).await;
-        assert!(err_expected.is_err());
 
         Ok(())
     }
@@ -495,9 +473,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetcher_read_test() -> DeviceResult<()> {
-        let fetcher = Fetcher::new("test_data/test-0/sys", 0).await?;
-
-        assert_eq!(fetcher.get_device_index(), 0);
+        let fetcher = Fetcher::new("test_data/test-0/sys", 0, "0000:6d:00.0").await?;
 
         let currents = fetcher.read_currents().await?;
         assert_eq!(currents.len(), 2);
