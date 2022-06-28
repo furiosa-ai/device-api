@@ -133,7 +133,7 @@ impl TryFrom<DirEntry> for MetricEntry {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct Sensor {
+pub(crate) struct Sensor {
     name: String,
     items: HashMap<String, PathBuf>,
 }
@@ -164,7 +164,7 @@ impl Sensor {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct SensorContainer(HashMap<HwmonType, Vec<Sensor>>);
+pub(crate) struct SensorContainer(pub(crate) HashMap<HwmonType, Vec<Sensor>>);
 
 impl SensorContainer {
     async fn new(base_dir: &str, busname: &str) -> error::HwmonResult<Self> {
@@ -269,8 +269,8 @@ pub struct SensorValue {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Fetcher {
-    device_index: u8,
-    sensor_container: SensorContainer,
+    pub(crate) device_index: u8,
+    pub(crate) sensor_container: SensorContainer,
 }
 
 impl Fetcher {
