@@ -11,6 +11,7 @@ use tokio::fs;
 use crate::device::{Device, DeviceFile, DeviceInfo, DeviceMetadata};
 
 use crate::error::DeviceResult;
+use crate::hwmon;
 use crate::sysfs::npu_mgmt::{self, *};
 
 pub(crate) static MGMT_FILES: &[(&str, bool)] = &[
@@ -47,9 +48,13 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
         if is_furiosa_device(idx, sysfs).await {
             let mgmt_files = read_mgmt_files(sysfs, idx).await?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
-            let device_info =
+            let mut device_info =
                 DeviceInfo::new(idx, sysfs.to_string(), devfs.to_string(), device_meta);
-            let device = collect_devices(device_info, paths)?;
+            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
+
+            let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, busname).await?;
+
+            let device = collect_devices(device_info, hwmon_fetcher, paths)?;
             devices.push(device);
         }
     }
@@ -60,6 +65,7 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
 
 pub(crate) fn collect_devices(
     device_info: DeviceInfo,
+    hwmon_fetcher: hwmon::Fetcher,
     paths: Vec<PathBuf>,
 ) -> DeviceResult<Device> {
     let mut cores: HashSet<u8> = HashSet::new();
@@ -80,7 +86,7 @@ pub(crate) fn collect_devices(
             .then(x.path().cmp(y.path()))
     });
 
-    Ok(Device::new(device_info, cores, dev_files))
+    Ok(Device::new(device_info, hwmon_fetcher, cores, dev_files))
 }
 
 pub(crate) struct DevFile {

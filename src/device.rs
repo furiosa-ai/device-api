@@ -7,6 +7,7 @@ use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
 use crate::arch::Arch;
+use crate::hwmon;
 use crate::status::{get_device_status, DeviceStatus};
 use crate::{devfs, sysfs, DeviceError, DeviceResult};
 
@@ -36,6 +37,7 @@ use crate::{devfs, sysfs, DeviceError, DeviceResult};
 /// identify its [`DeviceMode`].
 pub struct Device {
     device_info: DeviceInfo,
+    hwmon_fetcher: hwmon::Fetcher,
     pub(crate) cores: Vec<CoreIdx>,
     pub(crate) dev_files: Vec<DeviceFile>,
 }
@@ -43,11 +45,13 @@ pub struct Device {
 impl Device {
     pub(crate) fn new(
         device_info: DeviceInfo,
+        hwmon_fetcher: hwmon::Fetcher,
         cores: Vec<CoreIdx>,
         dev_files: Vec<DeviceFile>,
     ) -> Self {
         Self {
             device_info,
+            hwmon_fetcher,
             cores,
             dev_files,
         }
@@ -145,6 +149,11 @@ impl Device {
             .iter()
             .map(|k| (*k, CoreStatus::Available))
             .collect()
+    }
+
+    /// Returns `Fetcher` for hwmon metric of the device.
+    pub fn get_hwmon_fetcher(&self) -> &hwmon::Fetcher {
+        &self.hwmon_fetcher
     }
 }
 
