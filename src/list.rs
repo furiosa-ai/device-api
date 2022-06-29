@@ -8,7 +8,7 @@ use crate::devfs;
 use crate::devfs::is_character_device;
 use tokio::fs;
 
-use crate::device::{Device, DeviceFile, DeviceInfo};
+use crate::device::{Device, DeviceFile, DeviceInfo, DeviceMetadata};
 
 use crate::error::DeviceResult;
 use crate::sysfs::npu_mgmt::{self, *};
@@ -46,8 +46,10 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs).await {
             let mgmt_files = read_mgmt_files(sysfs, idx).await?;
-            let device_info = DeviceInfo::try_from(mgmt_files)?;
-            let device = collect_devices(idx, device_info, paths)?;
+            let device_meta = DeviceMetadata::try_from(mgmt_files)?;
+            let device_info =
+                DeviceInfo::new(idx, sysfs.to_string(), devfs.to_string(), device_meta);
+            let device = collect_devices(device_info, paths)?;
             devices.push(device);
         }
     }
@@ -57,7 +59,6 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
 }
 
 pub(crate) fn collect_devices(
-    idx: u8,
     device_info: DeviceInfo,
     paths: Vec<PathBuf>,
 ) -> DeviceResult<Device> {
@@ -79,7 +80,7 @@ pub(crate) fn collect_devices(
             .then(x.path().cmp(y.path()))
     });
 
-    Ok(Device::new(idx, device_info, cores, dev_files))
+    Ok(Device::new(device_info, cores, dev_files))
 }
 
 pub(crate) struct DevFile {
@@ -133,22 +134,21 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
         .is_some()
 }
 
+pub(crate) fn read_mgmt_file(sysfs: &str, mgmt_file: &str, idx: u8) -> io::Result<String> {
+    let path = npu_mgmt::path(sysfs, mgmt_file, idx);
+    std::fs::read_to_string(&path).map(|s| s.trim().to_string())
+}
+
 async fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
     let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
     for (mgmt_file, required) in MGMT_FILES {
-        let path = npu_mgmt::path(sysfs, mgmt_file, idx);
-        let contents = tokio::fs::read_to_string(&path)
-            .await
-            .or_else(|err| {
-                if *required {
-                    Err(err)
-                } else {
-                    Ok(String::new())
-                }
-            })
-            .map(|s| s.trim().to_string())?;
+        if !required {
+            continue;
+        }
+
+        let contents = read_mgmt_file(sysfs, mgmt_file, idx)?;
         if mgmt_files.insert(mgmt_file, contents).is_some() {
-            unreachable!("duplicate {} file at {}", mgmt_file, path.display());
+            unreachable!("duplicate key: {}", mgmt_file);
         }
     }
     Ok(mgmt_files)
@@ -187,11 +187,11 @@ mod tests {
     #[tokio::test]
     async fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
-            DeviceInfo::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?.arch(),
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?.arch,
             Arch::Warboy
         );
         assert_eq!(
-            DeviceInfo::try_from(read_mgmt_files("test_data/test-0/sys", 1).await?)?.arch(),
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1).await?)?.arch,
             Arch::Warboy
         );
         Ok(())

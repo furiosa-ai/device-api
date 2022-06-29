@@ -35,7 +35,6 @@ use crate::{devfs, sysfs, DeviceError, DeviceResult};
 /// Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
 /// identify its [`DeviceMode`].
 pub struct Device {
-    device_index: u8,
     device_info: DeviceInfo,
     pub(crate) cores: Vec<CoreIdx>,
     pub(crate) dev_files: Vec<DeviceFile>,
@@ -43,13 +42,11 @@ pub struct Device {
 
 impl Device {
     pub(crate) fn new(
-        device_index: u8,
         device_info: DeviceInfo,
         cores: Vec<CoreIdx>,
         dev_files: Vec<DeviceFile>,
     ) -> Self {
         Self {
-            device_index,
             device_info,
             cores,
             dev_files,
@@ -58,12 +55,12 @@ impl Device {
 
     /// Returns the name of the device (e.g., npu0).
     pub fn name(&self) -> String {
-        format!("npu{}", self.device_index)
+        format!("npu{}", self.device_index())
     }
 
     /// Returns the device index (e.g., 0 for npu0).
     pub fn device_index(&self) -> u8 {
-        self.device_index
+        self.device_info.device_index
     }
 
     /// Returns the `DeviceInfo` struct.
@@ -77,21 +74,21 @@ impl Device {
     }
 
     /// Returns PCI bus number of the device.
-    pub fn busname(&self) -> Option<&str> {
+    pub fn busname(&mut self) -> Option<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::BUSNAME)
             .map(String::as_str)
     }
 
     /// Returns PCI device ID of the device.
-    pub fn pci_dev(&self) -> Option<&str> {
+    pub fn pci_dev(&mut self) -> Option<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::DEV)
             .map(String::as_str)
     }
 
     /// Retrieves firmware revision from the device.
-    pub fn firmware_version(&self) -> Option<&str> {
+    pub fn firmware_version(&mut self) -> Option<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::FW_VERSION)
             .map(String::as_str)
@@ -153,13 +150,13 @@ impl Device {
 
 impl Display for Device {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "npu{}", self.device_index)
+        write!(f, "npu{}", self.device_index())
     }
 }
 
 impl Ord for Device {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.device_index.cmp(&other.device_index)
+        self.device_index().cmp(&other.device_index())
     }
 }
 
@@ -171,25 +168,56 @@ impl PartialOrd for Device {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct DeviceInfo {
-    arch: Arch,
-    metadata: HashMap<&'static str, String>,
+    device_index: u8,
+    devroot: String,
+    sysroot: String,
+    meta: DeviceMetadata,
 }
 
 impl DeviceInfo {
-    pub(crate) fn new(arch: Arch, metadata: HashMap<&'static str, String>) -> DeviceInfo {
-        Self { arch, metadata }
+    pub(crate) fn new(
+        device_index: u8,
+        devroot: String,
+        sysroot: String,
+        meta: DeviceMetadata,
+    ) -> DeviceInfo {
+        Self {
+            device_index,
+            devroot,
+            sysroot,
+            meta,
+        }
     }
 
     pub fn arch(&self) -> Arch {
-        self.arch
+        self.meta.arch
     }
 
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.metadata.get(key)
+    pub fn get(&mut self, key: &str) -> Option<&String> {
+        let ans = self.meta.map.get(key);
+        if ans == None {
+            for (s, _) in crate::list::MGMT_FILES {
+                if key == *s {
+                    let val =
+                        crate::list::read_mgmt_file(self.sysroot.as_ref(), key, self.device_index)
+                            .ok();
+                    if let Some(val) = val {
+                        self.meta.map.insert(s, val);
+                    }
+                }
+            }
+        }
+        self.meta.map.get(key)
     }
 }
 
-impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct DeviceMetadata {
+    pub(crate) arch: Arch,
+    pub(crate) map: HashMap<&'static str, String>,
+}
+
+impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
     type Error = DeviceError;
 
     fn try_from(map: HashMap<&'static str, String>) -> Result<Self, Self::Error> {
@@ -202,7 +230,7 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceInfo {
             arch: device_type.clone(),
         })?;
 
-        Ok(DeviceInfo::new(arch, map))
+        Ok(Self { arch, map })
     }
 }
 
