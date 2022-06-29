@@ -203,20 +203,13 @@ impl DeviceInfo {
     }
 
     pub fn get(&mut self, key: &str) -> Option<&String> {
-        let ans = self.meta.map.get(key);
-        if ans == None {
-            for (s, _) in crate::list::MGMT_FILES {
-                if key == *s {
-                    let val =
-                        crate::list::read_mgmt_file(self.sysroot.as_ref(), key, self.device_index)
-                            .ok();
-                    if let Some(val) = val {
-                        self.meta.map.insert(s, val);
-                    }
-                }
-            }
-        }
-        self.meta.map.get(key)
+        let (key, _) = crate::list::MGMT_FILES
+            .iter()
+            .find(|mgmt_file| mgmt_file.0 == key)?;
+
+        Some(self.meta.map.entry(key).or_insert(
+            crate::list::read_mgmt_file(self.sysroot.as_ref(), key, self.device_index).ok()?,
+        ))
     }
 }
 
