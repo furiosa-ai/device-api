@@ -8,6 +8,7 @@ use std::path::Path;
 use crate::devfs::is_character_device;
 use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
 use crate::find::DeviceWithStatus;
+use crate::hwmon;
 use crate::list::{collect_devices, filter_dev_files, DevFile, MGMT_FILES};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
@@ -63,7 +64,9 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
         if is_furiosa_device(idx, sysfs) {
             let mgmt_files = read_mgmt_files(sysfs, idx)?;
             let device_info = DeviceInfo::try_from(mgmt_files)?;
-            let device = collect_devices(idx, device_info, paths)?;
+            let busname = device_info.busname().unwrap_or_default();
+            let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, busname)?;
+            let device = collect_devices(idx, device_info, hwmon_fetcher, paths)?;
             devices.push(device);
         }
     }
@@ -159,6 +162,13 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
         }
     }
     Ok(status_map)
+}
+
+fn hwmon_fetcher_new(_: &str, device_index: u8, _: &str) -> DeviceResult<hwmon::Fetcher> {
+    Ok(hwmon::Fetcher {
+        device_index,
+        sensor_container: hwmon::SensorContainer(HashMap::new()),
+    })
 }
 
 #[cfg(test)]
