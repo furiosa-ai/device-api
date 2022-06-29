@@ -49,9 +49,10 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
             let mgmt_files = read_mgmt_files(sysfs, idx).await?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
             let mut device_info =
-                DeviceInfo::new(idx, sysfs.to_string(), devfs.to_string(), device_meta);
-            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
+                DeviceInfo::new(idx, devfs.to_string(), sysfs.to_string(), device_meta);
 
+            // Since busname is a required field, it is guaranteed to exist.
+            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
             let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, busname).await?;
 
             let device = collect_devices(device_info, hwmon_fetcher, paths)?;
