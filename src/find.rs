@@ -39,6 +39,7 @@ pub enum DeviceConfig {
     },
     Unnamed {
         arch: Arch,
+        core_num: u8,
         mode: DeviceMode,
         count: u8,
     },
@@ -81,6 +82,7 @@ impl DeviceConfig {
     pub fn warboy() -> WarboyConfigBuilder {
         WarboyConfigBuilder {
             arch: Arch::Warboy,
+            core_num: 1,
             mode: DeviceMode::Single,
             count: 1,
         }
@@ -126,15 +128,19 @@ impl FromStr for DeviceConfig {
                     tag("*"),
                     digit_to_u8(),
                 ))(s)?;
-                let mode = match mode {
-                    None => Ok(DeviceMode::MultiCore),
-                    Some(1) => Ok(DeviceMode::Single),
+                let (core_num, mode) = match mode {
+                    None => (0, DeviceMode::MultiCore),
+                    Some(1) => (1, DeviceMode::Single),
                     // TODO: Improve below
-                    Some(2) => Ok(DeviceMode::Fusion),
-                    _ => Err(Self::Err::Failure(())),
-                }?;
+                    Some(n) => (n, DeviceMode::Fusion),
+                };
 
-                Ok(DeviceConfig::Unnamed { arch, mode, count })
+                Ok(DeviceConfig::Unnamed {
+                    arch,
+                    core_num,
+                    mode,
+                    count,
+                })
             }
         }
     }
@@ -143,17 +149,20 @@ impl FromStr for DeviceConfig {
 /// A builder struct for `DeviceConfig` with Warboy NPUs.
 pub struct WarboyConfigBuilder {
     arch: Arch,
+    core_num: u8,
     mode: DeviceMode,
     count: u8,
 }
 
 impl WarboyConfigBuilder {
     pub fn multicore(mut self) -> Self {
+        self.core_num = 0;
         self.mode = DeviceMode::MultiCore;
         self
     }
 
     pub fn fused(mut self) -> Self {
+        self.core_num = 2;
         self.mode = DeviceMode::Fusion;
         self
     }
@@ -162,6 +171,7 @@ impl WarboyConfigBuilder {
         self.count = count;
         DeviceConfig::Unnamed {
             arch: self.arch,
+            core_num: self.core_num,
             mode: self.mode,
             count: self.count,
         }
@@ -170,6 +180,7 @@ impl WarboyConfigBuilder {
     pub fn build(self) -> DeviceConfig {
         DeviceConfig::Unnamed {
             arch: self.arch,
+            core_num: self.core_num,
             mode: self.mode,
             count: self.count,
         }
@@ -218,7 +229,7 @@ pub(crate) fn find_devices_in(
         );
     }
 
-    let (&config_arch, &config_mode, &config_count) = match config {
+    let (&config_arch, &core_num, &config_mode, &config_count) = match config {
         DeviceConfig::Named { device_id, core_id } => {
             let mut parent = None;
             for device in devices {
@@ -254,7 +265,12 @@ pub(crate) fn find_devices_in(
                 name: format!("dev_id: {:?}, core_id: {:?}", device_id, core_id),
             });
         }
-        DeviceConfig::Unnamed { arch, mode, count } => (arch, mode, count),
+        DeviceConfig::Unnamed {
+            arch,
+            core_num,
+            mode,
+            count,
+        } => (arch, core_num, mode, count),
     };
 
     let mut found: Vec<DeviceFile> = Vec::with_capacity(config_count.into());
@@ -274,7 +290,7 @@ pub(crate) fn find_devices_in(
             'inner: for dev_file in device
                 .dev_files()
                 .iter()
-                .filter(|d| d.mode() == config_mode)
+                .filter(|d| d.mode() == config_mode && d.core_indices().len() as u8 == core_num)
             {
                 for idx in dev_file.core_indices() {
                     if allocated.get(&device.device_index()).unwrap().contains(idx) {
@@ -390,6 +406,7 @@ mod tests {
             "warboy(1)*2".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Unnamed {
                 arch: Arch::Warboy,
+                core_num: 1,
                 mode: DeviceMode::Single,
                 count: 2
             })
@@ -398,6 +415,7 @@ mod tests {
             "warboy(2)*4".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Unnamed {
                 arch: Arch::Warboy,
+                core_num: 2,
                 mode: DeviceMode::Fusion,
                 count: 4
             })
@@ -406,6 +424,7 @@ mod tests {
             "warboy*12".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Unnamed {
                 arch: Arch::Warboy,
+                core_num: 0,
                 mode: DeviceMode::MultiCore,
                 count: 12
             })
