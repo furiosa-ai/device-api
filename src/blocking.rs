@@ -6,7 +6,7 @@ use std::io;
 use std::path::Path;
 
 use crate::devfs::is_character_device;
-use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
+use crate::device::{CoreIdx, CoreStatus, DeviceInfo, DeviceMetadata};
 use crate::find::DeviceWithStatus;
 use crate::hwmon;
 use crate::list::{collect_devices, filter_dev_files, DevFile, MGMT_FILES};
@@ -63,10 +63,13 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs) {
             let mgmt_files = read_mgmt_files(sysfs, idx)?;
-            let device_info = DeviceInfo::try_from(mgmt_files)?;
-            let busname = device_info.busname().unwrap_or_default();
+            let device_meta = DeviceMetadata::try_from(mgmt_files)?;
+            let mut device_info =
+                DeviceInfo::new(idx, devfs.to_string(), sysfs.to_string(), device_meta);
+            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
             let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, busname)?;
-            let device = collect_devices(idx, device_info, hwmon_fetcher, paths)?;
+
+            let device = collect_devices(device_info, hwmon_fetcher, paths)?;
             devices.push(device);
         }
     }
