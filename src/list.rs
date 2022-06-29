@@ -203,4 +203,26 @@ mod tests {
         );
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_lazy_read_sysfs() -> DeviceResult<()> {
+        let device_meta =
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?;
+        assert_eq!(device_meta.map.get(npu_mgmt::PERFORMANCE_MODE), None);
+
+        let mut device_info = DeviceInfo::new(
+            0,
+            "test_data/test-0/dev".to_string(),
+            "test_data/test-0/sys".to_string(),
+            device_meta,
+        );
+        assert_eq!(
+            device_info
+                .get(npu_mgmt::PERFORMANCE_MODE)
+                .map(AsRef::as_ref),
+            Some("4 (FULL 1)")
+        );
+
+        Ok(())
+    }
 }
