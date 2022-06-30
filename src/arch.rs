@@ -1,8 +1,9 @@
 use std::fmt::{Display, Formatter};
-use strum_macros::{AsRefStr, EnumString};
+use strum_macros::AsRefStr;
 
 /// Enum for the NPU architecture.
-#[derive(AsRefStr, Clone, Copy, Debug, EnumString, Eq, PartialEq)]
+#[derive(AsRefStr, Clone, Copy, Debug, enum_utils::FromStr, Eq, PartialEq)]
+#[enumeration(case_insensitive)]
 pub enum Arch {
     Warboy,
     WarboyB0,
