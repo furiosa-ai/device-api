@@ -178,22 +178,22 @@ impl PartialOrd for Device {
 #[derive(Debug, Eq, PartialEq)]
 pub struct DeviceInfo {
     device_index: u8,
-    devroot: String,
-    sysroot: String,
+    dev_root: PathBuf,
+    sys_root: PathBuf,
     meta: DeviceMetadata,
 }
 
 impl DeviceInfo {
     pub(crate) fn new(
         device_index: u8,
-        devroot: String,
-        sysroot: String,
+        dev_root: PathBuf,
+        sys_root: PathBuf,
         meta: DeviceMetadata,
     ) -> DeviceInfo {
         Self {
             device_index,
-            devroot,
-            sysroot,
+            dev_root,
+            sys_root,
             meta,
         }
     }
@@ -207,9 +207,11 @@ impl DeviceInfo {
             .iter()
             .find(|mgmt_file| mgmt_file.0 == key)?;
 
-        Some(self.meta.map.entry(key).or_insert(
-            crate::list::read_mgmt_file(self.sysroot.as_ref(), key, self.device_index).ok()?,
-        ))
+        Some(
+            self.meta.map.entry(key).or_insert(
+                crate::list::read_mgmt_file(&self.sys_root, key, self.device_index).ok()?,
+            ),
+        )
     }
 }
 

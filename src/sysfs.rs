@@ -1,5 +1,5 @@
 pub(crate) mod npu_mgmt {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     // commented lines are write-only files
     pub(crate) static ALIVE: &str = "alive";
@@ -30,11 +30,10 @@ pub(crate) mod npu_mgmt {
     pub(crate) static UEVENT: &str = "uevent";
     pub(crate) static VERSION: &str = "version";
 
-    pub fn path(base_dir: &str, file: &str, idx: u8) -> PathBuf {
-        PathBuf::from(format!(
-            "{}/class/npu_mgmt/npu{}_mgmt/{}",
-            base_dir, idx, file
-        ))
+    pub fn path<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
+        base_dir
+            .as_ref()
+            .join(format!("class/npu_mgmt/npu{}_mgmt/{}", idx, file))
     }
 
     /// It can be used to check `platform_type`.

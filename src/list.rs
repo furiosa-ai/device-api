@@ -49,7 +49,7 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
             let mgmt_files = read_mgmt_files(sysfs, idx).await?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
             let mut device_info =
-                DeviceInfo::new(idx, devfs.to_string(), sysfs.to_string(), device_meta);
+                DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
 
             // Since busname is a required field, it is guaranteed to exist.
             let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
@@ -134,26 +134,33 @@ pub(crate) fn filter_dev_files(dev_files: Vec<DevFile>) -> DeviceResult<HashMap<
 }
 
 async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
-    fs::read_to_string(npu_mgmt::path(sysfs, PLATFORM_TYPE, idx))
+    fs::read_to_string(npu_mgmt::path(&sysfs, PLATFORM_TYPE, idx))
         .await
         .ok()
         .filter(|c| npu_mgmt::is_furiosa_platform(c))
         .is_some()
 }
 
-pub(crate) fn read_mgmt_file(sysfs: &str, mgmt_file: &str, idx: u8) -> io::Result<String> {
+pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
+    sysfs: P,
+    mgmt_file: &str,
+    idx: u8,
+) -> io::Result<String> {
     let path = npu_mgmt::path(sysfs, mgmt_file, idx);
     std::fs::read_to_string(&path).map(|s| s.trim().to_string())
 }
 
-async fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
+async fn read_mgmt_files<P: AsRef<Path>>(
+    sysfs: P,
+    idx: u8,
+) -> io::Result<HashMap<&'static str, String>> {
     let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
     for (mgmt_file, required) in MGMT_FILES {
         if !required {
             continue;
         }
 
-        let contents = read_mgmt_file(sysfs, mgmt_file, idx)?;
+        let contents = read_mgmt_file(&sysfs, mgmt_file, idx)?;
         if mgmt_files.insert(mgmt_file, contents).is_some() {
             unreachable!("duplicate key: {}", mgmt_file);
         }
@@ -212,8 +219,8 @@ mod tests {
 
         let mut device_info = DeviceInfo::new(
             0,
-            "test_data/test-0/dev".to_string(),
-            "test_data/test-0/sys".to_string(),
+            PathBuf::from("test_data/test-0/dev"),
+            PathBuf::from("test_data/test-0/sys"),
             device_meta,
         );
         assert_eq!(

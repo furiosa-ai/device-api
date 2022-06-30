@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::devfs::is_character_device;
 use crate::device::{CoreIdx, CoreStatus, DeviceInfo, DeviceMetadata};
@@ -65,7 +65,7 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
             let mgmt_files = read_mgmt_files(sysfs, idx)?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
             let mut device_info =
-                DeviceInfo::new(idx, devfs.to_string(), sysfs.to_string(), device_meta);
+                DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
             let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
             let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, busname)?;
 
