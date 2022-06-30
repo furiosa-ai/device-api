@@ -94,14 +94,6 @@ impl Default for DeviceConfig {
     }
 }
 
-pub struct NotDetermined;
-
-impl From<NotDetermined> for Arch {
-    fn from(_: NotDetermined) -> Self {
-        Arch::Warboy
-    }
-}
-
 impl FromStr for DeviceConfig {
     type Err = nom::Err<()>;
 
@@ -153,9 +145,17 @@ impl FromStr for DeviceConfig {
     }
 }
 
-impl From<NotDetermined> for (DeviceMode, u8) {
+pub struct NotDetermined;
+
+impl From<NotDetermined> for Arch {
     fn from(_: NotDetermined) -> Self {
-        (DeviceMode::Fusion, 2)
+        Arch::Warboy
+    }
+}
+
+impl From<NotDetermined> for DeviceMode {
+    fn from(_: NotDetermined) -> Self {
+        DeviceMode::Fusion
     }
 }
 
@@ -173,26 +173,26 @@ pub struct DeviceConfigBuilder<A, M, C> {
 }
 
 impl<A, C> DeviceConfigBuilder<A, NotDetermined, C> {
-    pub fn multicore(self) -> DeviceConfigBuilder<A, (DeviceMode, u8), C> {
+    pub fn multicore(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
         DeviceConfigBuilder {
             arch: self.arch,
-            mode: (DeviceMode::MultiCore, 0),
+            mode: DeviceMode::MultiCore,
             count: self.count,
         }
     }
 
-    pub fn single(self) -> DeviceConfigBuilder<A, (DeviceMode, u8), C> {
+    pub fn single(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
         DeviceConfigBuilder {
             arch: self.arch,
-            mode: (DeviceMode::Single, 1),
+            mode: DeviceMode::Single,
             count: self.count,
         }
     }
 
-    pub fn fused(self) -> DeviceConfigBuilder<A, (DeviceMode, u8), C> {
+    pub fn fused(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
         DeviceConfigBuilder {
             arch: self.arch,
-            mode: (DeviceMode::Fusion, 2),
+            mode: DeviceMode::Fusion,
             count: self.count,
         }
     }
@@ -201,7 +201,7 @@ impl<A, C> DeviceConfigBuilder<A, NotDetermined, C> {
 impl<A, M, C> DeviceConfigBuilder<A, M, C>
 where
     Arch: From<A>,
-    (DeviceMode, u8): From<M>,
+    DeviceMode: From<M>,
     u8: From<C>,
 {
     pub fn count(self, count: u8) -> DeviceConfig {
@@ -214,7 +214,13 @@ where
     }
 
     pub fn build(self) -> DeviceConfig {
-        let (mode, core_num) = <(DeviceMode, u8)>::from(self.mode);
+        let mode = DeviceMode::from(self.mode);
+        let core_num = match mode {
+            DeviceMode::MultiCore => 0,
+            DeviceMode::Single => 1,
+            DeviceMode::Fusion => 2,
+        };
+
         DeviceConfig::Unnamed {
             arch: Arch::from(self.arch),
             core_num,
