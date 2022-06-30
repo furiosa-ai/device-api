@@ -1,6 +1,6 @@
 [package]
 name = "furiosa-device"
-version = "0.1.0"
+version = "0.1.2-dev"
 authors = ["FuriosaAI SW Team <pkg@furiosa.ai>"]
 edition = "2021"
 description = "APIs that offer FuriosaAI NPU devices' information and allow to control the devices"
@@ -22,6 +22,10 @@ name = "list_npu_blocking"
 path = "bin/list_npu_blocking.rs"
 required-features = ["blocking"]
 
+[[bin]]
+name = "list_hwmon"
+path = "bin/list_hwmon.rs"
+
 [dependencies]
 array_tool = "1"
 cli-table = "0.4"
@@ -29,6 +33,7 @@ enum-display-derive = "0.1"
 enum-utils = "0.1.2"
 itertools = "0.10"
 lazy_static = "1.4"
+nom = "7.1"
 regex = "1.5"
 strum = "0.24"
 strum_macros = "0.24"

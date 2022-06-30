@@ -66,6 +66,7 @@ mod devfs;
 mod device;
 mod error;
 mod find;
+pub mod hwmon;
 mod list;
 mod status;
 mod sysfs;
