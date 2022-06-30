@@ -203,7 +203,7 @@ impl DeviceInfo {
     }
 
     pub fn get(&mut self, key: &str) -> Option<&String> {
-        let (key, _) = crate::list::MGMT_FILES
+        let (key, _) = sysfs::npu_mgmt::MGMT_FILES
             .iter()
             .find(|mgmt_file| mgmt_file.0 == key)?;
 

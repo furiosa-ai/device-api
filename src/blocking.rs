@@ -9,7 +9,7 @@ use crate::devfs::is_character_device;
 use crate::device::{CoreIdx, CoreStatus, DeviceInfo, DeviceMetadata};
 use crate::find::DeviceWithStatus;
 use crate::hwmon;
-use crate::list::{collect_devices, filter_dev_files, DevFile, MGMT_FILES};
+use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
 use crate::sysfs::npu_mgmt::PLATFORM_TYPE;
@@ -101,7 +101,7 @@ fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
 
 fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
     let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-    for (mgmt_file, required) in MGMT_FILES {
+    for (mgmt_file, required) in npu_mgmt::MGMT_FILES {
         let path = npu_mgmt::path(sysfs, mgmt_file, idx);
         let contents = std::fs::read_to_string(&path)
             .or_else(|err| {
