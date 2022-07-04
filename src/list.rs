@@ -174,7 +174,7 @@ mod tests {
         assert_eq!(
             device_info
                 .get(npu_mgmt::PERFORMANCE_MODE)
-                .map(AsRef::as_ref),
+                .map(AsRef::as_ref).ok(),
             Some("4 (FULL 1)")
         );
 

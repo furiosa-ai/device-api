@@ -44,6 +44,12 @@ impl DeviceError {
         }
     }
 
+    pub(crate) fn unsupported_key<K: Display>(key: K) -> DeviceError {
+        IncompatibleDriver {
+            cause: format!("key {} is not supported", key),
+        }
+    }
+
     pub(crate) fn hwmon_error(device_index: u8, cause: HwmonError) -> DeviceError {
         DeviceError::HwmonError {
             device_index,

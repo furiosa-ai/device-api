@@ -78,21 +78,21 @@ impl Device {
     }
 
     /// Returns PCI bus number of the device.
-    pub fn busname(&mut self) -> Option<&str> {
+    pub fn busname(&mut self) -> DeviceResult<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::BUSNAME)
             .map(String::as_str)
     }
 
     /// Returns PCI device ID of the device.
-    pub fn pci_dev(&mut self) -> Option<&str> {
+    pub fn pci_dev(&mut self) -> DeviceResult<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::DEV)
             .map(String::as_str)
     }
 
     /// Retrieves firmware revision from the device.
-    pub fn firmware_version(&mut self) -> Option<&str> {
+    pub fn firmware_version(&mut self) -> DeviceResult<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::FW_VERSION)
             .map(String::as_str)
@@ -202,21 +202,22 @@ impl DeviceInfo {
         self.meta.arch
     }
 
-    pub fn get(&mut self, key: &str) -> Option<&String> {
+    pub fn get(&mut self, key: &str) -> DeviceResult<&String> {
         let (key, _) = sysfs::npu_mgmt::MGMT_FILES
             .iter()
-            .find(|mgmt_file| mgmt_file.0 == key)?;
+            .find(|mgmt_file| mgmt_file.0 == key)
+            .ok_or_else(|| DeviceError::unsupported_key(key))?;
 
-        Some(self.meta.map.entry(key).or_insert(
-            sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index).ok()?,
+        Ok(self.meta.map.entry(key).or_insert(
+            sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index)?,
         ))
     }
 
-    pub fn ctrl(&mut self, key: &str, contents: &[u8]) -> std::io::Result<()> {
+    pub fn ctrl(&mut self, key: &str, contents: &[u8]) -> DeviceResult<()> {
         let key = sysfs::npu_mgmt::CTRL_FILES
             .iter()
             .find(|ctrl| **ctrl == key)
-            .unwrap(); // TODO: error
+            .ok_or_else(|| DeviceError::unsupported_key(key))?;
 
         sysfs::npu_mgmt::write_ctrl_file(&self.sys_root, key, self.device_index, contents)?;
 
