@@ -8,6 +8,7 @@ pub(crate) mod npu_mgmt {
     pub(crate) static BUSNAME: &str = "busname";
     pub(crate) static CUR_PE_IDS: &str = "cur_pe_ids";
     pub(crate) static DEV: &str = "dev";
+    pub(crate) static DEVICE_LED: &str = "device_led";
     pub(crate) static DEVICE_STATE: &str = "device_state";
     pub(crate) static DEVICE_TYPE: &str = "device_type";
     pub(crate) static DEVICE_UUID: &str = "device_uuid";
@@ -15,6 +16,7 @@ pub(crate) mod npu_mgmt {
     pub(crate) static FW_VERSION: &str = "fw_version";
     pub(crate) static HEARTBEAT: &str = "heartbeat";
     pub(crate) static NE_CLK_FREQ_INFO: &str = "ne_clk_freq_info";
+    pub(crate) static NE_CLOCK: &str = "ne_clock";
     pub(crate) static NE_DTM_POLICY: &str = "ne_dtm_policy";
     pub(crate) static PERFORMANCE_LEVEL: &str = "performance_level";
     pub(crate) static PERFORMANCE_MODE: &str = "performance_mode";
@@ -43,6 +45,14 @@ pub(crate) mod npu_mgmt {
         (SOC_REV, false),
         (SOC_UID, false),
         (VERSION, false),
+    ];
+
+    pub(crate) static CTRL_FILES: &[&str] = &[
+        DEVICE_LED,
+        NE_CLOCK,
+        NE_DTM_POLICY,
+        PERFORMANCE_LEVEL,
+        PERFORMANCE_MODE,
     ];
 
     pub fn path<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
@@ -82,6 +92,16 @@ pub(crate) mod npu_mgmt {
             }
         }
         Ok(mgmt_files)
+    }
+
+    pub(crate) fn write_ctrl_file<P: AsRef<Path>, C: AsRef<[u8]>>(
+        sysfs: P,
+        ctrl_file: &str,
+        idx: u8,
+        contents: C,
+    ) -> io::Result<()> {
+        let path = path(sysfs, ctrl_file, idx);
+        std::fs::write(&path, contents)
     }
 }
 

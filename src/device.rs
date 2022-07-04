@@ -211,6 +211,25 @@ impl DeviceInfo {
             sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index).ok()?,
         ))
     }
+
+    pub fn ctrl(&mut self, key: &str, contents: &[u8]) -> std::io::Result<()> {
+        let key = sysfs::npu_mgmt::CTRL_FILES
+            .iter()
+            .find(|ctrl| **ctrl == key)
+            .unwrap(); // TODO: error
+
+        sysfs::npu_mgmt::write_ctrl_file(&self.sys_root, key, self.device_index, contents)?;
+
+        if let Some((key, _)) = sysfs::npu_mgmt::MGMT_FILES
+            .iter()
+            .find(|mgmt_file| mgmt_file.0 == *key)
+        {
+            self.meta.map.remove(key);
+            self.get(key);
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
