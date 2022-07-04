@@ -79,12 +79,11 @@ impl TryFrom<(u8, u8)> for CoreIdConfig {
 
 impl DeviceConfig {
     /// Returns a builder associated with Warboy NPUs.
-    pub fn warboy() -> WarboyConfigBuilder {
-        WarboyConfigBuilder {
+    pub fn warboy() -> DeviceConfigBuilder<Arch, NotDetermined, NotDetermined> {
+        DeviceConfigBuilder {
             arch: Arch::Warboy,
-            core_num: 1,
-            mode: DeviceMode::Single,
-            count: 1,
+            mode: NotDetermined,
+            count: NotDetermined,
         }
     }
 }
@@ -146,43 +145,87 @@ impl FromStr for DeviceConfig {
     }
 }
 
-/// A builder struct for `DeviceConfig` with Warboy NPUs.
-pub struct WarboyConfigBuilder {
-    arch: Arch,
-    core_num: u8,
-    mode: DeviceMode,
-    count: u8,
+pub struct NotDetermined;
+
+impl From<NotDetermined> for Arch {
+    fn from(_: NotDetermined) -> Self {
+        Arch::Warboy
+    }
 }
 
-impl WarboyConfigBuilder {
-    pub fn multicore(mut self) -> Self {
-        self.core_num = 0;
-        self.mode = DeviceMode::MultiCore;
-        self
+impl From<NotDetermined> for DeviceMode {
+    fn from(_: NotDetermined) -> Self {
+        DeviceMode::Fusion
     }
+}
 
-    pub fn fused(mut self) -> Self {
-        self.core_num = 2;
-        self.mode = DeviceMode::Fusion;
-        self
+impl From<NotDetermined> for u8 {
+    fn from(_: NotDetermined) -> Self {
+        1
     }
+}
 
-    pub fn count(mut self, count: u8) -> DeviceConfig {
-        self.count = count;
-        DeviceConfig::Unnamed {
+/// A builder struct for `DeviceConfig`.
+pub struct DeviceConfigBuilder<A, M, C> {
+    arch: A,
+    mode: M,
+    count: C,
+}
+
+impl<A, C> DeviceConfigBuilder<A, NotDetermined, C> {
+    pub fn multicore(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
+        DeviceConfigBuilder {
             arch: self.arch,
-            core_num: self.core_num,
-            mode: self.mode,
+            mode: DeviceMode::MultiCore,
             count: self.count,
         }
     }
 
-    pub fn build(self) -> DeviceConfig {
-        DeviceConfig::Unnamed {
+    pub fn single(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
+        DeviceConfigBuilder {
             arch: self.arch,
-            core_num: self.core_num,
-            mode: self.mode,
+            mode: DeviceMode::Single,
             count: self.count,
+        }
+    }
+
+    pub fn fused(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
+        DeviceConfigBuilder {
+            arch: self.arch,
+            mode: DeviceMode::Fusion,
+            count: self.count,
+        }
+    }
+}
+
+impl<A, M, C> DeviceConfigBuilder<A, M, C>
+where
+    Arch: From<A>,
+    DeviceMode: From<M>,
+    u8: From<C>,
+{
+    pub fn count(self, count: u8) -> DeviceConfig {
+        let builder = DeviceConfigBuilder {
+            arch: self.arch,
+            mode: self.mode,
+            count,
+        };
+        builder.build()
+    }
+
+    pub fn build(self) -> DeviceConfig {
+        let mode = DeviceMode::from(self.mode);
+        let core_num = match mode {
+            DeviceMode::MultiCore => 0,
+            DeviceMode::Single => 1,
+            DeviceMode::Fusion => 2,
+        };
+
+        DeviceConfig::Unnamed {
+            arch: Arch::from(self.arch),
+            core_num,
+            mode,
+            count: u8::from(self.count),
         }
     }
 }
@@ -327,7 +370,7 @@ mod tests {
         let devices_with_statuses = expand_status(devices).await?;
 
         // try lookup 4 different single cores
-        let config = DeviceConfig::warboy().count(4);
+        let config = DeviceConfig::warboy().single().count(4);
         let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
@@ -336,7 +379,7 @@ mod tests {
         assert_eq!(found[3].filename(), "npu1pe1");
 
         // looking for 5 different cores should fail
-        let config = DeviceConfig::warboy().count(5);
+        let config = DeviceConfig::warboy().single().count(5);
         let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found, vec![]);
 
