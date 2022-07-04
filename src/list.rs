@@ -50,8 +50,7 @@ pub(crate) fn collect_devices(
 
     for path in paths {
         let file = DeviceFile::try_from(&path)?;
-        let (_, core_indices) =
-            devfs::parse_indices(path.file_name().unwrap().to_string_lossy().to_string())?;
+        let (_, core_indices) = devfs::parse_indices(path.file_name().unwrap().to_string_lossy())?;
         cores.extend(core_indices);
         dev_files.push(file);
     }
