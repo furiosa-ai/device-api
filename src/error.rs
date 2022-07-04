@@ -46,7 +46,13 @@ impl DeviceError {
 
     pub(crate) fn unsupported_key<K: Display>(key: K) -> DeviceError {
         IncompatibleDriver {
-            cause: format!("key {} is not supported", key),
+            cause: format!("mgmt file {} is not supported", key),
+        }
+    }
+
+    pub(crate) fn unsupported_input<I: Display, C: Display>(input: I, ctrl: C) -> DeviceError {
+        IncompatibleDriver {
+            cause: format!("input {} for ctrl file {} is not supported", input, ctrl),
         }
     }
 

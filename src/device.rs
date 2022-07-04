@@ -98,6 +98,64 @@ impl Device {
             .map(String::as_str)
     }
 
+    /// Controls the device led.
+    pub fn ctrl_device_led(&mut self, led: (bool, bool, bool)) -> DeviceResult<()> {
+        self.device_info.ctrl(
+            sysfs::npu_mgmt::DEVICE_LED,
+            &(led.0 as i32 + 0b10 * led.1 as i32 + 0b100 * led.2 as i32).to_string(),
+        )
+    }
+
+    /// Enable NE clocks.
+    pub fn enable_ne_clock(&mut self) -> DeviceResult<()> {
+        self.device_info.ctrl(sysfs::npu_mgmt::NE_CLOCK, "1")
+    }
+
+    /// Disable NE clocks.
+    pub fn disable_ne_clock(&mut self) -> DeviceResult<()> {
+        self.device_info.ctrl(sysfs::npu_mgmt::NE_CLOCK, "0")
+    }
+
+    /// Set a conservative DTM policy.
+    pub fn ne_dtm_policy_conservative(&mut self) -> DeviceResult<()> {
+        self.device_info.ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, "0")
+    }
+
+    /// Set an on-demand DTM policy.
+    pub fn ne_dtm_policy_ondemand(&mut self) -> DeviceResult<()> {
+        self.device_info.ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, "1")
+    }
+
+    /// Set NE performance level
+    /// # Arguments
+    ///
+    /// * `level` - integer in [0, 15], lower in level is higher in clock frequency
+    pub fn ctrl_performance_level(&mut self, level: u8) -> DeviceResult<()> {
+        if !(0..=15).contains(&level) {
+            return Err(DeviceError::unsupported_input(
+                level,
+                sysfs::npu_mgmt::PERFORMANCE_LEVEL,
+            ));
+        }
+        self.device_info
+            .ctrl(sysfs::npu_mgmt::DEVICE_LED, &level.to_string())
+    }
+
+    /// Set NE performance mode
+    /// # Arguments
+    ///
+    /// * `level` - integer in [0, 5], lower in level is higher in clock frequency
+    pub fn ctrl_performance_mode(&mut self, level: u8) -> DeviceResult<()> {
+        if !(0..=5).contains(&level) {
+            return Err(DeviceError::unsupported_input(
+                level,
+                sysfs::npu_mgmt::PERFORMANCE_MODE,
+            ));
+        }
+        self.device_info
+            .ctrl(sysfs::npu_mgmt::DEVICE_LED, &level.to_string())
+    }
+
     /// Counts the number of cores.
     pub fn core_num(&self) -> u8 {
         u8::try_from(self.cores.len()).unwrap()
@@ -208,12 +266,18 @@ impl DeviceInfo {
             .find(|mgmt_file| mgmt_file.0 == key)
             .ok_or_else(|| DeviceError::unsupported_key(key))?;
 
-        Ok(self.meta.map.entry(key).or_insert(
-            sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index)?,
-        ))
+        Ok(self
+            .meta
+            .map
+            .entry(key)
+            .or_insert(sysfs::npu_mgmt::read_mgmt_file(
+                &self.sys_root,
+                key,
+                self.device_index,
+            )?))
     }
 
-    pub fn ctrl(&mut self, key: &str, contents: &[u8]) -> DeviceResult<()> {
+    pub fn ctrl(&mut self, key: &str, contents: &str) -> DeviceResult<()> {
         let key = sysfs::npu_mgmt::CTRL_FILES
             .iter()
             .find(|ctrl| **ctrl == key)
