@@ -207,11 +207,9 @@ impl DeviceInfo {
             .iter()
             .find(|mgmt_file| mgmt_file.0 == key)?;
 
-        Some(
-            self.meta.map.entry(key).or_insert(
-                crate::list::read_mgmt_file(&self.sys_root, key, self.device_index).ok()?,
-            ),
-        )
+        Some(self.meta.map.entry(key).or_insert(
+            sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index).ok()?,
+        ))
     }
 }
 

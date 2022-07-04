@@ -1,4 +1,6 @@
 pub(crate) mod npu_mgmt {
+    use std::collections::HashMap;
+    use std::io;
     use std::path::{Path, PathBuf};
 
     pub(crate) static ALIVE: &str = "alive";
@@ -53,6 +55,33 @@ pub(crate) mod npu_mgmt {
     pub fn is_furiosa_platform(contents: &str) -> bool {
         let contents = contents.trim();
         contents == "FuriosaAI" || contents == "VITIS"
+    }
+
+    pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
+        sysfs: P,
+        mgmt_file: &str,
+        idx: u8,
+    ) -> io::Result<String> {
+        let path = path(sysfs, mgmt_file, idx);
+        std::fs::read_to_string(&path).map(|s| s.trim().to_string())
+    }
+
+    pub(crate) async fn read_mgmt_files<P: AsRef<Path>>(
+        sysfs: P,
+        idx: u8,
+    ) -> io::Result<HashMap<&'static str, String>> {
+        let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
+        for (mgmt_file, required) in MGMT_FILES {
+            if !required {
+                continue;
+            }
+
+            let contents = read_mgmt_file(&sysfs, mgmt_file, idx)?;
+            if mgmt_files.insert(mgmt_file, contents).is_some() {
+                unreachable!("duplicate key: {}", mgmt_file);
+            }
+        }
+        Ok(mgmt_files)
     }
 }
 

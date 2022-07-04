@@ -12,7 +12,7 @@ use crate::device::{Device, DeviceFile, DeviceInfo, DeviceMetadata};
 
 use crate::error::DeviceResult;
 use crate::hwmon;
-use crate::sysfs::npu_mgmt::{self, *};
+use crate::sysfs::npu_mgmt::{self, read_mgmt_files, *};
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
@@ -115,33 +115,6 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
         .ok()
         .filter(|c| npu_mgmt::is_furiosa_platform(c))
         .is_some()
-}
-
-pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
-    sysfs: P,
-    mgmt_file: &str,
-    idx: u8,
-) -> io::Result<String> {
-    let path = npu_mgmt::path(sysfs, mgmt_file, idx);
-    std::fs::read_to_string(&path).map(|s| s.trim().to_string())
-}
-
-async fn read_mgmt_files<P: AsRef<Path>>(
-    sysfs: P,
-    idx: u8,
-) -> io::Result<HashMap<&'static str, String>> {
-    let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-    for (mgmt_file, required) in MGMT_FILES {
-        if !required {
-            continue;
-        }
-
-        let contents = read_mgmt_file(&sysfs, mgmt_file, idx)?;
-        if mgmt_files.insert(mgmt_file, contents).is_some() {
-            unreachable!("duplicate key: {}", mgmt_file);
-        }
-    }
-    Ok(mgmt_files)
 }
 
 #[cfg(test)]
