@@ -8,18 +8,11 @@ use crate::devfs;
 use crate::devfs::is_character_device;
 use tokio::fs;
 
-use crate::device::{Device, DeviceFile, DeviceInfo};
+use crate::device::{Device, DeviceFile, DeviceInfo, DeviceMetadata};
 
 use crate::error::DeviceResult;
 use crate::hwmon;
-use crate::sysfs::npu_mgmt::{self, BUSNAME, DEV, DEVICE_TYPE, FW_VERSION, PLATFORM_TYPE};
-
-pub(crate) static MGMT_FILES: [(&str, bool); 4] = [
-    (DEVICE_TYPE, true),
-    (BUSNAME, true),
-    (DEV, true),
-    (FW_VERSION, false),
-];
+use crate::sysfs::npu_mgmt::{self, *};
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
@@ -30,10 +23,15 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs).await {
             let mgmt_files = read_mgmt_files(sysfs, idx).await?;
-            let device_info = DeviceInfo::try_from(mgmt_files)?;
-            let busname = device_info.busname().unwrap_or_default();
+            let device_meta = DeviceMetadata::try_from(mgmt_files)?;
+            let mut device_info =
+                DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
+
+            // Since busname is a required field, it is guaranteed to exist.
+            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
             let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, busname).await?;
-            let device = collect_devices(idx, device_info, hwmon_fetcher, paths)?;
+
+            let device = collect_devices(device_info, hwmon_fetcher, paths)?;
             devices.push(device);
         }
     }
@@ -43,7 +41,6 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
 }
 
 pub(crate) fn collect_devices(
-    idx: u8,
     device_info: DeviceInfo,
     hwmon_fetcher: hwmon::Fetcher,
     paths: Vec<PathBuf>,
@@ -66,13 +63,7 @@ pub(crate) fn collect_devices(
             .then(x.path().cmp(y.path()))
     });
 
-    Ok(Device::new(
-        idx,
-        device_info,
-        hwmon_fetcher,
-        cores,
-        dev_files,
-    ))
+    Ok(Device::new(device_info, hwmon_fetcher, cores, dev_files))
 }
 
 pub(crate) struct DevFile {
@@ -119,29 +110,35 @@ pub(crate) fn filter_dev_files(dev_files: Vec<DevFile>) -> DeviceResult<HashMap<
 }
 
 async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
-    fs::read_to_string(npu_mgmt::path(sysfs, PLATFORM_TYPE, idx))
+    fs::read_to_string(npu_mgmt::path(&sysfs, PLATFORM_TYPE, idx))
         .await
         .ok()
         .filter(|c| npu_mgmt::is_furiosa_platform(c))
         .is_some()
 }
 
-async fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
+pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
+    sysfs: P,
+    mgmt_file: &str,
+    idx: u8,
+) -> io::Result<String> {
+    let path = npu_mgmt::path(sysfs, mgmt_file, idx);
+    std::fs::read_to_string(&path).map(|s| s.trim().to_string())
+}
+
+async fn read_mgmt_files<P: AsRef<Path>>(
+    sysfs: P,
+    idx: u8,
+) -> io::Result<HashMap<&'static str, String>> {
     let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
     for (mgmt_file, required) in MGMT_FILES {
-        let path = npu_mgmt::path(sysfs, mgmt_file, idx);
-        let contents = tokio::fs::read_to_string(&path)
-            .await
-            .or_else(|err| {
-                if required {
-                    Err(err)
-                } else {
-                    Ok(String::new())
-                }
-            })
-            .map(|s| s.trim().to_string())?;
+        if !required {
+            continue;
+        }
+
+        let contents = read_mgmt_file(&sysfs, mgmt_file, idx)?;
         if mgmt_files.insert(mgmt_file, contents).is_some() {
-            unreachable!("duplicate {} file at {}", mgmt_file, path.display());
+            unreachable!("duplicate key: {}", mgmt_file);
         }
     }
     Ok(mgmt_files)
@@ -180,13 +177,35 @@ mod tests {
     #[tokio::test]
     async fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
-            DeviceInfo::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?.arch(),
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?.arch,
             Arch::Warboy
         );
         assert_eq!(
-            DeviceInfo::try_from(read_mgmt_files("test_data/test-0/sys", 1).await?)?.arch(),
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1).await?)?.arch,
             Arch::Warboy
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_lazy_read_sysfs() -> DeviceResult<()> {
+        let device_meta =
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?;
+        assert_eq!(device_meta.map.get(npu_mgmt::PERFORMANCE_MODE), None);
+
+        let mut device_info = DeviceInfo::new(
+            0,
+            PathBuf::from("test_data/test-0/dev"),
+            PathBuf::from("test_data/test-0/sys"),
+            device_meta,
+        );
+        assert_eq!(
+            device_info
+                .get(npu_mgmt::PERFORMANCE_MODE)
+                .map(AsRef::as_ref),
+            Some("4 (FULL 1)")
+        );
+
         Ok(())
     }
 }

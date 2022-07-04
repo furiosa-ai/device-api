@@ -3,13 +3,13 @@
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::devfs::is_character_device;
-use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
+use crate::device::{CoreIdx, CoreStatus, DeviceInfo, DeviceMetadata};
 use crate::find::DeviceWithStatus;
 use crate::hwmon;
-use crate::list::{collect_devices, filter_dev_files, DevFile, MGMT_FILES};
+use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
 use crate::sysfs::npu_mgmt::PLATFORM_TYPE;
@@ -63,10 +63,13 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs) {
             let mgmt_files = read_mgmt_files(sysfs, idx)?;
-            let device_info = DeviceInfo::try_from(mgmt_files)?;
-            let busname = device_info.busname().unwrap_or_default();
+            let device_meta = DeviceMetadata::try_from(mgmt_files)?;
+            let mut device_info =
+                DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
+            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
             let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, busname)?;
-            let device = collect_devices(idx, device_info, hwmon_fetcher, paths)?;
+
+            let device = collect_devices(device_info, hwmon_fetcher, paths)?;
             devices.push(device);
         }
     }
@@ -98,11 +101,11 @@ fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
 
 fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
     let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-    for (mgmt_file, required) in MGMT_FILES {
+    for (mgmt_file, required) in npu_mgmt::MGMT_FILES {
         let path = npu_mgmt::path(sysfs, mgmt_file, idx);
         let contents = std::fs::read_to_string(&path)
             .or_else(|err| {
-                if required {
+                if *required {
                     Err(err)
                 } else {
                     Ok(String::new())
