@@ -62,7 +62,7 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
 
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs) {
-            let mgmt_files = read_mgmt_files(sysfs, idx)?;
+            let mgmt_files = npu_mgmt::read_mgmt_files(sysfs, idx)?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
             let mut device_info =
                 DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
@@ -97,26 +97,6 @@ fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
         .ok()
         .filter(|c| npu_mgmt::is_furiosa_platform(c))
         .is_some()
-}
-
-fn read_mgmt_files(sysfs: &str, idx: u8) -> io::Result<HashMap<&'static str, String>> {
-    let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-    for (mgmt_file, required) in npu_mgmt::MGMT_FILES {
-        let path = npu_mgmt::path(sysfs, mgmt_file, idx);
-        let contents = std::fs::read_to_string(&path)
-            .or_else(|err| {
-                if *required {
-                    Err(err)
-                } else {
-                    Ok(String::new())
-                }
-            })
-            .map(|s| s.trim().to_string())?;
-        if mgmt_files.insert(mgmt_file, contents).is_some() {
-            unreachable!("duplicate {} file at {}", mgmt_file, path.display());
-        }
-    }
-    Ok(mgmt_files)
 }
 
 pub(crate) fn expand_status(devices: Vec<Device>) -> DeviceResult<Vec<DeviceWithStatus>> {

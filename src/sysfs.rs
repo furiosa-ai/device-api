@@ -66,7 +66,7 @@ pub(crate) mod npu_mgmt {
         std::fs::read_to_string(&path).map(|s| s.trim().to_string())
     }
 
-    pub(crate) async fn read_mgmt_files<P: AsRef<Path>>(
+    pub(crate) fn read_mgmt_files<P: AsRef<Path>>(
         sysfs: P,
         idx: u8,
     ) -> io::Result<HashMap<&'static str, String>> {

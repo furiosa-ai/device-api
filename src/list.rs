@@ -22,7 +22,7 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
 
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs).await {
-            let mgmt_files = read_mgmt_files(sysfs, idx).await?;
+            let mgmt_files = read_mgmt_files(sysfs, idx)?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
             let mut device_info =
                 DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
@@ -150,11 +150,11 @@ mod tests {
     #[tokio::test]
     async fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
-            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?.arch,
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?.arch,
             Arch::Warboy
         );
         assert_eq!(
-            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1).await?)?.arch,
+            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?.arch,
             Arch::Warboy
         );
         Ok(())
@@ -162,8 +162,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_lazy_read_sysfs() -> DeviceResult<()> {
-        let device_meta =
-            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0).await?)?;
+        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
         assert_eq!(device_meta.map.get(npu_mgmt::PERFORMANCE_MODE), None);
 
         let mut device_info = DeviceInfo::new(
