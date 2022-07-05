@@ -50,12 +50,6 @@ impl DeviceError {
         }
     }
 
-    pub(crate) fn unsupported_input<I: Display, C: Display>(input: I, ctrl: C) -> DeviceError {
-        IncompatibleDriver {
-            cause: format!("input {} for ctrl file {} is not supported", input, ctrl),
-        }
-    }
-
     pub(crate) fn hwmon_error(device_index: u8, cause: HwmonError) -> DeviceError {
         DeviceError::HwmonError {
             device_index,

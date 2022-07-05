@@ -134,12 +134,6 @@ impl Device {
         &mut self,
         level: sysfs::npu_mgmt::PerfLevel,
     ) -> DeviceResult<()> {
-        if !(0..=15).contains(&(level as u8)) {
-            return Err(DeviceError::unsupported_input(
-                level as u8,
-                sysfs::npu_mgmt::PERFORMANCE_LEVEL,
-            ));
-        }
         self.device_info.ctrl(
             sysfs::npu_mgmt::PERFORMANCE_LEVEL,
             &(level as u8).to_string(),
@@ -148,12 +142,6 @@ impl Device {
 
     /// Set NE performance mode
     pub fn ctrl_performance_mode(&mut self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
-        if !(0..=5).contains(&(mode as u8)) {
-            return Err(DeviceError::unsupported_input(
-                mode as u8,
-                sysfs::npu_mgmt::PERFORMANCE_MODE,
-            ));
-        }
         self.device_info
             .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
