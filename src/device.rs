@@ -106,24 +106,16 @@ impl Device {
         )
     }
 
-    /// Enable NE clocks.
-    pub fn enable_ne_clock(&mut self) -> DeviceResult<()> {
-        self.device_info.ctrl(sysfs::npu_mgmt::NE_CLOCK, "1")
+    /// Control NE clocks.
+    pub fn ctrl_ne_clock(&mut self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
+        self.device_info
+            .ctrl(sysfs::npu_mgmt::NE_CLOCK, &(toggle as u8).to_string())
     }
 
-    /// Disable NE clocks.
-    pub fn disable_ne_clock(&mut self) -> DeviceResult<()> {
-        self.device_info.ctrl(sysfs::npu_mgmt::NE_CLOCK, "0")
-    }
-
-    /// Set a conservative DTM policy.
-    pub fn ne_dtm_policy_conservative(&mut self) -> DeviceResult<()> {
-        self.device_info.ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, "0")
-    }
-
-    /// Set an on-demand DTM policy.
-    pub fn ne_dtm_policy_ondemand(&mut self) -> DeviceResult<()> {
-        self.device_info.ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, "1")
+    /// Control the Dynamic Thermal Management policy.
+    pub fn ctrl_ne_dtm_policy(&mut self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
+        self.device_info
+            .ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, &(policy as u8).to_string())
     }
 
     /// Set NE performance level

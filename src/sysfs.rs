@@ -3,6 +3,16 @@ pub mod npu_mgmt {
     use std::io;
     use std::path::{Path, PathBuf};
 
+    pub enum Toggle {
+        Enable = 1,
+        Disable = 0,
+    }
+
+    pub enum DtmPolicy {
+        OnDemand = 1,
+        Conservative = 0,
+    }
+
     #[derive(Copy, Clone, Debug)]
     pub enum PerfMode {
         Full2 = 5,
