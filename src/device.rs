@@ -118,10 +118,7 @@ impl Device {
             .ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, &(policy as u8).to_string())
     }
 
-    /// Set NE performance level
-    /// # Arguments
-    ///
-    /// * `level` - integer in [0, 15], lower in level is higher in clock frequency
+    /// Control NE performance level
     pub fn ctrl_performance_level(
         &mut self,
         level: sysfs::npu_mgmt::PerfLevel,
@@ -132,7 +129,7 @@ impl Device {
         )
     }
 
-    /// Set NE performance mode
+    /// Control NE performance mode
     pub fn ctrl_performance_mode(&mut self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
