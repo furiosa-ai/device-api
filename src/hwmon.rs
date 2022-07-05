@@ -6,7 +6,7 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 use itertools::Itertools;
 use tokio::fs::DirEntry;
 
-use crate::sysfs::hwmon;
+use crate::sysfs::pci::hwmon;
 use crate::{DeviceError, DeviceResult};
 
 pub mod error {

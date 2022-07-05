@@ -147,10 +147,28 @@ pub mod npu_mgmt {
     }
 }
 
-pub(crate) mod hwmon {
-    use std::path::PathBuf;
+pub(crate) mod pci {
+    pub(crate) mod numa {
+        use std::io;
+        use std::path::{Path, PathBuf};
 
-    pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
-        PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
+        pub(crate) fn path<P: AsRef<Path>>(base_dir: P, bdf: &str) -> PathBuf {
+            base_dir
+                .as_ref()
+                .join(format!("bus/pci/devices/{}/numa_node", bdf.trim()))
+        }
+
+        pub(crate) fn read_numa_node<P: AsRef<Path>>(sysfs: P, bdf: &str) -> io::Result<String> {
+            let path = path(sysfs, bdf);
+            std::fs::read_to_string(&path).map(|s| s.trim().to_string())
+        }
+    }
+
+    pub(crate) mod hwmon {
+        use std::path::PathBuf;
+
+        pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
+            PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
+        }
     }
 }

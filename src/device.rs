@@ -135,6 +135,11 @@ impl Device {
             .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
 
+    /// Retrieve NUMA node ID associated with the NPU's PCI lane
+    pub fn numa_node(&mut self) -> DeviceResult<usize> {
+        self.device_info.get_numa_node()
+    }
+
     /// Counts the number of cores.
     pub fn core_num(&self) -> u8 {
         u8::try_from(self.cores.len()).unwrap()
@@ -210,6 +215,7 @@ pub struct DeviceInfo {
     dev_root: PathBuf,
     sys_root: PathBuf,
     meta: DeviceMetadata,
+    numa_node: Option<usize>,
 }
 
 impl DeviceInfo {
@@ -224,6 +230,7 @@ impl DeviceInfo {
             dev_root,
             sys_root,
             meta,
+            numa_node: None,
         }
     }
 
@@ -264,6 +271,22 @@ impl DeviceInfo {
         }
 
         Ok(())
+    }
+
+    pub fn get_numa_node(&mut self) -> DeviceResult<usize> {
+        let numa_node = match self.numa_node {
+            Some(numa_node) => numa_node,
+            None => {
+                // note for .clone(): see https://doc.rust-lang.org/nomicon/lifetime-mismatch.html
+                let busname = self.get(sysfs::npu_mgmt::BUSNAME)?.clone();
+
+                sysfs::pci::numa::read_numa_node(&self.sys_root, &busname)?
+                    .parse::<usize>()
+                    .unwrap()
+            }
+        };
+
+        Ok(numa_node)
     }
 }
 
@@ -456,6 +479,7 @@ pub enum DeviceMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sysfs::npu_mgmt::read_mgmt_files;
 
     #[test]
     fn test_core_range_ordering() {
@@ -545,5 +569,32 @@ mod tests {
         assert_eq!("multicore".parse(), Ok(DeviceMode::MultiCore));
         assert_eq!("MultiCore".parse(), Ok(DeviceMode::MultiCore));
         assert_eq!("invalid".parse::<DeviceMode>(), Err(()));
+    }
+
+    #[test]
+    fn test_numa_node() -> DeviceResult<()> {
+        // npu0 => numa node 0
+        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
+        let mut device_info = DeviceInfo::new(
+            0,
+            PathBuf::from("test_data/test-0/dev"),
+            PathBuf::from("test_data/test-0/sys"),
+            device_meta,
+        );
+
+        assert_eq!(device_info.get_numa_node()?, 0);
+
+        // npu1 => numa node 1
+        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?;
+        let mut device_info = DeviceInfo::new(
+            0,
+            PathBuf::from("test_data/test-0/dev"),
+            PathBuf::from("test_data/test-0/sys"),
+            device_meta,
+        );
+
+        assert_eq!(device_info.get_numa_node()?, 1);
+
+        Ok(())
     }
 }
