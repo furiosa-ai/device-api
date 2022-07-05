@@ -16,6 +16,8 @@ pub enum DeviceError {
     DeviceNotFound { name: String },
     #[error("IoError: {cause}")]
     IoError { cause: io::Error },
+    #[error("PermissionDenied: {cause}")]
+    PermissionDenied { cause: io::Error },
     #[error("Unknown architecture: {arch}")]
     UnknownArch { arch: String },
     #[error("Incompatible device driver: {cause}")]
@@ -44,6 +46,12 @@ impl DeviceError {
         }
     }
 
+    pub(crate) fn unsupported_key<K: Display>(key: K) -> DeviceError {
+        IncompatibleDriver {
+            cause: format!("mgmt file {} is not supported", key),
+        }
+    }
+
     pub(crate) fn hwmon_error(device_index: u8, cause: HwmonError) -> DeviceError {
         DeviceError::HwmonError {
             device_index,
@@ -54,6 +62,10 @@ impl DeviceError {
 
 impl From<io::Error> for DeviceError {
     fn from(e: io::Error) -> Self {
-        Self::IoError { cause: e }
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            Self::PermissionDenied { cause: e }
+        } else {
+            Self::IoError { cause: e }
+        }
     }
 }

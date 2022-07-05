@@ -78,24 +78,64 @@ impl Device {
     }
 
     /// Returns PCI bus number of the device.
-    pub fn busname(&mut self) -> Option<&str> {
+    pub fn busname(&mut self) -> DeviceResult<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::BUSNAME)
             .map(String::as_str)
     }
 
     /// Returns PCI device ID of the device.
-    pub fn pci_dev(&mut self) -> Option<&str> {
+    pub fn pci_dev(&mut self) -> DeviceResult<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::DEV)
             .map(String::as_str)
     }
 
     /// Retrieves firmware revision from the device.
-    pub fn firmware_version(&mut self) -> Option<&str> {
+    pub fn firmware_version(&mut self) -> DeviceResult<&str> {
         self.device_info
             .get(sysfs::npu_mgmt::FW_VERSION)
             .map(String::as_str)
+    }
+
+    /// Controls the device led.
+    pub fn ctrl_device_led(&mut self, led: (bool, bool, bool)) -> DeviceResult<()> {
+        self.device_info.ctrl(
+            sysfs::npu_mgmt::DEVICE_LED,
+            &(led.0 as i32 + 0b10 * led.1 as i32 + 0b100 * led.2 as i32).to_string(),
+        )
+    }
+
+    /// Control NE clocks.
+    pub fn ctrl_ne_clock(&mut self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
+        self.device_info
+            .ctrl(sysfs::npu_mgmt::NE_CLOCK, &(toggle as u8).to_string())
+    }
+
+    /// Control the Dynamic Thermal Management policy.
+    pub fn ctrl_ne_dtm_policy(&mut self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
+        self.device_info
+            .ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, &(policy as u8).to_string())
+    }
+
+    /// Set NE performance level
+    /// # Arguments
+    ///
+    /// * `level` - integer in [0, 15], lower in level is higher in clock frequency
+    pub fn ctrl_performance_level(
+        &mut self,
+        level: sysfs::npu_mgmt::PerfLevel,
+    ) -> DeviceResult<()> {
+        self.device_info.ctrl(
+            sysfs::npu_mgmt::PERFORMANCE_LEVEL,
+            &(level as u8).to_string(),
+        )
+    }
+
+    /// Set NE performance mode
+    pub fn ctrl_performance_mode(&mut self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
+        self.device_info
+            .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
 
     /// Counts the number of cores.
@@ -194,16 +234,40 @@ impl DeviceInfo {
         self.meta.arch
     }
 
-    pub fn get(&mut self, key: &str) -> Option<&String> {
+    pub fn get(&mut self, key: &str) -> DeviceResult<&String> {
         let (key, _) = sysfs::npu_mgmt::MGMT_FILES
             .iter()
-            .find(|mgmt_file| mgmt_file.0 == key)?;
+            .find(|mgmt_file| mgmt_file.0 == key)
+            .ok_or_else(|| DeviceError::unsupported_key(key))?;
 
-        Some(
-            self.meta.map.entry(key).or_insert(
-                crate::list::read_mgmt_file(&self.sys_root, key, self.device_index).ok()?,
-            ),
-        )
+        Ok(self
+            .meta
+            .map
+            .entry(key)
+            .or_insert(sysfs::npu_mgmt::read_mgmt_file(
+                &self.sys_root,
+                key,
+                self.device_index,
+            )?))
+    }
+
+    pub fn ctrl(&mut self, key: &str, contents: &str) -> DeviceResult<()> {
+        let key = sysfs::npu_mgmt::CTRL_FILES
+            .iter()
+            .find(|ctrl| **ctrl == key)
+            .ok_or_else(|| DeviceError::unsupported_key(key))?;
+
+        sysfs::npu_mgmt::write_ctrl_file(&self.sys_root, key, self.device_index, contents)?;
+
+        if let Some((key, _)) = sysfs::npu_mgmt::MGMT_FILES
+            .iter()
+            .find(|mgmt_file| mgmt_file.0 == *key)
+        {
+            self.meta.map.remove(key);
+            self.get(key)?;
+        }
+
+        Ok(())
     }
 }
 
