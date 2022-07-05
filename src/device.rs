@@ -116,7 +116,7 @@ impl Device {
     /// Examine a specific core of the device, whether it is available or not.
     pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
         for file in &self.dev_files {
-            if (file.is_multicore() || file.core_indices().contains(&core))
+            if (file.core_range().contains(&core))
                 && get_device_status(&file.path).await? == DeviceStatus::Occupied
             {
                 return Ok(CoreStatus::Occupied(file.to_string()));
@@ -129,17 +129,9 @@ impl Device {
     pub async fn get_status_all(&self) -> DeviceResult<HashMap<CoreIdx, CoreStatus>> {
         let mut status_map = self.new_status_map();
 
-        for file in &self.dev_files {
-            if get_device_status(&file.path).await? == DeviceStatus::Occupied {
-                for core in file.core_indices.iter().chain(
-                    file.is_multicore()
-                        .then(|| self.cores.iter())
-                        .into_iter()
-                        .flatten(),
-                ) {
-                    status_map.insert(*core, CoreStatus::Occupied(file.to_string()));
-                }
-            }
+        for core in self.cores() {
+            let status = self.get_status_core(*core).await?;
+            status_map.insert(*core, status);
         }
         Ok(status_map)
     }
@@ -258,11 +250,67 @@ impl Display for CoreStatus {
 
 pub(crate) type CoreIdx = u8;
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum CoreRange {
+    All,
+    Range((u8, u8)),
+}
+
+impl CoreRange {
+    pub fn contains(&self, idx: &CoreIdx) -> bool {
+        match self {
+            CoreRange::All => true,
+            CoreRange::Range((s, e)) => (*s..=*e).contains(idx),
+        }
+    }
+}
+
+impl Ord for CoreRange {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self {
+            CoreRange::All => {
+                if self == other {
+                    std::cmp::Ordering::Equal
+                } else {
+                    std::cmp::Ordering::Less
+                }
+            }
+            CoreRange::Range(r) => match other {
+                CoreRange::All => std::cmp::Ordering::Greater,
+                CoreRange::Range(other) => (r.1 - r.0).cmp(&(other.1 - other.0)).then(r.cmp(other)),
+            },
+        }
+    }
+}
+
+impl PartialOrd for CoreRange {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl From<u8> for CoreRange {
+    fn from(id: u8) -> Self {
+        Self::Range((id, id))
+    }
+}
+
+impl TryFrom<(u8, u8)> for CoreRange {
+    type Error = ();
+    fn try_from(v: (u8, u8)) -> Result<Self, Self::Error> {
+        if v.0 < v.1 {
+            Ok(Self::Range(v))
+        } else {
+            Err(())
+        }
+    }
+}
+
 /// An abstraction for a device file and its mode.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct DeviceFile {
     pub(crate) device_index: u8,
-    pub(crate) core_indices: Vec<CoreIdx>,
+    pub(crate) core_range: CoreRange,
     pub(crate) path: PathBuf,
     pub(crate) mode: DeviceMode,
 }
@@ -294,18 +342,14 @@ impl DeviceFile {
         self.device_index
     }
 
-    /// Returns indices of cores this device file may occupy.
-    pub fn core_indices(&self) -> &Vec<CoreIdx> {
-        &self.core_indices
+    /// Returns the range of cores this device file may occupy.
+    pub fn core_range(&self) -> CoreRange {
+        self.core_range
     }
 
     /// Return the mode of this device file.
     pub fn mode(&self) -> DeviceMode {
         self.mode
-    }
-
-    pub(crate) fn is_multicore(&self) -> bool {
-        self.mode == DeviceMode::MultiCore
     }
 }
 
@@ -321,15 +365,19 @@ impl TryFrom<&PathBuf> for DeviceFile {
 
         let (device_index, core_indices) = devfs::parse_indices(&file_name)?;
 
-        let mode = match core_indices.len() {
-            0 => DeviceMode::MultiCore,
-            1 => DeviceMode::Single,
-            _ => DeviceMode::Fusion,
+        let (mode, core_range) = match core_indices.len() {
+            0 => (DeviceMode::MultiCore, CoreRange::All),
+            1 => (DeviceMode::Single, CoreRange::from(core_indices[0])),
+            n => (
+                DeviceMode::Fusion,
+                CoreRange::try_from((core_indices[0], core_indices[n - 1]))
+                    .map_err(|_| DeviceError::unrecognized_file(path.to_string_lossy()))?,
+            ),
         };
 
         Ok(DeviceFile {
             device_index,
-            core_indices,
+            core_range,
             path: path.clone(),
             mode,
         })
@@ -350,13 +398,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_core_range_ordering() {
+        let all = CoreRange::All;
+        let core0 = CoreRange::Range((0, 0));
+        let core1 = CoreRange::Range((1, 1));
+        let core0_1 = CoreRange::Range((0, 1));
+        let core0_3 = CoreRange::Range((0, 3));
+        let core2_3 = CoreRange::Range((2, 3));
+
+        assert!(all < core0);
+        assert!(core0 < core1);
+        assert!(core1 < core0_1);
+        assert!(core0_1 < core2_3);
+        assert!(core2_3 < core0_3);
+    }
+
+    #[test]
     fn test_try_from() -> Result<(), DeviceError> {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0"))?,
             DeviceFile {
                 device_index: 0,
                 path: PathBuf::from("./npu0"),
-                core_indices: vec![],
+                core_range: CoreRange::All,
                 mode: DeviceMode::MultiCore,
             }
         );
@@ -366,7 +430,7 @@ mod tests {
             DeviceFile {
                 device_index: 0,
                 path: PathBuf::from("./npu0pe0"),
-                core_indices: vec![0],
+                core_range: CoreRange::Range((0, 0)),
                 mode: DeviceMode::Single,
             }
         );
@@ -375,7 +439,7 @@ mod tests {
             DeviceFile {
                 device_index: 0,
                 path: PathBuf::from("./npu0pe1"),
-                core_indices: vec![1],
+                core_range: CoreRange::Range((1, 1)),
                 mode: DeviceMode::Single,
             }
         );
@@ -384,7 +448,7 @@ mod tests {
             DeviceFile {
                 device_index: 0,
                 path: PathBuf::from("./npu0pe0-1"),
-                core_indices: vec![0, 1],
+                core_range: CoreRange::Range((0, 1)),
                 mode: DeviceMode::Fusion,
             }
         );
@@ -393,7 +457,7 @@ mod tests {
             DeviceFile {
                 device_index: 0,
                 path: PathBuf::from("./npu0pe0-2"),
-                core_indices: vec![0, 1, 2],
+                core_range: CoreRange::Range((0, 2)),
                 mode: DeviceMode::Fusion,
             }
         );

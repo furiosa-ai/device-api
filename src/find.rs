@@ -10,8 +10,8 @@ use nom::sequence::{delimited, separated_pair};
 use nom::Parser;
 
 use crate::arch::Arch;
-use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile, DeviceMode};
-use crate::error::{DeviceError, DeviceResult};
+use crate::device::{CoreIdx, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
+use crate::error::DeviceResult;
 
 /// Describes a required set of devices for [`find_devices`][crate::find_devices].
 ///
@@ -35,7 +35,7 @@ pub enum DeviceConfig {
     // TODO: Named cannot describe MultiCore yet.
     Named {
         device_id: u8,
-        core_id: CoreIdConfig,
+        core_id: CoreRange,
     },
     Unnamed {
         arch: Arch,
@@ -45,38 +45,6 @@ pub enum DeviceConfig {
     },
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum CoreIdConfig {
-    Id(u8),
-    Range(u8, u8),
-}
-
-impl CoreIdConfig {
-    fn iter(&self) -> impl Iterator<Item = u8> {
-        match self {
-            Self::Id(id) => *id..=*id,
-            Self::Range(s, e) => *s..=*e,
-        }
-    }
-}
-
-impl From<u8> for CoreIdConfig {
-    fn from(id: u8) -> Self {
-        Self::Id(id)
-    }
-}
-
-impl TryFrom<(u8, u8)> for CoreIdConfig {
-    type Error = nom::Err<()>;
-    fn try_from(v: (u8, u8)) -> Result<Self, Self::Error> {
-        if v.0 < v.1 {
-            Ok(CoreIdConfig::Range(v.0, v.1))
-        } else {
-            Err(nom::Err::Failure(()))
-        }
-    }
-}
-
 impl DeviceConfig {
     /// Returns a builder associated with Warboy NPUs.
     pub fn warboy() -> DeviceConfigBuilder<Arch, NotDetermined, NotDetermined> {
@@ -84,6 +52,35 @@ impl DeviceConfig {
             arch: Arch::Warboy,
             mode: NotDetermined,
             count: NotDetermined,
+        }
+    }
+
+    pub(crate) fn fit(&self, arch: Arch, device_file: &DeviceFile) -> bool {
+        match self {
+            Self::Named { device_id, core_id } => {
+                device_file.device_index() == *device_id && device_file.core_range() == *core_id
+            }
+            Self::Unnamed {
+                arch: config_arch,
+                core_num: _,
+                mode,
+                count: _,
+            } => arch == *config_arch && device_file.mode() == *mode,
+        }
+    }
+
+    pub(crate) fn count(&self) -> u8 {
+        match self {
+            Self::Named {
+                device_id: _,
+                core_id: _,
+            } => 1,
+            Self::Unnamed {
+                arch: _,
+                core_num: _,
+                mode: _,
+                count,
+            } => *count,
         }
     }
 }
@@ -108,9 +105,9 @@ impl FromStr for DeviceConfig {
             alt((
                 map_res(
                     separated_pair(digit_to_u8(), tag("-"), digit_to_u8()),
-                    CoreIdConfig::try_from,
+                    CoreRange::try_from,
                 ),
-                map(digit_to_u8(), CoreIdConfig::from),
+                map(digit_to_u8(), CoreRange::from),
             )),
         ))(s);
 
@@ -272,82 +269,31 @@ pub(crate) fn find_devices_in(
         );
     }
 
-    let (&config_arch, &core_num, &config_mode, &config_count) = match config {
-        DeviceConfig::Named { device_id, core_id } => {
-            let mut parent = None;
-            for device in devices {
-                if device.device_index() == *device_id {
-                    parent = Some(device);
-                }
-            }
-
-            if let Some(parent) = parent {
-                for dev_file in parent.dev_files().iter() {
-                    if dev_file
-                        .core_indices()
-                        .iter()
-                        .copied()
-                        .collect::<HashSet<u8>>()
-                        == core_id.iter().collect::<HashSet<u8>>()
-                    {
-                        for idx in dev_file.core_indices() {
-                            if allocated
-                                .get(&dev_file.device_index())
-                                .unwrap()
-                                .contains(idx)
-                            {
-                                return Ok(vec![]);
-                            }
-                        }
-                        return Ok(vec![dev_file.clone()]);
-                    }
-                }
-            }
-
-            return Err(DeviceError::DeviceNotFound {
-                name: format!("dev_id: {:?}, core_id: {:?}", device_id, core_id),
-            });
-        }
-        DeviceConfig::Unnamed {
-            arch,
-            core_num,
-            mode,
-            count,
-        } => (arch, core_num, mode, count),
-    };
-
+    let config_count = config.count();
     let mut found: Vec<DeviceFile> = Vec::with_capacity(config_count.into());
-
     'outer: for _ in 0..config_count {
         for device in devices {
-            if config_arch != device.arch() {
-                continue;
-            }
-            // early exit for multicore
-            if config_mode == DeviceMode::MultiCore
-                && !allocated.get(&device.device_index()).unwrap().is_empty()
-            {
-                continue;
-            }
+            'inner: for dev_file in device.dev_files() {
+                if !config.fit(device.arch(), dev_file) {
+                    continue 'inner;
+                }
 
-            'inner: for dev_file in device
-                .dev_files()
-                .iter()
-                .filter(|d| d.mode() == config_mode && d.core_indices().len() as u8 == core_num)
-            {
-                for idx in dev_file.core_indices() {
-                    if allocated.get(&device.device_index()).unwrap().contains(idx) {
+                let used = allocated.get_mut(&device.device_index()).unwrap();
+
+                for core in used.iter() {
+                    if dev_file.core_range().contains(core) {
                         continue 'inner;
                     }
                 }
+
                 // this dev_file is suitable
                 found.push(dev_file.clone());
-
-                let used = allocated.get_mut(&device.device_index()).unwrap();
-                used.extend(dev_file.core_indices());
-                if dev_file.is_multicore() {
-                    used.extend(device.cores());
-                }
+                used.extend(
+                    device
+                        .cores()
+                        .iter()
+                        .filter(|idx| dev_file.core_range().contains(idx)),
+                );
                 continue 'outer;
             }
         }
@@ -410,28 +356,28 @@ mod tests {
             "0:0".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreIdConfig::Id(0)
+                core_id: CoreRange::Range((0, 0))
             })
         );
         assert_eq!(
             "0:1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreIdConfig::Id(1)
+                core_id: CoreRange::Range((1, 1))
             })
         );
         assert_eq!(
             "1:1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 1,
-                core_id: CoreIdConfig::Id(1)
+                core_id: CoreRange::Range((1, 1))
             })
         );
         assert_eq!(
             "0:0-1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreIdConfig::Range(0, 1)
+                core_id: CoreRange::Range((0, 1))
             })
         );
 
@@ -473,6 +419,42 @@ mod tests {
             })
         );
         // assert!("npu*10".parse::<DeviceConfig>().is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_named_config_fit() -> DeviceResult<()> {
+        let config = "0:0".parse::<DeviceConfig>().unwrap();
+        let npu0pe0 = crate::get_device_with("test_data/test-0/dev", "npu0pe0").await?;
+        let npu0pe1 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
+        let npu0pe0_1 = crate::get_device_with("test_data/test-0/dev", "npu0pe0-1").await?;
+        let npu1pe0 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
+
+        assert_eq!(config.count(), 1);
+
+        assert!(config.fit(Arch::Warboy, &npu0pe0));
+        assert!(!config.fit(Arch::Warboy, &npu0pe1));
+        assert!(!config.fit(Arch::Warboy, &npu0pe0_1));
+        assert!(!config.fit(Arch::Warboy, &npu1pe0));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_unnamed_config_fit() -> DeviceResult<()> {
+        let config = "warboy(1)*2".parse::<DeviceConfig>().unwrap();
+
+        assert_eq!(config.count(), 2);
+
+        let npu0pe0 = crate::get_device_with("test_data/test-0/dev", "npu0pe0").await?;
+        let npu0pe1 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
+        let npu0pe0_1 = crate::get_device_with("test_data/test-0/dev", "npu0pe0-1").await?;
+
+        assert!(config.fit(Arch::Warboy, &npu0pe0));
+        assert!(config.fit(Arch::Warboy, &npu0pe1));
+        assert!(!config.fit(Arch::Renegade, &npu0pe0));
+        assert!(!config.fit(Arch::Warboy, &npu0pe0_1));
 
         Ok(())
     }

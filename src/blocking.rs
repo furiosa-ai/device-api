@@ -154,12 +154,11 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
 
     for file in &device.dev_files {
         if get_device_status(&file.path)? == DeviceStatus::Occupied {
-            for core in file.core_indices.iter().chain(
-                file.is_multicore()
-                    .then(|| device.cores.iter())
-                    .into_iter()
-                    .flatten(),
-            ) {
+            for core in device
+                .cores()
+                .iter()
+                .filter(|c| file.core_range().contains(*c))
+            {
                 status_map.insert(*core, CoreStatus::Occupied(file.to_string()));
             }
         }
