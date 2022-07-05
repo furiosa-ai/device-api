@@ -55,17 +55,17 @@ impl DeviceConfig {
         }
     }
 
-    pub(crate) fn fit(&self, device: &Device, device_file: &DeviceFile) -> bool {
+    pub(crate) fn fit(&self, arch: Arch, device_file: &DeviceFile) -> bool {
         match self {
             Self::Named { device_id, core_id } => {
-                device.device_index() == *device_id && device_file.core_range() == *core_id
+                device_file.device_index() == *device_id && device_file.core_range() == *core_id
             }
             Self::Unnamed {
-                arch,
+                arch: config_arch,
                 core_num: _,
                 mode,
                 count: _,
-            } => device.arch() == *arch && device_file.mode() == *mode,
+            } => arch == *config_arch && device_file.mode() == *mode,
         }
     }
 
@@ -274,7 +274,7 @@ pub(crate) fn find_devices_in(
     'outer: for _ in 0..config_count {
         for device in devices {
             'inner: for dev_file in device.dev_files() {
-                if !config.fit(device, dev_file) {
+                if !config.fit(device.arch(), dev_file) {
                     continue 'inner;
                 }
 
@@ -419,6 +419,42 @@ mod tests {
             })
         );
         // assert!("npu*10".parse::<DeviceConfig>().is_ok());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_named_config_fit() -> DeviceResult<()> {
+        let config = "0:0".parse::<DeviceConfig>().unwrap();
+        let npu0pe0 = crate::get_device_with("test_data/test-0/dev", "npu0pe0").await?;
+        let npu0pe1 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
+        let npu0pe0_1 = crate::get_device_with("test_data/test-0/dev", "npu0pe0-1").await?;
+        let npu1pe0 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
+
+        assert_eq!(config.count(), 1);
+
+        assert!(config.fit(Arch::Warboy, &npu0pe0));
+        assert!(!config.fit(Arch::Warboy, &npu0pe1));
+        assert!(!config.fit(Arch::Warboy, &npu0pe0_1));
+        assert!(!config.fit(Arch::Warboy, &npu1pe0));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_unnamed_config_fit() -> DeviceResult<()> {
+        let config = "warboy(1)*2".parse::<DeviceConfig>().unwrap();
+
+        assert_eq!(config.count(), 2);
+
+        let npu0pe0 = crate::get_device_with("test_data/test-0/dev", "npu0pe0").await?;
+        let npu0pe1 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
+        let npu0pe0_1 = crate::get_device_with("test_data/test-0/dev", "npu0pe0-1").await?;
+
+        assert!(config.fit(Arch::Warboy, &npu0pe0));
+        assert!(config.fit(Arch::Warboy, &npu0pe1));
+        assert!(!config.fit(Arch::Renegade, &npu0pe0));
+        assert!(!config.fit(Arch::Warboy, &npu0pe0_1));
 
         Ok(())
     }
