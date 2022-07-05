@@ -16,6 +16,8 @@ pub enum DeviceError {
     DeviceNotFound { name: String },
     #[error("IoError: {cause}")]
     IoError { cause: io::Error },
+    #[error("PermissionDenied: {cause}")]
+    PermissionDenied { cause: io::Error },
     #[error("Unknown architecture: {arch}")]
     UnknownArch { arch: String },
     #[error("Incompatible device driver: {cause}")]
@@ -60,6 +62,10 @@ impl DeviceError {
 
 impl From<io::Error> for DeviceError {
     fn from(e: io::Error) -> Self {
-        Self::IoError { cause: e }
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            Self::PermissionDenied { cause: e }
+        } else {
+            Self::IoError { cause: e }
+        }
     }
 }
