@@ -3,11 +3,13 @@ pub mod npu_mgmt {
     use std::io;
     use std::path::{Path, PathBuf};
 
+    #[derive(Copy, Clone, Debug)]
     pub enum Toggle {
         Enable = 1,
         Disable = 0,
     }
 
+    #[derive(Copy, Clone, Debug)]
     pub enum DtmPolicy {
         OnDemand = 1,
         Conservative = 0,
