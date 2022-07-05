@@ -261,7 +261,6 @@ impl DeviceInfo {
             .find(|mgmt_file| mgmt_file.0 == *key)
         {
             self.meta.map.remove(key);
-            self.get(key)?;
         }
 
         Ok(())
