@@ -401,12 +401,14 @@ mod tests {
     fn test_core_range_ordering() {
         let all = CoreRange::All;
         let core0 = CoreRange::Range((0, 0));
+        let core1 = CoreRange::Range((1, 1));
         let core0_1 = CoreRange::Range((0, 1));
         let core0_3 = CoreRange::Range((0, 3));
         let core2_3 = CoreRange::Range((2, 3));
 
         assert!(all < core0);
-        assert!(core0 < core0_1);
+        assert!(core0 < core1);
+        assert!(core1 < core0_1);
         assert!(core0_1 < core2_3);
         assert!(core2_3 < core0_3);
     }
