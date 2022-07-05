@@ -1,7 +1,37 @@
-pub(crate) mod npu_mgmt {
+pub mod npu_mgmt {
     use std::collections::HashMap;
     use std::io;
     use std::path::{Path, PathBuf};
+
+    #[derive(Copy, Clone, Debug)]
+    pub enum PerfMode {
+        Full2 = 5,
+        Full1 = 4,
+        Normal2 = 3,
+        Normal1 = 2,
+        Half = 1,
+        Low = 0,
+    }
+
+    #[derive(Copy, Clone, Debug)]
+    pub enum PerfLevel {
+        Level0 = 0,
+        Level1 = 1,
+        Level2 = 2,
+        Level3 = 3,
+        Level4 = 4,
+        Level5 = 5,
+        Level6 = 6,
+        Level7 = 7,
+        Level8 = 8,
+        Level9 = 9,
+        Level10 = 10,
+        Level11 = 11,
+        Level12 = 12,
+        Level13 = 13,
+        Level14 = 14,
+        Level15 = 15,
+    }
 
     pub(crate) static ALIVE: &str = "alive";
     pub(crate) static ATR_ERROR: &str = "atr_error";
@@ -55,14 +85,14 @@ pub(crate) mod npu_mgmt {
         PERFORMANCE_MODE,
     ];
 
-    pub fn path<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
+    pub(crate) fn path<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
         base_dir
             .as_ref()
             .join(format!("class/npu_mgmt/npu{}_mgmt/{}", idx, file))
     }
 
     /// It can be used to check `platform_type`.
-    pub fn is_furiosa_platform(contents: &str) -> bool {
+    pub(crate) fn is_furiosa_platform(contents: &str) -> bool {
         let contents = contents.trim();
         contents == "FuriosaAI" || contents == "VITIS"
     }

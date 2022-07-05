@@ -130,30 +130,32 @@ impl Device {
     /// # Arguments
     ///
     /// * `level` - integer in [0, 15], lower in level is higher in clock frequency
-    pub fn ctrl_performance_level(&mut self, level: u8) -> DeviceResult<()> {
-        if !(0..=15).contains(&level) {
+    pub fn ctrl_performance_level(
+        &mut self,
+        level: sysfs::npu_mgmt::PerfLevel,
+    ) -> DeviceResult<()> {
+        if !(0..=15).contains(&(level as u8)) {
             return Err(DeviceError::unsupported_input(
-                level,
+                level as u8,
                 sysfs::npu_mgmt::PERFORMANCE_LEVEL,
             ));
         }
-        self.device_info
-            .ctrl(sysfs::npu_mgmt::DEVICE_LED, &level.to_string())
+        self.device_info.ctrl(
+            sysfs::npu_mgmt::PERFORMANCE_LEVEL,
+            &(level as u8).to_string(),
+        )
     }
 
     /// Set NE performance mode
-    /// # Arguments
-    ///
-    /// * `level` - integer in [0, 5], lower in level is higher in clock frequency
-    pub fn ctrl_performance_mode(&mut self, level: u8) -> DeviceResult<()> {
-        if !(0..=5).contains(&level) {
+    pub fn ctrl_performance_mode(&mut self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
+        if !(0..=5).contains(&(mode as u8)) {
             return Err(DeviceError::unsupported_input(
-                level,
+                mode as u8,
                 sysfs::npu_mgmt::PERFORMANCE_MODE,
             ));
         }
         self.device_info
-            .ctrl(sysfs::npu_mgmt::DEVICE_LED, &level.to_string())
+            .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
 
     /// Counts the number of cores.
