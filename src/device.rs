@@ -77,6 +77,20 @@ impl Device {
         self.device_info().arch()
     }
 
+    /// Returns a liveness state of the device.
+    pub fn alive(&mut self) -> DeviceResult<bool> {
+        self.device_info
+            .get(sysfs::npu_mgmt::ALIVE)
+            .and_then(sysfs::npu_mgmt::parse_zero_or_one_to_bool)
+    }
+
+    /// Returns error states of the device.
+    pub fn atr_error(&mut self) -> DeviceResult<HashMap<String, u32>> {
+        self.device_info
+            .get(sysfs::npu_mgmt::ATR_ERROR)
+            .map(sysfs::npu_mgmt::build_atr_error_map)
+    }
+
     /// Returns PCI bus number of the device.
     pub fn busname(&mut self) -> DeviceResult<&str> {
         self.device_info
@@ -96,6 +110,17 @@ impl Device {
         self.device_info
             .get(sysfs::npu_mgmt::FW_VERSION)
             .map(String::as_str)
+    }
+
+    /// Returns uptime of the device.
+    pub fn heartbeat(&mut self) -> DeviceResult<u32> {
+        self.device_info
+            .get(sysfs::npu_mgmt::HEARTBEAT)
+            .and_then(|str| {
+                str.parse::<u32>().map_err(|_| {
+                    DeviceError::unexpected_value(format!("Bad heartbeat value: {}", str))
+                })
+            })
     }
 
     /// Controls the device led.
