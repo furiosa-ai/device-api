@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
+use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
@@ -78,9 +79,9 @@ impl Device {
     }
 
     /// Returns a liveness state of the device.
-    pub fn alive(&mut self) -> DeviceResult<bool> {
+    pub fn alive(&self) -> DeviceResult<bool> {
         self.device_info.get(sysfs::npu_mgmt::ALIVE).and_then(|v| {
-            sysfs::npu_mgmt::parse_zero_or_one_to_bool(v).map_err(|()| {
+            sysfs::npu_mgmt::parse_zero_or_one_to_bool(&v).map_err(|()| {
                 DeviceError::unexpected_value(format!(
                     "Bad alive value: {} (only 0 or 1 expected)",
                     v
@@ -90,35 +91,29 @@ impl Device {
     }
 
     /// Returns error states of the device.
-    pub fn atr_error(&mut self) -> DeviceResult<HashMap<String, u32>> {
+    pub fn atr_error(&self) -> DeviceResult<HashMap<String, u32>> {
         self.device_info
             .get(sysfs::npu_mgmt::ATR_ERROR)
             .map(sysfs::npu_mgmt::build_atr_error_map)
     }
 
     /// Returns PCI bus number of the device.
-    pub fn busname(&mut self) -> DeviceResult<&str> {
-        self.device_info
-            .get(sysfs::npu_mgmt::BUSNAME)
-            .map(String::as_str)
+    pub fn busname(&self) -> DeviceResult<String> {
+        self.device_info.get(sysfs::npu_mgmt::BUSNAME)
     }
 
     /// Returns PCI device ID of the device.
-    pub fn pci_dev(&mut self) -> DeviceResult<&str> {
-        self.device_info
-            .get(sysfs::npu_mgmt::DEV)
-            .map(String::as_str)
+    pub fn pci_dev(&self) -> DeviceResult<String> {
+        self.device_info.get(sysfs::npu_mgmt::DEV)
     }
 
     /// Retrieves firmware revision from the device.
-    pub fn firmware_version(&mut self) -> DeviceResult<&str> {
-        self.device_info
-            .get(sysfs::npu_mgmt::FW_VERSION)
-            .map(String::as_str)
+    pub fn firmware_version(&self) -> DeviceResult<String> {
+        self.device_info.get(sysfs::npu_mgmt::FW_VERSION)
     }
 
     /// Returns uptime of the device.
-    pub fn heartbeat(&mut self) -> DeviceResult<u32> {
+    pub fn heartbeat(&self) -> DeviceResult<u32> {
         self.device_info
             .get(sysfs::npu_mgmt::HEARTBEAT)
             .and_then(|str| {
@@ -129,7 +124,7 @@ impl Device {
     }
 
     /// Controls the device led.
-    pub fn ctrl_device_led(&mut self, led: (bool, bool, bool)) -> DeviceResult<()> {
+    pub fn ctrl_device_led(&self, led: (bool, bool, bool)) -> DeviceResult<()> {
         self.device_info.ctrl(
             sysfs::npu_mgmt::DEVICE_LED,
             &(led.0 as i32 + 0b10 * led.1 as i32 + 0b100 * led.2 as i32).to_string(),
@@ -137,22 +132,19 @@ impl Device {
     }
 
     /// Control NE clocks.
-    pub fn ctrl_ne_clock(&mut self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
+    pub fn ctrl_ne_clock(&self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_CLOCK, &(toggle as u8).to_string())
     }
 
     /// Control the Dynamic Thermal Management policy.
-    pub fn ctrl_ne_dtm_policy(&mut self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
+    pub fn ctrl_ne_dtm_policy(&self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, &(policy as u8).to_string())
     }
 
     /// Control NE performance level
-    pub fn ctrl_performance_level(
-        &mut self,
-        level: sysfs::npu_mgmt::PerfLevel,
-    ) -> DeviceResult<()> {
+    pub fn ctrl_performance_level(&self, level: sysfs::npu_mgmt::PerfLevel) -> DeviceResult<()> {
         self.device_info.ctrl(
             sysfs::npu_mgmt::PERFORMANCE_LEVEL,
             &(level as u8).to_string(),
@@ -160,13 +152,13 @@ impl Device {
     }
 
     /// Control NE performance mode
-    pub fn ctrl_performance_mode(&mut self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
+    pub fn ctrl_performance_mode(&self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
 
     /// Retrieve NUMA node ID associated with the NPU's PCI lane
-    pub fn numa_node(&mut self) -> DeviceResult<NumaNode> {
+    pub fn numa_node(&self) -> DeviceResult<NumaNode> {
         self.device_info.get_numa_node()
     }
 
@@ -274,7 +266,7 @@ impl DeviceInfo {
         self.meta.arch
     }
 
-    pub fn get(&mut self, key: &str) -> DeviceResult<&String> {
+    pub fn get(&self, key: &str) -> DeviceResult<String> {
         let (key, _) = sysfs::npu_mgmt::MGMT_FILES
             .iter()
             .find(|mgmt_file| mgmt_file.0 == key)
@@ -283,15 +275,17 @@ impl DeviceInfo {
         Ok(self
             .meta
             .map
+            .borrow_mut()
             .entry(key)
             .or_insert(sysfs::npu_mgmt::read_mgmt_file(
                 &self.sys_root,
                 key,
                 self.device_index,
-            )?))
+            )?)
+            .clone())
     }
 
-    pub fn ctrl(&mut self, key: &str, contents: &str) -> DeviceResult<()> {
+    pub fn ctrl(&self, key: &str, contents: &str) -> DeviceResult<()> {
         let key = sysfs::npu_mgmt::CTRL_FILES
             .iter()
             .find(|ctrl| **ctrl == key)
@@ -303,18 +297,17 @@ impl DeviceInfo {
             .iter()
             .find(|mgmt_file| mgmt_file.0 == *key)
         {
-            self.meta.map.remove(key);
+            self.meta.map.borrow_mut().remove(key);
         }
 
         Ok(())
     }
 
-    pub fn get_numa_node(&mut self) -> DeviceResult<NumaNode> {
+    pub fn get_numa_node(&self) -> DeviceResult<NumaNode> {
         let numa_node = match self.numa_node {
             Some(numa_node) => numa_node,
             None => {
-                // note for .clone(): see https://doc.rust-lang.org/nomicon/lifetime-mismatch.html
-                let busname = self.get(sysfs::npu_mgmt::BUSNAME)?.clone();
+                let busname = self.get(sysfs::npu_mgmt::BUSNAME)?;
 
                 let id = sysfs::pci::numa::read_numa_node(&self.sys_root, &busname)?
                     .parse::<i32>()
@@ -340,7 +333,7 @@ impl DeviceInfo {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct DeviceMetadata {
     pub(crate) arch: Arch,
-    pub(crate) map: HashMap<&'static str, String>,
+    pub(crate) map: RefCell<HashMap<&'static str, String>>,
 }
 
 impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
@@ -356,7 +349,10 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
             arch: device_type.clone(),
         })?;
 
-        Ok(Self { arch, map })
+        Ok(Self {
+            arch,
+            map: RefCell::new(map),
+        })
     }
 }
 
@@ -622,7 +618,7 @@ mod tests {
     fn test_numa_node() -> DeviceResult<()> {
         // npu0 => numa node 0
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
-        let mut device_info = DeviceInfo::new(
+        let device_info = DeviceInfo::new(
             0,
             PathBuf::from("test_data/test-0/dev"),
             PathBuf::from("test_data/test-0/sys"),
@@ -633,7 +629,7 @@ mod tests {
 
         // npu1 => numa node unsupported
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?;
-        let mut device_info = DeviceInfo::new(
+        let device_info = DeviceInfo::new(
             0,
             PathBuf::from("test_data/test-0/dev"),
             PathBuf::from("test_data/test-0/sys"),
