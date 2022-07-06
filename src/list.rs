@@ -143,8 +143,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_identify_arch() -> DeviceResult<()> {
+    #[test]
+    fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
             DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?.arch,
             Arch::Warboy
@@ -156,8 +156,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_lazy_read_sysfs() -> DeviceResult<()> {
+    #[test]
+    fn test_lazy_read_sysfs() -> DeviceResult<()> {
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
         assert_eq!(device_meta.map.get(npu_mgmt::PERFORMANCE_MODE), None);
 
