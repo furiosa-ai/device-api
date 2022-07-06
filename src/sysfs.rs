@@ -3,6 +3,8 @@ pub mod npu_mgmt {
     use std::io;
     use std::path::{Path, PathBuf};
 
+    use crate::error::{DeviceError, DeviceResult};
+
     #[derive(Copy, Clone, Debug)]
     pub enum Toggle {
         Enable = 1,
@@ -145,6 +147,37 @@ pub mod npu_mgmt {
         let path = path(sysfs, ctrl_file, idx);
         std::fs::write(&path, contents)
     }
+
+    pub(crate) fn build_atr_error_map<S: AsRef<str>>(contents: S) -> HashMap<String, u32> {
+        let mut error_map = HashMap::new();
+
+        let contents = contents.as_ref().trim();
+        for line in contents.lines() {
+            let line = line.trim();
+
+            if let Some((key, value)) = line.split_once(':') {
+                if let Ok(value) = value.trim().parse::<u32>() {
+                    let key = key.trim().to_lowercase().replace(' ', "_");
+
+                    error_map.insert(key, value);
+                }
+            }
+        }
+
+        error_map
+    }
+
+    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> DeviceResult<bool> {
+        let contents = contents.as_ref().trim();
+        match contents {
+            "0" => Ok(false),
+            "1" => Ok(true),
+            _ => Err(DeviceError::unexpected_value(format!(
+                "Only 0 and 1 allowed (value: {})",
+                contents
+            ))),
+        }
+    }
 }
 
 pub(crate) mod hwmon {
@@ -152,5 +185,47 @@ pub(crate) mod hwmon {
 
     pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
         PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_atr_error_map() {
+        let case1 = r"AXI Post Error: 0
+AXI Fetch Error: 0
+AXI Discard Error: 0
+AXI Doorbell done: 0
+PCIe Post Error: 0
+PCIe Fetch Error: 0
+PCIe Discard Error: 0
+PCIe Doorbell done: 0
+Device Error: 0";
+
+        let res = npu_mgmt::build_atr_error_map(case1);
+        assert_eq!(res.len(), 9);
+        assert_eq!(res.get("device_error"), Some(0_u32).as_ref());
+        assert_eq!(res.get("device_error"), Some(0_u32).as_ref());
+        assert_eq!(res.get("axi_fetch_error"), Some(0_u32).as_ref());
+        assert_eq!(res.get("pcie_fetch_error"), Some(0_u32).as_ref());
+    }
+
+    #[test]
+    fn test_parse_zero_or_one_to_bool() {
+        let case1 = "1";
+        let res1 = npu_mgmt::parse_zero_or_one_to_bool(case1);
+        assert!(res1.is_ok());
+        assert!(res1.unwrap());
+
+        let case2 = "0";
+        let res2 = npu_mgmt::parse_zero_or_one_to_bool(case2);
+        assert!(res2.is_ok());
+        assert!(!res2.unwrap());
+
+        let case3 = "";
+        let res3 = npu_mgmt::parse_zero_or_one_to_bool(case3);
+        assert!(res3.is_err());
     }
 }
