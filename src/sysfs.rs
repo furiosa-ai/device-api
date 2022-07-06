@@ -148,7 +148,7 @@ pub mod npu_mgmt {
         std::fs::write(&path, contents)
     }
 
-    pub fn build_atr_error_map<S: AsRef<str>>(contents: S) -> HashMap<String, u32> {
+    pub(crate) fn build_atr_error_map<S: AsRef<str>>(contents: S) -> HashMap<String, u32> {
         let mut error_map = HashMap::new();
 
         let contents = contents.as_ref().trim();
@@ -167,7 +167,7 @@ pub mod npu_mgmt {
         error_map
     }
 
-    pub fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> DeviceResult<bool> {
+    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> DeviceResult<bool> {
         let contents = contents.as_ref().trim();
         match contents {
             "0" => Ok(false),

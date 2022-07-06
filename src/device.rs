@@ -77,12 +77,14 @@ impl Device {
         self.device_info().arch()
     }
 
+    /// Returns a liveness state of the device.
     pub fn alive(&mut self) -> DeviceResult<bool> {
         self.device_info
             .get(sysfs::npu_mgmt::ALIVE)
             .and_then(sysfs::npu_mgmt::parse_zero_or_one_to_bool)
     }
 
+    /// Returns error states of the device.
     pub fn atr_error(&mut self) -> DeviceResult<HashMap<String, u32>> {
         self.device_info
             .get(sysfs::npu_mgmt::ATR_ERROR)
@@ -110,6 +112,7 @@ impl Device {
             .map(String::as_str)
     }
 
+    /// Returns uptime of the device.
     pub fn heartbeat(&mut self) -> DeviceResult<u32> {
         self.device_info
             .get(sysfs::npu_mgmt::HEARTBEAT)
