@@ -3,8 +3,6 @@ pub mod npu_mgmt {
     use std::io;
     use std::path::{Path, PathBuf};
 
-    use crate::error::{DeviceError, DeviceResult};
-
     #[derive(Copy, Clone, Debug)]
     pub enum Toggle {
         Enable = 1,
@@ -167,15 +165,12 @@ pub mod npu_mgmt {
         error_map
     }
 
-    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> DeviceResult<bool> {
+    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> Result<bool, ()> {
         let contents = contents.as_ref().trim();
         match contents {
             "0" => Ok(false),
             "1" => Ok(true),
-            _ => Err(DeviceError::unexpected_value(format!(
-                "Only 0 and 1 allowed (value: {})",
-                contents
-            ))),
+            _ => Err(()),
         }
     }
 }

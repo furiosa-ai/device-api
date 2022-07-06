@@ -79,9 +79,14 @@ impl Device {
 
     /// Returns a liveness state of the device.
     pub fn alive(&mut self) -> DeviceResult<bool> {
-        self.device_info
-            .get(sysfs::npu_mgmt::ALIVE)
-            .and_then(sysfs::npu_mgmt::parse_zero_or_one_to_bool)
+        self.device_info.get(sysfs::npu_mgmt::ALIVE).and_then(|v| {
+            sysfs::npu_mgmt::parse_zero_or_one_to_bool(v).map_err(|()| {
+                DeviceError::unexpected_value(format!(
+                    "Bad alive value: {} (only 0 or 1 expected)",
+                    v
+                ))
+            })
+        })
     }
 
     /// Returns error states of the device.
@@ -161,7 +166,7 @@ impl Device {
     }
 
     /// Retrieve NUMA node ID associated with the NPU's PCI lane
-    pub fn numa_node(&mut self) -> DeviceResult<usize> {
+    pub fn numa_node(&mut self) -> DeviceResult<NumaNode> {
         self.device_info.get_numa_node()
     }
 
@@ -234,13 +239,19 @@ impl PartialOrd for Device {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum NumaNode {
+    UnSupported,
+    Id(usize),
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct DeviceInfo {
     device_index: u8,
     dev_root: PathBuf,
     sys_root: PathBuf,
     meta: DeviceMetadata,
-    numa_node: Option<usize>,
+    numa_node: Option<NumaNode>,
 }
 
 impl DeviceInfo {
@@ -298,16 +309,27 @@ impl DeviceInfo {
         Ok(())
     }
 
-    pub fn get_numa_node(&mut self) -> DeviceResult<usize> {
+    pub fn get_numa_node(&mut self) -> DeviceResult<NumaNode> {
         let numa_node = match self.numa_node {
             Some(numa_node) => numa_node,
             None => {
                 // note for .clone(): see https://doc.rust-lang.org/nomicon/lifetime-mismatch.html
                 let busname = self.get(sysfs::npu_mgmt::BUSNAME)?.clone();
 
-                sysfs::pci::numa::read_numa_node(&self.sys_root, &busname)?
-                    .parse::<usize>()
-                    .unwrap()
+                let id = sysfs::pci::numa::read_numa_node(&self.sys_root, &busname)?
+                    .parse::<i32>()
+                    .unwrap();
+
+                if id == -1 {
+                    NumaNode::UnSupported
+                } else if id < 0 {
+                    return Err(DeviceError::unexpected_value(format!(
+                        "Unexpected numa node id: {}",
+                        id
+                    )));
+                } else {
+                    NumaNode::Id(id as usize)
+                }
             }
         };
 
@@ -607,9 +629,9 @@ mod tests {
             device_meta,
         );
 
-        assert_eq!(device_info.get_numa_node()?, 0);
+        assert_eq!(device_info.get_numa_node()?, NumaNode::Id(0));
 
-        // npu1 => numa node 1
+        // npu1 => numa node unsupported
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?;
         let mut device_info = DeviceInfo::new(
             0,
@@ -618,7 +640,7 @@ mod tests {
             device_meta,
         );
 
-        assert_eq!(device_info.get_numa_node()?, 1);
+        assert_eq!(device_info.get_numa_node()?, NumaNode::UnSupported);
 
         Ok(())
     }
