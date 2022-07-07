@@ -3,8 +3,6 @@ pub mod npu_mgmt {
     use std::io;
     use std::path::{Path, PathBuf};
 
-    use crate::error::{DeviceError, DeviceResult};
-
     #[derive(Copy, Clone, Debug)]
     pub enum Toggle {
         Enable = 1,
@@ -167,24 +165,39 @@ pub mod npu_mgmt {
         error_map
     }
 
-    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> DeviceResult<bool> {
+    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> Option<bool> {
         let contents = contents.as_ref().trim();
         match contents {
-            "0" => Ok(false),
-            "1" => Ok(true),
-            _ => Err(DeviceError::unexpected_value(format!(
-                "Only 0 and 1 allowed (value: {})",
-                contents
-            ))),
+            "0" => Some(false),
+            "1" => Some(true),
+            _ => None,
         }
     }
 }
 
-pub(crate) mod hwmon {
-    use std::path::PathBuf;
+pub(crate) mod pci {
+    pub(crate) mod numa {
+        use std::io;
+        use std::path::{Path, PathBuf};
 
-    pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
-        PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
+        pub(crate) fn path<P: AsRef<Path>>(base_dir: P, bdf: &str) -> PathBuf {
+            base_dir
+                .as_ref()
+                .join(format!("bus/pci/devices/{}/numa_node", bdf.trim()))
+        }
+
+        pub(crate) fn read_numa_node<P: AsRef<Path>>(sysfs: P, bdf: &str) -> io::Result<String> {
+            let path = path(sysfs, bdf);
+            std::fs::read_to_string(&path).map(|s| s.trim().to_string())
+        }
+    }
+
+    pub(crate) mod hwmon {
+        use std::path::PathBuf;
+
+        pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
+            PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
+        }
     }
 }
 
@@ -216,16 +229,16 @@ Device Error: 0";
     fn test_parse_zero_or_one_to_bool() {
         let case1 = "1";
         let res1 = npu_mgmt::parse_zero_or_one_to_bool(case1);
-        assert!(res1.is_ok());
+        assert!(res1.is_some());
         assert!(res1.unwrap());
 
         let case2 = "0";
         let res2 = npu_mgmt::parse_zero_or_one_to_bool(case2);
-        assert!(res2.is_ok());
+        assert!(res2.is_some());
         assert!(!res2.unwrap());
 
         let case3 = "";
         let res3 = npu_mgmt::parse_zero_or_one_to_bool(case3);
-        assert!(res3.is_err());
+        assert!(res3.is_none());
     }
 }

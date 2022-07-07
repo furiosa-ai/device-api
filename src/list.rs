@@ -24,12 +24,12 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
         if is_furiosa_device(idx, sysfs).await {
             let mgmt_files = read_mgmt_files(sysfs, idx)?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
-            let mut device_info =
+            let device_info =
                 DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
 
             // Since busname is a required field, it is guaranteed to exist.
             let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
-            let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, busname).await?;
+            let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, &busname).await?;
 
             let device = collect_devices(device_info, hwmon_fetcher, paths)?;
             devices.push(device);
@@ -143,8 +143,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_identify_arch() -> DeviceResult<()> {
+    #[test]
+    fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
             DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?.arch,
             Arch::Warboy
@@ -153,28 +153,6 @@ mod tests {
             DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?.arch,
             Arch::Warboy
         );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_lazy_read_sysfs() -> DeviceResult<()> {
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
-        assert_eq!(device_meta.map.get(npu_mgmt::PERFORMANCE_MODE), None);
-
-        let mut device_info = DeviceInfo::new(
-            0,
-            PathBuf::from("test_data/test-0/dev"),
-            PathBuf::from("test_data/test-0/sys"),
-            device_meta,
-        );
-        assert_eq!(
-            device_info
-                .get(npu_mgmt::PERFORMANCE_MODE)
-                .map(AsRef::as_ref)
-                .ok(),
-            Some("4 (FULL 1)")
-        );
-
         Ok(())
     }
 }

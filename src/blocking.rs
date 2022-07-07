@@ -64,10 +64,10 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
         if is_furiosa_device(idx, sysfs) {
             let mgmt_files = npu_mgmt::read_mgmt_files(sysfs, idx)?;
             let device_meta = DeviceMetadata::try_from(mgmt_files)?;
-            let mut device_info =
+            let device_info =
                 DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
             let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
-            let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, busname)?;
+            let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
 
             let device = collect_devices(device_info, hwmon_fetcher, paths)?;
             devices.push(device);
