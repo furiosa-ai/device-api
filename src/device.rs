@@ -310,15 +310,15 @@ impl DeviceInfo {
             .parse::<i32>()
             .unwrap();
 
-        let node = if id == -1 {
+        let node = if id >= 0 {
+            NumaNode::Id(id as usize)
+        } else if id == -1 {
             NumaNode::UnSupported
-        } else if id < 0 {
+        } else {
             return Err(DeviceError::unexpected_value(format!(
                 "Unexpected numa node id: {}",
                 id
             )));
-        } else {
-            NumaNode::Id(id as usize)
         };
 
         *self.numa_node.borrow_mut() = Some(node);
