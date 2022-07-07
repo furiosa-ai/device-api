@@ -165,12 +165,12 @@ pub mod npu_mgmt {
         error_map
     }
 
-    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> Result<bool, ()> {
+    pub(crate) fn parse_zero_or_one_to_bool<S: AsRef<str>>(contents: S) -> Option<bool> {
         let contents = contents.as_ref().trim();
         match contents {
-            "0" => Ok(false),
-            "1" => Ok(true),
-            _ => Err(()),
+            "0" => Some(false),
+            "1" => Some(true),
+            _ => None,
         }
     }
 }
@@ -229,16 +229,16 @@ Device Error: 0";
     fn test_parse_zero_or_one_to_bool() {
         let case1 = "1";
         let res1 = npu_mgmt::parse_zero_or_one_to_bool(case1);
-        assert!(res1.is_ok());
+        assert!(res1.is_some());
         assert!(res1.unwrap());
 
         let case2 = "0";
         let res2 = npu_mgmt::parse_zero_or_one_to_bool(case2);
-        assert!(res2.is_ok());
+        assert!(res2.is_some());
         assert!(!res2.unwrap());
 
         let case3 = "";
         let res3 = npu_mgmt::parse_zero_or_one_to_bool(case3);
-        assert!(res3.is_err());
+        assert!(res3.is_none());
     }
 }

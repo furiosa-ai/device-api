@@ -81,7 +81,7 @@ impl Device {
     /// Returns a liveness state of the device.
     pub fn alive(&self) -> DeviceResult<bool> {
         self.device_info.get(sysfs::npu_mgmt::ALIVE).and_then(|v| {
-            sysfs::npu_mgmt::parse_zero_or_one_to_bool(&v).map_err(|()| {
+            sysfs::npu_mgmt::parse_zero_or_one_to_bool(&v).ok_or_else(|| {
                 DeviceError::unexpected_value(format!(
                     "Bad alive value: {} (only 0 or 1 expected)",
                     v
