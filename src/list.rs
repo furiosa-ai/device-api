@@ -155,26 +155,4 @@ mod tests {
         );
         Ok(())
     }
-
-    #[test]
-    fn test_lazy_read_sysfs() -> DeviceResult<()> {
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
-        assert_eq!(
-            device_meta.map.borrow_mut().get(npu_mgmt::PERFORMANCE_MODE),
-            None
-        );
-
-        let device_info = DeviceInfo::new(
-            0,
-            PathBuf::from("test_data/test-0/dev"),
-            PathBuf::from("test_data/test-0/sys"),
-            device_meta,
-        );
-        assert_eq!(
-            device_info.get(npu_mgmt::PERFORMANCE_MODE).ok(),
-            Some(String::from("4 (FULL 1)"))
-        );
-
-        Ok(())
-    }
 }

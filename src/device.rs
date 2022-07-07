@@ -243,7 +243,7 @@ pub struct DeviceInfo {
     dev_root: PathBuf,
     sys_root: PathBuf,
     meta: DeviceMetadata,
-    numa_node: Option<NumaNode>,
+    numa_node: RefCell<Option<NumaNode>>,
 }
 
 impl DeviceInfo {
@@ -258,7 +258,7 @@ impl DeviceInfo {
             dev_root,
             sys_root,
             meta,
-            numa_node: None,
+            numa_node: RefCell::new(None),
         }
     }
 
@@ -272,17 +272,14 @@ impl DeviceInfo {
             .find(|mgmt_file| mgmt_file.0 == key)
             .ok_or_else(|| DeviceError::unsupported_key(key))?;
 
-        Ok(self
-            .meta
-            .map
-            .borrow_mut()
-            .entry(key)
-            .or_insert(sysfs::npu_mgmt::read_mgmt_file(
-                &self.sys_root,
-                key,
-                self.device_index,
-            )?)
-            .clone())
+        if let Some(value) = self.meta.map.borrow().get(key) {
+            return Ok(value.clone());
+        }
+
+        let value = sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index)?;
+
+        self.meta.map.borrow_mut().insert(key, value.clone());
+        Ok(value)
     }
 
     pub fn ctrl(&self, key: &str, contents: &str) -> DeviceResult<()> {
@@ -304,29 +301,28 @@ impl DeviceInfo {
     }
 
     pub fn get_numa_node(&self) -> DeviceResult<NumaNode> {
-        let numa_node = match self.numa_node {
-            Some(numa_node) => numa_node,
-            None => {
-                let busname = self.get(sysfs::npu_mgmt::BUSNAME)?;
+        if let Some(node) = *self.numa_node.borrow() {
+            return Ok(node);
+        }
 
-                let id = sysfs::pci::numa::read_numa_node(&self.sys_root, &busname)?
-                    .parse::<i32>()
-                    .unwrap();
+        let busname = self.get(sysfs::npu_mgmt::BUSNAME)?;
+        let id = sysfs::pci::numa::read_numa_node(&self.sys_root, &busname)?
+            .parse::<i32>()
+            .unwrap();
 
-                if id == -1 {
-                    NumaNode::UnSupported
-                } else if id < 0 {
-                    return Err(DeviceError::unexpected_value(format!(
-                        "Unexpected numa node id: {}",
-                        id
-                    )));
-                } else {
-                    NumaNode::Id(id as usize)
-                }
-            }
+        let node = if id == -1 {
+            NumaNode::UnSupported
+        } else if id < 0 {
+            return Err(DeviceError::unexpected_value(format!(
+                "Unexpected numa node id: {}",
+                id
+            )));
+        } else {
+            NumaNode::Id(id as usize)
         };
 
-        Ok(numa_node)
+        *self.numa_node.borrow_mut() = Some(node);
+        Ok(node)
     }
 }
 
@@ -615,6 +611,40 @@ mod tests {
     }
 
     #[test]
+    fn test_lazy_read_sysfs() -> DeviceResult<()> {
+        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
+        let device_info = DeviceInfo::new(
+            0,
+            PathBuf::from("test_data/test-0/dev"),
+            PathBuf::from("test_data/test-0/sys"),
+            device_meta,
+        );
+
+        assert_eq!(
+            device_info
+                .meta
+                .map
+                .borrow_mut()
+                .get(sysfs::npu_mgmt::PERFORMANCE_MODE),
+            None
+        );
+        assert_eq!(
+            device_info.get(sysfs::npu_mgmt::PERFORMANCE_MODE).ok(),
+            Some(String::from("4 (FULL 1)"))
+        );
+        assert_eq!(
+            device_info
+                .meta
+                .map
+                .borrow_mut()
+                .get(sysfs::npu_mgmt::PERFORMANCE_MODE),
+            Some(&String::from("4 (FULL 1)"))
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn test_numa_node() -> DeviceResult<()> {
         // npu0 => numa node 0
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
@@ -625,7 +655,9 @@ mod tests {
             device_meta,
         );
 
+        assert_eq!(*device_info.numa_node.borrow(), None);
         assert_eq!(device_info.get_numa_node()?, NumaNode::Id(0));
+        assert_eq!(*device_info.numa_node.borrow(), Some(NumaNode::Id(0)));
 
         // npu1 => numa node unsupported
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?;
@@ -636,7 +668,9 @@ mod tests {
             device_meta,
         );
 
+        assert_eq!(*device_info.numa_node.borrow(), None);
         assert_eq!(device_info.get_numa_node()?, NumaNode::UnSupported);
+        assert_eq!(*device_info.numa_node.borrow(), Some(NumaNode::UnSupported));
 
         Ok(())
     }
