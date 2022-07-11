@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
 use std::ops::Deref;
 use std::str::FromStr;
 
@@ -137,6 +138,37 @@ impl FromStr for DeviceConfig {
                     mode,
                     count,
                 })
+            }
+        }
+    }
+}
+
+impl Display for DeviceConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Named { device_id, core_id } => match core_id {
+                CoreRange::All => {
+                    write!(f, "{}", device_id)
+                }
+                CoreRange::Range((s, e)) => {
+                    if s == e {
+                        write!(f, "{}:{}", device_id, s)
+                    } else {
+                        write!(f, "{}:{}-{}", device_id, s, e)
+                    }
+                }
+            },
+            Self::Unnamed {
+                arch,
+                core_num,
+                mode: _mode,
+                count,
+            } => {
+                if *core_num == 0 {
+                    write!(f, "{}*{}", arch, count)
+                } else {
+                    write!(f, "{}({})*{}", arch, core_num, count)
+                }
             }
         }
     }
@@ -419,6 +451,28 @@ mod tests {
             })
         );
         // assert!("npu*10".parse::<DeviceConfig>().is_ok());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_symmetric_display() -> Result<(), nom::Err<()>> {
+        //        assert_eq!("0".parse::<DeviceConfig>()?.to_string(), "0");
+        //        assert_eq!("1".parse::<DeviceConfig>()?.to_string(), "1");
+        assert_eq!("0:0".parse::<DeviceConfig>()?.to_string(), "0:0");
+        assert_eq!("0:1".parse::<DeviceConfig>()?.to_string(), "0:1");
+        assert_eq!("1:0".parse::<DeviceConfig>()?.to_string(), "1:0");
+        assert_eq!("0:0-1".parse::<DeviceConfig>()?.to_string(), "0:0-1");
+
+        assert_eq!("warboy*1".parse::<DeviceConfig>()?.to_string(), "warboy*1");
+        assert_eq!(
+            "warboy(1)*2".parse::<DeviceConfig>()?.to_string(),
+            "warboy(1)*2"
+        );
+        assert_eq!(
+            "warboy(2)*4".parse::<DeviceConfig>()?.to_string(),
+            "warboy(2)*4"
+        );
 
         Ok(())
     }
