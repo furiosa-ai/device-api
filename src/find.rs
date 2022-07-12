@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
 use std::ops::Deref;
 use std::str::FromStr;
 
@@ -6,7 +7,7 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
 use nom::combinator::{all_consuming, map, map_res, opt};
-use nom::sequence::{delimited, separated_pair};
+use nom::sequence::{delimited, preceded, separated_pair};
 use nom::Parser;
 
 use crate::arch::Arch;
@@ -35,7 +36,7 @@ pub enum DeviceConfig {
     // TODO: Named cannot describe MultiCore yet.
     Named {
         device_id: u8,
-        core_id: CoreRange,
+        core_range: CoreRange,
     },
     Unnamed {
         arch: Arch,
@@ -57,8 +58,11 @@ impl DeviceConfig {
 
     pub(crate) fn fit(&self, arch: Arch, device_file: &DeviceFile) -> bool {
         match self {
-            Self::Named { device_id, core_id } => {
-                device_file.device_index() == *device_id && device_file.core_range() == *core_id
+            Self::Named {
+                device_id,
+                core_range,
+            } => {
+                device_file.device_index() == *device_id && device_file.core_range() == *core_range
             }
             Self::Unnamed {
                 arch: config_arch,
@@ -73,7 +77,7 @@ impl DeviceConfig {
         match self {
             Self::Named {
                 device_id: _,
-                core_id: _,
+                core_range: _,
             } => 1,
             Self::Unnamed {
                 arch: _,
@@ -99,8 +103,7 @@ impl FromStr for DeviceConfig {
             map_res(digit1, |s: &str| s.parse::<u8>())
         }
         // try parsing named configs, from patterns e.g., "0:0" or "0:0-1"
-        let parsed_named = all_consuming::<_, _, (), _>(separated_pair(
-            digit_to_u8(),
+        let parsed_named = all_consuming::<_, _, (), _>(digit_to_u8().and(opt(preceded(
             tag(":"),
             alt((
                 map_res(
@@ -109,10 +112,16 @@ impl FromStr for DeviceConfig {
                 ),
                 map(digit_to_u8(), CoreRange::from),
             )),
-        ))(s);
+        ))))(s);
 
         match parsed_named {
-            Ok((_, (device_id, core_id))) => Ok(DeviceConfig::Named { device_id, core_id }),
+            Ok((_, (device_id, core_id))) => {
+                let core_range = core_id.unwrap_or(CoreRange::All);
+                Ok(DeviceConfig::Named {
+                    device_id,
+                    core_range,
+                })
+            }
             Err(_) => {
                 // try parsing unnamed configs, from patterns e.g., "warboy*1" or "warboy(1)*2"
                 let (_, ((arch, mode), count)) = all_consuming(separated_pair(
@@ -137,6 +146,40 @@ impl FromStr for DeviceConfig {
                     mode,
                     count,
                 })
+            }
+        }
+    }
+}
+
+impl Display for DeviceConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Named {
+                device_id,
+                core_range,
+            } => match core_range {
+                CoreRange::All => {
+                    write!(f, "{}", device_id)
+                }
+                CoreRange::Range((s, e)) => {
+                    if s == e {
+                        write!(f, "{}:{}", device_id, s)
+                    } else {
+                        write!(f, "{}:{}-{}", device_id, s, e)
+                    }
+                }
+            },
+            Self::Unnamed {
+                arch,
+                core_num,
+                mode: _mode,
+                count,
+            } => {
+                if *core_num == 0 {
+                    write!(f, "{}*{}", arch, count)
+                } else {
+                    write!(f, "{}({})*{}", arch, core_num, count)
+                }
             }
         }
     }
@@ -346,38 +389,51 @@ mod tests {
 
     #[test]
     fn test_config_from_named_text_repr() -> Result<(), nom::Err<()>> {
-        assert!("0".parse::<DeviceConfig>().is_err());
         assert!("0:".parse::<DeviceConfig>().is_err());
         assert!(":0".parse::<DeviceConfig>().is_err());
         assert!("0:0-1-".parse::<DeviceConfig>().is_err());
         assert!("0:1-0".parse::<DeviceConfig>().is_err());
 
         assert_eq!(
+            "0".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::Named {
+                device_id: 0,
+                core_range: CoreRange::All
+            })
+        );
+        assert_eq!(
+            "1".parse::<DeviceConfig>(),
+            Ok(DeviceConfig::Named {
+                device_id: 1,
+                core_range: CoreRange::All
+            })
+        );
+        assert_eq!(
             "0:0".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreRange::Range((0, 0))
+                core_range: CoreRange::Range((0, 0))
             })
         );
         assert_eq!(
             "0:1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreRange::Range((1, 1))
+                core_range: CoreRange::Range((1, 1))
             })
         );
         assert_eq!(
             "1:1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 1,
-                core_id: CoreRange::Range((1, 1))
+                core_range: CoreRange::Range((1, 1))
             })
         );
         assert_eq!(
             "0:0-1".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Named {
                 device_id: 0,
-                core_id: CoreRange::Range((0, 1))
+                core_range: CoreRange::Range((0, 1))
             })
         );
 
@@ -419,6 +475,28 @@ mod tests {
             })
         );
         // assert!("npu*10".parse::<DeviceConfig>().is_ok());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_symmetric_display() -> Result<(), nom::Err<()>> {
+        assert_eq!("0".parse::<DeviceConfig>()?.to_string(), "0");
+        assert_eq!("1".parse::<DeviceConfig>()?.to_string(), "1");
+        assert_eq!("0:0".parse::<DeviceConfig>()?.to_string(), "0:0");
+        assert_eq!("0:1".parse::<DeviceConfig>()?.to_string(), "0:1");
+        assert_eq!("1:0".parse::<DeviceConfig>()?.to_string(), "1:0");
+        assert_eq!("0:0-1".parse::<DeviceConfig>()?.to_string(), "0:0-1");
+
+        assert_eq!("warboy*1".parse::<DeviceConfig>()?.to_string(), "warboy*1");
+        assert_eq!(
+            "warboy(1)*2".parse::<DeviceConfig>()?.to_string(),
+            "warboy(1)*2"
+        );
+        assert_eq!(
+            "warboy(2)*4".parse::<DeviceConfig>()?.to_string(),
+            "warboy(2)*4"
+        );
 
         Ok(())
     }
