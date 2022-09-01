@@ -372,7 +372,7 @@ impl Display for CoreStatus {
 
 pub(crate) type CoreIdx = u8;
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub enum CoreRange {
     All,
     Range((u8, u8)),
