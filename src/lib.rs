@@ -68,6 +68,7 @@ mod error;
 mod find;
 pub mod hwmon;
 mod list;
+pub mod proc;
 mod status;
 mod sysfs;
 
