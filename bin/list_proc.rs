@@ -4,15 +4,13 @@ use furiosa_device::{proc, DeviceError};
 
 #[tokio::main]
 async fn main() -> Result<(), DeviceError> {
-    //tracing_subscriber::fmt::init();
-
     let mut rows = vec![];
 
     for process in proc::scan_processes()? {
         rows.push(vec![
             process.dev_name.cell(),
             process.pid.to_string().cell(),
-            process.pname.cell(),
+            process.cmdline.cell(),
         ]);
     }
 

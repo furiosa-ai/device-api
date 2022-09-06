@@ -18,15 +18,15 @@ lazy_static! {
 pub struct NpuProcess {
     pub dev_name: String,
     pub pid: u32,
-    pub pname: String,
+    pub cmdline: String,
 }
 
 impl NpuProcess {
-    pub(crate) fn new(dev_name: String, pid: u32, pname: String) -> Self {
+    pub(crate) fn new(dev_name: String, pid: u32, cmdline: String) -> Self {
         Self {
             dev_name,
             pid,
-            pname,
+            cmdline,
         }
     }
 
@@ -38,8 +38,8 @@ impl NpuProcess {
         self.pid
     }
 
-    pub fn pname(&self) -> &str {
-        self.pname.as_str()
+    pub fn cmdline(&self) -> &str {
+        self.cmdline.as_str()
     }
 }
 
@@ -77,7 +77,7 @@ pub fn scan_processes() -> DeviceResult<Vec<NpuProcess>> {
             None
         })
         .filter_map(|(pid, dev_path)| {
-            read_cmdline(pid).map(|pname| NpuProcess::new(dev_path, pid, pname))
+            read_cmdline(pid).map(|cmdline| NpuProcess::new(dev_path, pid, cmdline))
         })
         .collect();
 
