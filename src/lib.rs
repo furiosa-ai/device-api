@@ -52,7 +52,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use crate::arch::Arch;
-pub use crate::device::{CoreStatus, CoreRange, Device, DeviceFile, DeviceMode};
+pub use crate::device::{CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
 pub use crate::error::{DeviceError, DeviceResult};
 use crate::find::{expand_status, find_devices_in};
 pub use crate::find::{DeviceConfig, DeviceConfigBuilder};
@@ -68,6 +68,7 @@ mod error;
 mod find;
 pub mod hwmon;
 mod list;
+pub mod proc;
 mod status;
 mod sysfs;
 

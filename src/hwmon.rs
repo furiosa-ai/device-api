@@ -76,7 +76,7 @@ impl TryFrom<&str> for MetricType {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let idx_pos =
             value
-                .find(|c: char| c.is_digit(10))
+                .find(|c: char| c.is_ascii_digit())
                 .ok_or(error::HwmonError::InvalidFileName {
                     name: value.to_string(),
                 })?;
