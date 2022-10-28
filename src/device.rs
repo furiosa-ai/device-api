@@ -107,6 +107,11 @@ impl Device {
         self.device_info.get(sysfs::npu_mgmt::DEV)
     }
 
+    /// Returns UUID of the device.
+    pub fn device_uuid(&self) -> DeviceResult<String> {
+        self.device_info.get(sysfs::npu_mgmt::DEVICE_UUID)
+    }
+
     /// Retrieves firmware revision from the device.
     pub fn firmware_version(&self) -> DeviceResult<String> {
         self.device_info.get(sysfs::npu_mgmt::FW_VERSION)
