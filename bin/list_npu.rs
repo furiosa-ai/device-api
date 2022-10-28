@@ -19,6 +19,7 @@ async fn main() -> Result<(), DeviceError> {
     let mut rows = vec![];
 
     for device in found.iter() {
+        let uuid = device.device_uuid().unwrap_or_default();
         let status = device.get_status_all().await?;
         let mut status: Vec<(u8, _)> = status.into_iter().collect();
         status.sort_by(|a, b| a.0.cmp(&b.0));
@@ -28,7 +29,7 @@ async fn main() -> Result<(), DeviceError> {
                 .map(|(k, v)| k.to_string() + " (" + &v.to_string() + ")"),
             ", ",
         );
-        rows.push(vec![device.to_string().cell(), msg.cell()]);
+        rows.push(vec![device.to_string().cell(), uuid.cell(), msg.cell()]);
     }
     let table = rows
         .table()
