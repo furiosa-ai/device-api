@@ -7,7 +7,7 @@ async fn main() -> Result<(), DeviceError> {
 
         println!("-- npu{} --", device.device_index());
         println!("Current");
-        for sensor_value in fetcher.read_currents().await? {
+        for sensor_value in fetcher.read_currents()? {
             println!(
                 "  {:16} {:7.2} A",
                 sensor_value.label,
@@ -15,7 +15,7 @@ async fn main() -> Result<(), DeviceError> {
             );
         }
         println!("Voltage");
-        for sensor_value in fetcher.read_voltages().await? {
+        for sensor_value in fetcher.read_voltages()? {
             println!(
                 "  {:16} {:7.2} V",
                 sensor_value.label,
@@ -23,7 +23,7 @@ async fn main() -> Result<(), DeviceError> {
             );
         }
         println!("Power");
-        for sensor_value in fetcher.read_powers_average().await? {
+        for sensor_value in fetcher.read_powers_average()? {
             println!(
                 "  {:16} {:7.2} W",
                 sensor_value.label,
@@ -31,7 +31,7 @@ async fn main() -> Result<(), DeviceError> {
             );
         }
         println!("Temperature");
-        for sensor_value in fetcher.read_temperatures().await? {
+        for sensor_value in fetcher.read_temperatures()? {
             println!(
                 "  {:16} {:7}°C",
                 sensor_value.label,
