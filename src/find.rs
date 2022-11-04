@@ -134,8 +134,7 @@ impl FromStr for DeviceConfig {
                     digit_to_u8(),
                 ))(s)?;
                 let (core_num, mode) = match mode {
-                    None => (0, DeviceMode::MultiCore),
-                    Some(1) => (1, DeviceMode::Single),
+                    None | Some(1) => (1, DeviceMode::Single),
                     // TODO: Improve below
                     Some(n) => (n, DeviceMode::Fusion),
                 };
@@ -469,8 +468,8 @@ mod tests {
             "warboy*12".parse::<DeviceConfig>(),
             Ok(DeviceConfig::Unnamed {
                 arch: Arch::Warboy,
-                core_num: 0,
-                mode: DeviceMode::MultiCore,
+                core_num: 1,
+                mode: DeviceMode::Single,
                 count: 12
             })
         );
@@ -488,7 +487,6 @@ mod tests {
         assert_eq!("1:0".parse::<DeviceConfig>()?.to_string(), "1:0");
         assert_eq!("0:0-1".parse::<DeviceConfig>()?.to_string(), "0:0-1");
 
-        assert_eq!("warboy*1".parse::<DeviceConfig>()?.to_string(), "warboy*1");
         assert_eq!(
             "warboy(1)*2".parse::<DeviceConfig>()?.to_string(),
             "warboy(1)*2"
