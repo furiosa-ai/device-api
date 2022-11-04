@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "furiosa-device"
-version = "0.1.2-dev"
+version = "0.1.2"
 dependencies = [
  "array_tool",
  "cli-table",
