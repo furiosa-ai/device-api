@@ -137,7 +137,7 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
             for core in device
                 .cores()
                 .iter()
-                .filter(|c| file.core_range().contains(*c))
+                .filter(|c| file.core_range().contains(c))
             {
                 status_map.insert(*core, CoreStatus::Occupied(file.to_string()));
             }
