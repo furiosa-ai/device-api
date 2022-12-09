@@ -66,7 +66,7 @@ impl Default for DeviceConfig {
 }
 
 impl FromStr for DeviceConfig {
-    type Err = nom::Err<()>;
+    type Err = eyre::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {

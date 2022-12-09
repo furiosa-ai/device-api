@@ -18,7 +18,7 @@ pub(crate) struct DeviceConfigInner {
 }
 
 impl FromStr for DeviceConfigInner {
-    type Err = nom::Err<()>;
+    type Err = eyre::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
@@ -77,14 +77,15 @@ impl Config {
 }
 
 impl FromStr for Config {
-    type Err = nom::Err<()>;
+    type Err = eyre::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        fn digit_to_u8<'a>() -> impl FnMut(&'a str) -> nom::IResult<&'a str, u8, ()> {
+        fn digit_to_u8<'a>(
+        ) -> impl FnMut(&'a str) -> nom::IResult<&'a str, u8, nom::error::Error<&'a str>> {
             map_res(digit1, |s: &str| s.parse::<u8>())
         }
         // try parsing named configs, from patterns e.g., "0:0" or "0:0-1"
-        let parsed_named = all_consuming::<_, _, (), _>(digit_to_u8().and(opt(preceded(
+        let parsed_named = all_consuming(digit_to_u8().and(opt(preceded(
             tag(":"),
             alt((
                 map_res(
@@ -113,7 +114,8 @@ impl FromStr for Config {
                     ))),
                     tag("*"),
                     digit_to_u8(),
-                ))(s)?;
+                ))(s)
+                .map_err(|e| eyre::eyre!("{}", e))?;
                 let (core_num, mode) = match mode {
                     None | Some(1) => (1, DeviceMode::Single),
                     // TODO: Improve below

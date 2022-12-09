@@ -29,7 +29,7 @@ pub enum DeviceError {
     #[error("Failed to parse given message {message}: {cause}")]
     ParseError {
         message: String,
-        cause: nom::Err<()>,
+        cause: eyre::Error,
     },
     #[error("Coud not retrieve the environment variable")]
     EnvVarError { cause: std::env::VarError },
