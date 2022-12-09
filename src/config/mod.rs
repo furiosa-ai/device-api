@@ -1,5 +1,5 @@
 mod builder;
-mod find;
+pub(crate) mod find;
 mod inner;
 
 use std::fmt::Display;
