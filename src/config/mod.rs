@@ -84,10 +84,10 @@ impl Display for DeviceConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{list::list_devices_with, DeviceResult};
+    use crate::list::list_devices_with;
 
     #[tokio::test]
-    async fn test_find_devices() -> DeviceResult<()> {
+    async fn test_find_devices() -> eyre::Result<()> {
         // test directory contains 2 warboy NPUs
         let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
         let devices_with_statuses = expand_status(devices).await?;
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_symmetric_display() -> Result<(), nom::Err<()>> {
+    fn test_config_symmetric_display() -> eyre::Result<()> {
         assert_eq!("0".parse::<DeviceConfig>()?.to_string(), "0");
         assert_eq!("1".parse::<DeviceConfig>()?.to_string(), "1");
         assert_eq!("0:0".parse::<DeviceConfig>()?.to_string(), "0:0");

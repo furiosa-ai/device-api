@@ -255,91 +255,91 @@ mod tests {
     }
 
     #[test]
-    fn test_config_from_named_text_repr() -> Result<(), nom::Err<()>> {
+    fn test_config_from_named_text_repr() -> eyre::Result<()> {
         assert!("0:".parse::<Config>().is_err());
         assert!(":0".parse::<Config>().is_err());
         assert!("0:0-1-".parse::<Config>().is_err());
         assert!("0:1-0".parse::<Config>().is_err());
 
         assert_eq!(
-            "0".parse::<Config>(),
-            Ok(Config::Named {
+            "0".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::All
-            })
+            }
         );
         assert_eq!(
-            "1".parse::<Config>(),
-            Ok(Config::Named {
+            "1".parse::<Config>()?,
+            Config::Named {
                 device_id: 1,
                 core_range: CoreRange::All
-            })
+            }
         );
         assert_eq!(
-            "0:0".parse::<Config>(),
-            Ok(Config::Named {
+            "0:0".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((0, 0))
-            })
+            }
         );
         assert_eq!(
-            "0:1".parse::<Config>(),
-            Ok(Config::Named {
+            "0:1".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((1, 1))
-            })
+            }
         );
         assert_eq!(
-            "1:1".parse::<Config>(),
-            Ok(Config::Named {
+            "1:1".parse::<Config>()?,
+            Config::Named {
                 device_id: 1,
                 core_range: CoreRange::Range((1, 1))
-            })
+            }
         );
         assert_eq!(
-            "0:0-1".parse::<Config>(),
-            Ok(Config::Named {
+            "0:0-1".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((0, 1))
-            })
+            }
         );
 
         Ok(())
     }
 
     #[test]
-    fn test_config_from_unnamed_text_repr() -> Result<(), nom::Err<()>> {
+    fn test_config_from_unnamed_text_repr() -> eyre::Result<()> {
         assert!("warboy".parse::<Config>().is_err());
         assert!("warboy*".parse::<Config>().is_err());
         assert!("*1".parse::<Config>().is_err());
         assert!("some_npu*10".parse::<Config>().is_err());
         assert!("warboy(2*10".parse::<Config>().is_err());
         assert_eq!(
-            "warboy(1)*2".parse::<Config>(),
-            Ok(Config::Unnamed {
+            "warboy(1)*2".parse::<Config>()?,
+            Config::Unnamed {
                 arch: Arch::Warboy,
                 core_num: 1,
                 mode: DeviceMode::Single,
                 count: 2
-            })
+            }
         );
         assert_eq!(
-            "warboy(2)*4".parse::<Config>(),
-            Ok(Config::Unnamed {
+            "warboy(2)*4".parse::<Config>()?,
+            Config::Unnamed {
                 arch: Arch::Warboy,
                 core_num: 2,
                 mode: DeviceMode::Fusion,
                 count: 4
-            })
+            }
         );
         assert_eq!(
-            "warboy*12".parse::<Config>(),
-            Ok(Config::Unnamed {
+            "warboy*12".parse::<Config>()?,
+            Config::Unnamed {
                 arch: Arch::Warboy,
                 core_num: 1,
                 mode: DeviceMode::Single,
                 count: 12
-            })
+            }
         );
         // assert!("npu*10".parse::<Config>().is_ok());
 
