@@ -62,25 +62,16 @@ impl Config {
             }
             Self::Unnamed {
                 arch: config_arch,
-                core_num: _,
                 mode,
-                count: _,
+                ..
             } => arch == *config_arch && device_file.mode() == *mode,
         }
     }
 
     pub(crate) fn count(&self) -> u8 {
         match self {
-            Self::Named {
-                device_id: _,
-                core_range: _,
-            } => 1,
-            Self::Unnamed {
-                arch: _,
-                core_num: _,
-                mode: _,
-                count,
-            } => *count,
+            Self::Named { .. } => 1,
+            Self::Unnamed { count, .. } => *count,
         }
     }
 }
