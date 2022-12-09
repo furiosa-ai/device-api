@@ -39,8 +39,8 @@ impl DeviceConfig {
     pub fn warboy() -> DeviceConfigBuilder<Arch, NotDetermined, NotDetermined> {
         DeviceConfigBuilder {
             arch: Arch::Warboy,
-            mode: NotDetermined,
-            count: NotDetermined,
+            mode: NotDetermined { _priv: () },
+            count: NotDetermined { _priv: () },
         }
     }
 }

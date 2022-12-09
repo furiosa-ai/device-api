@@ -3,7 +3,9 @@ use crate::arch::Arch;
 use crate::device::DeviceMode;
 pub use crate::DeviceConfig;
 
-pub struct NotDetermined;
+pub struct NotDetermined {
+    pub(crate) _priv: (),
+}
 
 impl From<NotDetermined> for Arch {
     fn from(_: NotDetermined) -> Self {
