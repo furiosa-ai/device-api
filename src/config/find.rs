@@ -33,6 +33,7 @@ pub(crate) fn find_devices_in(
     config: &DeviceConfig,
     devices: &[DeviceWithStatus],
 ) -> DeviceResult<Vec<DeviceFile>> {
+    let config = config.inner;
     let mut allocated: HashMap<u8, HashSet<u8>> = HashMap::with_capacity(devices.len());
 
     for device in devices {

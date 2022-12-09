@@ -1,3 +1,4 @@
+use super::parse::DeviceConfigInner;
 use crate::arch::Arch;
 use crate::device::DeviceMode;
 pub use crate::DeviceConfig;
@@ -78,11 +79,13 @@ where
             DeviceMode::Fusion => 2,
         };
 
-        DeviceConfig::Unnamed {
-            arch: Arch::from(self.arch),
-            core_num,
-            mode,
-            count: u8::from(self.count),
+        DeviceConfig {
+            inner: DeviceConfigInner::Unnamed {
+                arch: Arch::from(self.arch),
+                core_num,
+                mode,
+                count: u8::from(self.count),
+            },
         }
     }
 }
