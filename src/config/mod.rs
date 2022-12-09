@@ -2,15 +2,15 @@ mod builder;
 pub(crate) mod find;
 mod inner;
 
-use std::fmt::Display;
 use std::str::FromStr;
+use std::{ffi::OsStr, fmt::Display};
 
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
 use inner::DeviceConfigInner;
 
 use self::builder::NotDetermined;
-use crate::Arch;
+use crate::{Arch, DeviceError};
 
 /// Describes a required set of devices for [`find_devices`][crate::find_devices].
 ///
@@ -42,6 +42,20 @@ impl DeviceConfig {
             mode: NotDetermined { _priv: () },
             count: NotDetermined { _priv: () },
         }
+    }
+
+    pub fn from_env_with_key<S: AsRef<OsStr>>(key: S) -> Result<Self, DeviceError> {
+        match std::env::var(key) {
+            Ok(message) => Ok(Self {
+                inner: DeviceConfigInner::from_str(&message)
+                    .map_err(|cause| DeviceError::ParseError { message, cause })?,
+            }),
+            Err(cause) => Err(DeviceError::EnvVarError { cause }),
+        }
+    }
+
+    pub fn from_env() -> Result<Self, DeviceError> {
+        Self::from_env_with_key("NPU_DEVNAME")
     }
 }
 

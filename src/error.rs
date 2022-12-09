@@ -26,6 +26,13 @@ pub enum DeviceError {
     HwmonError { device_index: u8, cause: HwmonError },
     #[error("Unexpected value: {message}")]
     UnexpectedValue { message: String },
+    #[error("Failed to parse given message {message}: {cause}")]
+    ParseError {
+        message: String,
+        cause: nom::Err<()>,
+    },
+    #[error("Coud not retrieve the environment variable")]
+    EnvVarError { cause: std::env::VarError },
 }
 
 impl DeviceError {
