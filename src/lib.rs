@@ -88,7 +88,7 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 /// See the [crate-level documentation](crate).
 pub async fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
     let devices = expand_status(list_devices().await?).await?;
-    find_devices_in(&config, &devices)
+    find_devices_in(config, &devices)
 }
 
 /// Return a specific device if it exists.
