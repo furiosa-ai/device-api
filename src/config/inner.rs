@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
+use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
@@ -10,6 +11,30 @@ use nom::Parser;
 
 use crate::arch::Arch;
 use crate::device::{CoreRange, DeviceFile, DeviceMode};
+
+#[derive(Clone, Debug)]
+pub(crate) struct DeviceConfigInner {
+    pub(crate) cfgs: Vec<Config>,
+}
+
+impl FromStr for DeviceConfigInner {
+    type Err = nom::Err<()>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self {
+            cfgs: s
+                .split(',')
+                .map(Config::from_str)
+                .collect::<Result<Vec<_>, Self::Err>>()?,
+        })
+    }
+}
+
+impl Display for DeviceConfigInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.cfgs.iter().map(|c| c.to_string()).join(","))
+    }
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Config {
@@ -153,6 +178,16 @@ impl Display for Config {
 mod tests {
     use super::*;
     use crate::DeviceResult;
+
+    #[test]
+    fn test_multiple_configs_repr() -> eyre::Result<()> {
+        let repr = "0:0,0:1";
+        let config = repr.parse::<DeviceConfigInner>()?;
+
+        assert_eq!(repr, config.to_string().as_str());
+
+        Ok(())
+    }
 
     #[tokio::test]
     async fn test_named_config_fit() -> DeviceResult<()> {

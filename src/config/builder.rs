@@ -1,4 +1,4 @@
-use super::inner::Config;
+use super::inner::{Config, DeviceConfigInner};
 use crate::arch::Arch;
 use crate::device::DeviceMode;
 use crate::DeviceConfig;
@@ -82,11 +82,13 @@ where
         };
 
         DeviceConfig {
-            inner: Config::Unnamed {
-                arch: Arch::from(self.arch),
-                core_num,
-                mode,
-                count: u8::from(self.count),
+            inner: DeviceConfigInner {
+                cfgs: vec![Config::Unnamed {
+                    arch: Arch::from(self.arch),
+                    core_num,
+                    mode,
+                    count: u8::from(self.count),
+                }],
             },
         }
     }

@@ -7,9 +7,9 @@ use std::{ffi::OsStr, fmt::Display};
 
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
-use inner::Config;
 
 use self::builder::NotDetermined;
+use self::inner::DeviceConfigInner;
 use crate::{Arch, DeviceError};
 
 /// Describes a required set of devices for [`find_devices`][crate::find_devices].
@@ -29,9 +29,9 @@ use crate::{Arch, DeviceError};
 /// ```
 ///
 /// See also [struct `Device`][`Device`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct DeviceConfig {
-    pub(crate) inner: Config,
+    pub(crate) inner: DeviceConfigInner,
 }
 
 impl DeviceConfig {
@@ -47,7 +47,7 @@ impl DeviceConfig {
     pub fn from_env_with_key<S: AsRef<OsStr>>(key: S) -> Result<Self, DeviceError> {
         match std::env::var(key) {
             Ok(message) => Ok(Self {
-                inner: Config::from_str(&message)
+                inner: DeviceConfigInner::from_str(&message)
                     .map_err(|cause| DeviceError::ParseError { message, cause })?,
             }),
             Err(cause) => Err(DeviceError::EnvVarError { cause }),
@@ -70,7 +70,7 @@ impl FromStr for DeviceConfig {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            inner: Config::from_str(s)?,
+            inner: DeviceConfigInner::from_str(s)?,
         })
     }
 }

@@ -35,6 +35,7 @@ array_tool = "1"
 cli-table = "0.4"
 enum-display-derive = "0.1"
 enum-utils = "0.1.2"
+eyre = "0.6.8"
 itertools = "0.10"
 lazy_static = "1.4"
 memoize = { version = "0.3.1", features = ["full"] }
