@@ -33,7 +33,7 @@ pub(crate) fn find_devices_in(
     config: &DeviceConfig,
     devices: &[DeviceWithStatus],
 ) -> DeviceResult<Vec<DeviceFile>> {
-    let config = config.inner;
+    let config = &config.inner;
     let mut allocated: HashMap<u8, HashSet<u8>> = HashMap::with_capacity(devices.len());
 
     for device in devices {
@@ -48,35 +48,40 @@ pub(crate) fn find_devices_in(
         );
     }
 
-    let config_count = config.count();
+    let config_count = config.cfgs.iter().fold(0, |acc, cfg| acc + cfg.count());
     let mut found: Vec<DeviceFile> = Vec::with_capacity(config_count.into());
-    'outer: for _ in 0..config_count {
-        for device in devices {
-            'inner: for dev_file in device.dev_files() {
-                if !config.fit(device.arch(), dev_file) {
-                    continue 'inner;
-                }
 
-                let used = allocated.get_mut(&device.device_index()).unwrap();
-
-                for core in used.iter() {
-                    if dev_file.core_range().contains(core) {
+    for cfg in &config.cfgs {
+        'outer: for _ in 0..config_count {
+            for device in devices {
+                'inner: for dev_file in device.dev_files() {
+                    if !cfg.fit(device.arch(), dev_file) {
                         continue 'inner;
                     }
-                }
 
-                // this dev_file is suitable
-                found.push(dev_file.clone());
-                used.extend(
-                    device
-                        .cores()
-                        .iter()
-                        .filter(|idx| dev_file.core_range().contains(idx)),
-                );
-                continue 'outer;
+                    let used = allocated.get_mut(&device.device_index()).unwrap();
+
+                    for core in used.iter() {
+                        if dev_file.core_range().contains(core) {
+                            continue 'inner;
+                        }
+                    }
+
+                    // this dev_file is suitable
+                    found.push(dev_file.clone());
+                    used.extend(
+                        device
+                            .cores()
+                            .iter()
+                            .filter(|idx| dev_file.core_range().contains(idx)),
+                    );
+                    continue 'outer;
+                }
             }
+
+            // TODO: we have to return error here
+            return Ok(vec![]);
         }
-        return Ok(vec![]);
     }
 
     Ok(found)
