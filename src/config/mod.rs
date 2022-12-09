@@ -1,13 +1,13 @@
 mod builder;
 mod find;
-mod parse;
+mod inner;
 
 use std::fmt::Display;
 use std::str::FromStr;
 
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
-use parse::DeviceConfigInner;
+use inner::DeviceConfigInner;
 
 use self::builder::NotDetermined;
 use crate::Arch;

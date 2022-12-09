@@ -1,4 +1,4 @@
-use super::parse::DeviceConfigInner;
+use super::inner::DeviceConfigInner;
 use crate::arch::Arch;
 use crate::device::DeviceMode;
 pub use crate::DeviceConfig;

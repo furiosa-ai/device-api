@@ -11,23 +11,6 @@ use nom::Parser;
 use crate::arch::Arch;
 use crate::device::{CoreRange, DeviceFile, DeviceMode};
 
-/// Describes a required set of devices for [`find_devices`][crate::find_devices].
-///
-/// # Examples
-/// ```rust
-/// use furiosa_device::DeviceConfig;
-///
-/// // 1 core
-/// DeviceConfig::warboy().build();
-///
-/// // 1 core x 2
-/// DeviceConfig::warboy().count(2);
-///
-/// // Fused 2 cores x 2
-/// DeviceConfig::warboy().fused().count(2);
-/// ```
-///
-/// See also [struct `Device`][`Device`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DeviceConfigInner {
     // TODO: Named cannot describe MultiCore yet.
@@ -44,7 +27,6 @@ pub(crate) enum DeviceConfigInner {
 }
 
 impl DeviceConfigInner {
-    /// Returns a builder associated with Warboy NPUs.
     pub(crate) fn fit(&self, arch: Arch, device_file: &DeviceFile) -> bool {
         match self {
             Self::Named {
