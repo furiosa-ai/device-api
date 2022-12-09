@@ -1,4 +1,4 @@
-use super::inner::DeviceConfigInner;
+use super::inner::Config;
 use crate::arch::Arch;
 use crate::device::DeviceMode;
 use crate::DeviceConfig;
@@ -82,7 +82,7 @@ where
         };
 
         DeviceConfig {
-            inner: DeviceConfigInner::Unnamed {
+            inner: Config::Unnamed {
                 arch: Arch::from(self.arch),
                 core_num,
                 mode,
