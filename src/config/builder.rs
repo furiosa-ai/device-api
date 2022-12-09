@@ -1,7 +1,7 @@
 use super::inner::DeviceConfigInner;
 use crate::arch::Arch;
 use crate::device::DeviceMode;
-pub use crate::DeviceConfig;
+use crate::DeviceConfig;
 
 pub struct NotDetermined {
     pub(crate) _priv: (),
