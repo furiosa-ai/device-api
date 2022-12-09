@@ -52,20 +52,20 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub use crate::arch::Arch;
+use crate::config::{expand_status, find_devices_in};
+pub use crate::config::{DeviceConfig, DeviceConfigBuilder};
 pub use crate::device::{CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
 pub use crate::error::{DeviceError, DeviceResult};
-use crate::find::{expand_status, find_devices_in};
-pub use crate::find::{DeviceConfig, DeviceConfigBuilder};
 use crate::list::list_devices_with;
 
 mod arch;
 #[cfg(feature = "blocking")]
 #[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 pub mod blocking;
+mod config;
 mod devfs;
 mod device;
 mod error;
-mod find;
 pub mod hwmon;
 mod list;
 pub mod proc;
