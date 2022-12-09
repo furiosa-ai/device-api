@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt::Display;
 use std::str::FromStr;
 
@@ -80,56 +81,91 @@ impl FromStr for Config {
     type Err = eyre::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        fn clone_at_err<E: Error>(e: E) -> eyre::Report {
+            eyre::eyre!("{}", e)
+        }
+
         fn digit_to_u8<'a>(
         ) -> impl FnMut(&'a str) -> nom::IResult<&'a str, u8, nom::error::Error<&'a str>> {
             map_res(digit1, |s: &str| s.parse::<u8>())
         }
-        // try parsing named configs, from patterns e.g., "0:0" or "0:0-1"
-        let parsed_named = all_consuming(digit_to_u8().and(opt(preceded(
-            tag(":"),
+
+        fn parse_cores<'a>(
+        ) -> impl FnMut(&'a str) -> nom::IResult<&'a str, CoreRange, nom::error::Error<&'a str>>
+        {
             alt((
                 map_res(
                     separated_pair(digit_to_u8(), tag("-"), digit_to_u8()),
                     CoreRange::try_from,
                 ),
                 map(digit_to_u8(), CoreRange::from),
-            )),
-        ))))(s);
-
-        match parsed_named {
-            Ok((_, (device_id, core_id))) => {
-                let core_range = core_id.unwrap_or(CoreRange::All);
-                Ok(Self::Named {
-                    device_id,
-                    core_range,
-                })
-            }
-            Err(_) => {
-                // try parsing unnamed configs, from patterns e.g., "warboy*1" or "warboy(1)*2"
-                let (_, ((arch, mode), count)) = all_consuming(separated_pair(
-                    map_res(tag("warboy"), |s: &str| s.parse::<Arch>()).and(opt(delimited(
-                        tag("("),
-                        digit_to_u8(),
-                        tag(")"),
-                    ))),
-                    tag("*"),
-                    digit_to_u8(),
-                ))(s)
-                .map_err(|e| eyre::eyre!("{}", e))?;
-                let (core_num, mode) = match mode {
-                    None | Some(1) => (1, DeviceMode::Single),
-                    // TODO: Improve below
-                    Some(n) => (n, DeviceMode::Fusion),
-                };
-
-                Ok(Self::Unnamed {
-                    arch,
-                    core_num,
-                    mode,
-                    count,
-                })
-            }
+            ))
         }
+
+        // Try parsing a "npu0pe0" pattern. Note that "npu0" is also valid, which represents npu0 as MultiCore mode.
+        fn legacy_parser(s: &str) -> eyre::Result<Config> {
+            let parser_id = preceded(tag("npu"), digit_to_u8());
+            let parser_cores = map(opt(preceded(tag("pe"), parse_cores())), |c| {
+                c.unwrap_or(CoreRange::All)
+            });
+
+            let (_, (device_id, core_range)) =
+                all_consuming(parser_id.and(parser_cores))(s).map_err(clone_at_err)?;
+
+            Ok(Config::Named {
+                device_id,
+                core_range,
+            })
+        }
+
+        // Try parsing a "0:0" or "0:0-1" pattern. Note that "0" is also valid, which represents npu0 as MultiCore mode.
+        fn named_cfg_parser(s: &str) -> eyre::Result<Config> {
+            let parser_cores = map(opt(preceded(tag(":"), parse_cores())), |c| {
+                c.unwrap_or(CoreRange::All)
+            });
+
+            let (_, (device_id, core_range)) =
+                all_consuming(digit_to_u8().and(parser_cores))(s).map_err(clone_at_err)?;
+
+            Ok(Config::Named {
+                device_id,
+                core_range,
+            })
+        }
+
+        // Try parsing a "warboy(1)*1" pattern
+        fn unnamed_cfg_parser(s: &str) -> eyre::Result<Config> {
+            // Currently supports "warboy" only
+            let parser_arch = map_res(tag("warboy"), |s: &str| s.parse::<Arch>());
+            let parser_mode =
+                map(
+                    opt(delimited(tag("("), digit_to_u8(), tag(")"))),
+                    |mode| match mode {
+                        // "warboy" is equivalent to "warboy(1)"
+                        None | Some(1) => (1, DeviceMode::Single),
+                        // TODO: Improve below
+                        Some(n) => (n, DeviceMode::Fusion),
+                    },
+                );
+            let parser_count = preceded(tag("*"), digit_to_u8());
+
+            // Note: nom::sequence::tuple requires parsers to have equivalent signatures
+            let (_, ((arch, (core_num, mode)), count)) =
+                all_consuming(parser_arch.and(parser_mode).and(parser_count))(s)
+                    .map_err(clone_at_err)?;
+
+            Ok(Config::Unnamed {
+                arch,
+                core_num,
+                mode,
+                count,
+            })
+        }
+
+        legacy_parser(s)
+            .or_else(|_| named_cfg_parser(s))
+            .or_else(|_| unnamed_cfg_parser(s))
+            .map_err(|_| eyre::eyre!("Failed to parse {}", s))
     }
 }
 
