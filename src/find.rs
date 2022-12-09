@@ -347,9 +347,8 @@ pub(crate) fn find_devices_in(
 
 #[cfg(test)]
 mod tests {
-    use crate::list::list_devices_with;
-
     use super::*;
+    use crate::list::list_devices_with;
 
     #[tokio::test]
     async fn test_find_devices() -> DeviceResult<()> {

@@ -1,15 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::FileType;
 use std::io;
-
 use std::path::{Path, PathBuf};
+
+use tokio::fs;
 
 use crate::devfs;
 use crate::devfs::is_character_device;
-use tokio::fs;
-
 use crate::device::{Device, DeviceFile, DeviceInfo, DeviceMetadata};
-
 use crate::error::DeviceResult;
 use crate::hwmon;
 use crate::sysfs::npu_mgmt::{self, read_mgmt_files, *};
@@ -115,9 +113,10 @@ async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
     use crate::arch::Arch;
-    use itertools::Itertools;
 
     #[tokio::test]
     async fn test_find_dev_files() -> DeviceResult<()> {

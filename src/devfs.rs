@@ -1,8 +1,8 @@
-use lazy_static::lazy_static;
 use std::fs::FileType;
 use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
 
+use lazy_static::lazy_static;
 use regex::{Match, Regex};
 
 use crate::{DeviceError, DeviceResult};
