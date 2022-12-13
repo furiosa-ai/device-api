@@ -28,7 +28,45 @@ use crate::{Arch, DeviceError};
 /// DeviceConfig::warboy().fused().count(2);
 /// ```
 ///
-/// See also [struct `Device`][`Device`].
+/// # Textual Representation
+///
+/// DeviceConfig supports textual representation, which is its equivalent string representation.
+/// One can obtain the corresponding DeviceConfig from the textual representation
+/// by using the FromStr trait, or by calling [`from_env_with_key`][`DeviceConfig::from_env_with_key`]
+/// after setting an environment variable.
+///
+/// ```rust
+/// let config = DeviceConfig::from_env()?; // default key is "FURIOSA_DEVICES"
+/// let config = DeviceConfig::from_env_with_key("SOME_OTHER_ENV_KEY")?;
+/// let config = DeviceConfig::from_str("0:0,0:1")?; // get config directly from a string literal
+/// ```
+///
+/// The rules for textual representation are as follows:
+///
+/// ```bash
+/// # Using specific device names
+/// FURIOSA_DEVICES="0:0" # npu0pe0
+/// FURIOSA_DEVICES="0:0-1" # npu0pe0-1
+
+/// # Using device configs
+/// FURIOSA_DEVICES="warboy*2" # warboy multi core mode x 2
+/// FURIOSA_DEVICES="warboy(1)*2" # single pe x 2
+/// FURIOSA_DEVICES="warboy(2)*2" # 2-pe fusioned x 2
+
+/// # Using device configs with a random device
+/// # It can be commonly used because most of systems will have a single kind of NPUs.
+/// FURIOSA_DEVICES="npu(2)*2" # any 2-pe fusioned device x 2
+
+/// # When we use multiple models in a single application
+/// FURIOSA_DEVICES="APP1=warboy*2, APP2=warboy(2)*2" # Allow to specify two different device configurations for two applications 'APP1' and 'APP2'
+/// ```
+///
+/// You can also combine multiple string representations into one DeviceConfig,
+/// by separating them with commas.
+///
+/// ```bash
+/// FURIOSA_DEVICES="0:0,0:1" # npu0pe0, npu0pe1
+/// ```
 #[derive(Clone, Debug)]
 pub struct DeviceConfig {
     pub(crate) inner: DeviceConfigInner,
@@ -55,7 +93,7 @@ impl DeviceConfig {
     }
 
     pub fn from_env() -> Result<Self, DeviceError> {
-        Self::from_env_with_key("NPU_DEVNAME")
+        Self::from_env_with_key("FURIOSA_DEVICES")
     }
 }
 
