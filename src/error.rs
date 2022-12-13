@@ -27,10 +27,7 @@ pub enum DeviceError {
     #[error("Unexpected value: {message}")]
     UnexpectedValue { message: String },
     #[error("Failed to parse given message {message}: {cause}")]
-    ParseError {
-        message: String,
-        cause: eyre::Error,
-    },
+    ParseError { message: String, cause: eyre::Error },
     #[error("Coud not retrieve the environment variable")]
     EnvVarError { cause: std::env::VarError },
 }
