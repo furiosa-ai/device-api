@@ -36,36 +36,31 @@ use crate::{Arch, DeviceError};
 /// after setting an environment variable.
 ///
 /// ```rust
-/// let config = DeviceConfig::from_env()?; // default key is "FURIOSA_DEVICES"
-/// let config = DeviceConfig::from_env_with_key("SOME_OTHER_ENV_KEY")?;
-/// let config = DeviceConfig::from_str("0:0,0:1")?; // get config directly from a string literal
+/// use std::str::FromStr;
+/// use furiosa_device::DeviceConfig;
+///
+/// let config = DeviceConfig::from_env(); // default key is "FURIOSA_DEVICES"
+/// let config = DeviceConfig::from_env_with_key("SOME_OTHER_ENV_KEY");
+/// let config = DeviceConfig::from_str("0:0,0:1"); // get config directly from a string literal
 /// ```
 ///
 /// The rules for textual representation are as follows:
 ///
-/// ```bash
-/// # Using specific device names
-/// FURIOSA_DEVICES="0:0" # npu0pe0
-/// FURIOSA_DEVICES="0:0-1" # npu0pe0-1
-
-/// # Using device configs
-/// FURIOSA_DEVICES="warboy*2" # warboy multi core mode x 2
-/// FURIOSA_DEVICES="warboy(1)*2" # single pe x 2
-/// FURIOSA_DEVICES="warboy(2)*2" # 2-pe fusioned x 2
-
-/// # Using device configs with a random device
-/// # It can be commonly used because most of systems will have a single kind of NPUs.
-/// FURIOSA_DEVICES="npu(2)*2" # any 2-pe fusioned device x 2
-
-/// # When we use multiple models in a single application
-/// FURIOSA_DEVICES="APP1=warboy*2, APP2=warboy(2)*2" # Allow to specify two different device configurations for two applications 'APP1' and 'APP2'
-/// ```
+/// ```rust
+/// use std::str::FromStr;
+/// use furiosa_device::DeviceConfig;
 ///
-/// You can also combine multiple string representations into one DeviceConfig,
-/// by separating them with commas.
+/// // Using specific device names
+/// DeviceConfig::from_str("0:0"); // npu0pe0
+/// DeviceConfig::from_str("0:0-1"); // npu0pe0-1
 ///
-/// ```bash
-/// FURIOSA_DEVICES="0:0,0:1" # npu0pe0, npu0pe1
+/// // Using device configs
+/// DeviceConfig::from_str("warboy*2"); // warboy multi core mode x 2
+/// DeviceConfig::from_str("warboy(1)*2"); // single pe x 2
+/// DeviceConfig::from_str("warboy(2)*2"); // 2-pe fusioned x 2
+///
+/// // Combine multiple representations separated by commas
+/// DeviceConfig::from_str("0:0-1, 1:0-1"); // npu0pe0-1, npu1pe0-1
 /// ```
 #[derive(Clone, Debug)]
 pub struct DeviceConfig {
@@ -82,6 +77,8 @@ impl DeviceConfig {
         }
     }
 
+    /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
+    /// Fails if the environment variable is empty or if the syntax is not met.
     pub fn from_env_with_key<S: AsRef<OsStr>>(key: S) -> Result<Self, DeviceError> {
         match std::env::var(key) {
             Ok(message) => Ok(Self {
@@ -92,6 +89,9 @@ impl DeviceConfig {
         }
     }
 
+    /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
+    /// Fails if the environment variable is empty or if the syntax is not met.
+    /// This is equivalent to `DeviceConfig::from_env_with_key("FURIOSA_DEVICES")`.
     pub fn from_env() -> Result<Self, DeviceError> {
         Self::from_env_with_key("FURIOSA_DEVICES")
     }
