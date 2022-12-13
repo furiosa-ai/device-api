@@ -27,9 +27,7 @@ pub enum DeviceError {
     #[error("Unexpected value: {message}")]
     UnexpectedValue { message: String },
     #[error("Failed to parse given message {message}: {cause}")]
-    ParseError { message: String, cause: eyre::Error },
-    #[error("Coud not retrieve the environment variable")]
-    EnvVarError { cause: std::env::VarError },
+    ParseError { message: String, cause: String },
 }
 
 impl DeviceError {
@@ -68,6 +66,13 @@ impl DeviceError {
     pub(crate) fn unexpected_value<S: ToString>(message: S) -> DeviceError {
         UnexpectedValue {
             message: message.to_string(),
+        }
+    }
+
+    pub(crate) fn parse_error<S: ToString, C: ToString>(message: S, cause: C) -> DeviceError {
+        DeviceError::ParseError {
+            message: message.to_string(),
+            cause: cause.to_string(),
         }
     }
 }

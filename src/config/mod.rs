@@ -2,8 +2,9 @@ mod builder;
 pub(crate) mod find;
 mod inner;
 
+use std::env::VarError;
+use std::fmt::Display;
 use std::str::FromStr;
-use std::{ffi::OsStr, fmt::Display};
 
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
@@ -77,23 +78,35 @@ impl DeviceConfig {
         }
     }
 
-    /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
-    /// Fails if the environment variable is empty or if the syntax is not met.
-    pub fn from_env_with_key<S: AsRef<OsStr>>(key: S) -> Result<Self, DeviceError> {
-        match std::env::var(key) {
-            Ok(message) => Ok(Self {
-                inner: DeviceConfigInner::from_str(&message)
-                    .map_err(|cause| DeviceError::ParseError { message, cause })?,
-            }),
-            Err(cause) => Err(DeviceError::EnvVarError { cause }),
-        }
+    pub(crate) fn from_inner(inner: DeviceConfigInner) -> Self {
+        Self { inner }
     }
 
     /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
-    /// Fails if the environment variable is empty or if the syntax is not met.
-    /// This is equivalent to `DeviceConfig::from_env_with_key("FURIOSA_DEVICES")`.
-    pub fn from_env() -> Result<Self, DeviceError> {
-        Self::from_env_with_key("FURIOSA_DEVICES")
+    /// Returns error if the environment variable is empty or the syntax is not met.
+    pub fn from_env_with_key<S: AsRef<str>>(key: S) -> Result<Self, DeviceError> {
+        let key = key.as_ref();
+        Self::try_from_env_with_key(key).unwrap_or_else(|| {
+            Err(DeviceError::parse_error(
+                "",
+                format!("environment variable `{}` is not set", key),
+            ))
+        })
+    }
+
+    /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
+    /// Returns `None` if the environment variable is empty,
+    /// and `Some(DeviceError)` if the value is not valid unicode or the syntax is not met.
+    pub fn try_from_env_with_key<S: AsRef<str>>(key: S) -> Option<Result<Self, DeviceError>> {
+        match std::env::var(key.as_ref()) {
+            Ok(message) => Some(
+                DeviceConfigInner::from_str(&message)
+                    .map_err(|cause| DeviceError::parse_error(message, cause))
+                    .map(Self::from_inner),
+            ),
+            Err(VarError::NotPresent) => None,
+            Err(cause) => Some(Err(DeviceError::parse_error("", cause))),
+        }
     }
 }
 
