@@ -5,8 +5,7 @@ use std::path::{Path, PathBuf};
 
 use tokio::fs;
 
-use crate::devfs;
-use crate::devfs::is_character_device;
+use crate::devfs::{self, is_character_device};
 use crate::device::{Device, DeviceFile, DeviceInfo, DeviceMetadata};
 use crate::error::DeviceResult;
 use crate::hwmon;
