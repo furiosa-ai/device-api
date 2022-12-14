@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fmt::Display;
 use std::io;
 
@@ -84,5 +85,11 @@ impl From<io::Error> for DeviceError {
         } else {
             Self::IoError { cause: e }
         }
+    }
+}
+
+impl From<Infallible> for DeviceError {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
     }
 }
