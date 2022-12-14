@@ -5,9 +5,9 @@ use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::config::find::DeviceWithStatus;
 use crate::devfs::is_character_device;
 use crate::device::{CoreIdx, CoreStatus, DeviceInfo, DeviceMetadata};
-use crate::find::DeviceWithStatus;
 use crate::hwmon;
 use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;

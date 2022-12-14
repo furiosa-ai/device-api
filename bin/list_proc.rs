@@ -1,5 +1,4 @@
 use cli_table::{print_stdout, Cell, Style, Table};
-
 use furiosa_device::{proc, DeviceError};
 
 #[tokio::main]

@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+
 use strum_macros::AsRefStr;
 
 /// Enum for the NPU architecture.
@@ -28,8 +29,9 @@ impl Display for Arch {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn test_archkind() {

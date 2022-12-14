@@ -1,7 +1,6 @@
 use cli_table::{print_stdout, Cell, Style, Table};
-use itertools::join;
-
 use furiosa_device::{list_devices, DeviceError};
+use itertools::join;
 
 #[tokio::main]
 async fn main() -> Result<(), DeviceError> {

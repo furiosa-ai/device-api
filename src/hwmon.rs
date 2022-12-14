@@ -11,6 +11,7 @@ use crate::{DeviceError, DeviceResult};
 
 pub mod error {
     use std::io;
+
     use thiserror::Error;
 
     pub type HwmonResult<T> = Result<T, HwmonError>;

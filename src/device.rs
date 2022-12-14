@@ -1,10 +1,9 @@
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::path::PathBuf;
-
-use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::arch::Arch;

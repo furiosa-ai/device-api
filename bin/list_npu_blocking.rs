@@ -1,8 +1,7 @@
 use cli_table::{print_stdout, Cell, Style, Table};
-use itertools::join;
-
 use furiosa_device::blocking::{get_status_all, list_devices};
 use furiosa_device::{Device, DeviceError};
+use itertools::join;
 
 fn main() -> Result<(), DeviceError> {
     tracing_subscriber::fmt::init();

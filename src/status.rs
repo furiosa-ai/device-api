@@ -1,4 +1,5 @@
 use std::path::Path;
+
 use tokio::fs::OpenOptions;
 
 use crate::error::DeviceResult;
