@@ -33,14 +33,14 @@ use crate::{Arch, DeviceError};
 ///
 /// DeviceConfig supports textual representation, which is its equivalent string representation.
 /// One can obtain the corresponding DeviceConfig from the textual representation
-/// by using the FromStr trait, or by calling [`from_env_with_key`][`DeviceConfig::from_env_with_key`]
+/// by using the FromStr trait, or by calling [`from_env`][`DeviceConfig::from_env`]
 /// after setting an environment variable.
 ///
 /// ```rust
 /// use std::str::FromStr;
 /// use furiosa_device::DeviceConfig;
 ///
-/// let config = DeviceConfig::from_env_with_key("SOME_OTHER_ENV_KEY");
+/// let config = DeviceConfig::from_env("SOME_OTHER_ENV_KEY").build();
 /// let config = DeviceConfig::from_str("0:0,0:1"); // get config directly from a string literal
 /// ```
 ///

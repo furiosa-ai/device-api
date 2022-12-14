@@ -70,7 +70,6 @@ impl<T: TryInto<DeviceConfig, Error = DeviceError>> EnvBuilder<T> {
             }
         }
 
-        let config = self.fallback.try_into().unwrap();
-        Ok(config)
+        self.fallback.try_into()
     }
 }
