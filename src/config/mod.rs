@@ -3,15 +3,14 @@ mod env;
 pub(crate) mod find;
 mod inner;
 
-use std::env::VarError;
 use std::fmt::Display;
 use std::str::FromStr;
 
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
 
-use self::builder::NotDetermined;
 use self::inner::DeviceConfigInner;
+use self::{builder::NotDetermined, env::EnvBuilder};
 use crate::{Arch, DeviceError};
 
 /// Describes a required set of devices for [`find_devices`][crate::find_devices].
@@ -78,35 +77,10 @@ impl DeviceConfig {
         }
     }
 
-    pub(crate) fn from_inner(inner: DeviceConfigInner) -> Self {
-        Self { inner }
-    }
-
     /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
     /// Returns error if the environment variable is empty or the syntax is not met.
-    pub fn from_env_with_key<S: AsRef<str>>(key: S) -> Result<Self, DeviceError> {
-        let key = key.as_ref();
-        Self::try_from_env_with_key(key).unwrap_or_else(|| {
-            Err(DeviceError::parse_error(
-                "",
-                format!("environment variable `{}` is not set", key),
-            ))
-        })
-    }
-
-    /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
-    /// Returns `None` if the environment variable is empty,
-    /// and `Some(DeviceError)` if the value is not valid unicode or the syntax is not met.
-    pub fn try_from_env_with_key<S: AsRef<str>>(key: S) -> Option<Result<Self, DeviceError>> {
-        match std::env::var(key.as_ref()) {
-            Ok(message) => Some(
-                DeviceConfigInner::from_str(&message)
-                    .map_err(|cause| DeviceError::parse_error(message, cause))
-                    .map(Self::from_inner),
-            ),
-            Err(VarError::NotPresent) => None,
-            Err(cause) => Some(Err(DeviceError::parse_error("", cause))),
-        }
+    pub fn from_env<K: ToString>(key: K) -> EnvBuilder<NotDetermined> {
+        EnvBuilder::<NotDetermined>::from_env(key)
     }
 }
 

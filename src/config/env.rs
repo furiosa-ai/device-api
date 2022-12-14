@@ -9,12 +9,19 @@ enum Source {
     Try(String),
 }
 
-struct EnvBuilder<T> {
+pub struct EnvBuilder<T> {
     list: Vec<Source>,
     fallback: T,
 }
 
 impl EnvBuilder<NotDetermined> {
+    pub(crate) fn from_env<K: ToString>(key: K) -> Self {
+        Self {
+            list: vec![Source::Env(key.to_string())],
+            fallback: NotDetermined { _priv: () },
+        }
+    }
+
     pub fn or_env<K: ToString>(mut self, key: K) -> Self {
         self.list.push(Source::Env(key.to_string()));
         self
@@ -27,14 +34,14 @@ impl EnvBuilder<NotDetermined> {
         self
     }
 
-    pub fn or(mut self, fallback: DeviceConfig) -> EnvBuilder<DeviceConfig> {
+    pub fn or(self, fallback: DeviceConfig) -> EnvBuilder<DeviceConfig> {
         EnvBuilder::<DeviceConfig> {
             list: self.list,
             fallback,
         }
     }
 
-    pub fn or_default(mut self) -> EnvBuilder<DeviceConfig> {
+    pub fn or_default(self) -> EnvBuilder<DeviceConfig> {
         EnvBuilder::<DeviceConfig> {
             list: self.list,
             fallback: Default::default(),
@@ -43,7 +50,7 @@ impl EnvBuilder<NotDetermined> {
 }
 
 impl<T: TryInto<DeviceConfig, Error = DeviceError>> EnvBuilder<T> {
-    fn build(self) -> DeviceResult<DeviceConfig> {
+    pub fn build(self) -> DeviceResult<DeviceConfig> {
         for item in self.list {
             match item {
                 Source::Env(ref key) => match std::env::var(key) {
