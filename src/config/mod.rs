@@ -40,7 +40,6 @@ use crate::{Arch, DeviceError};
 /// use std::str::FromStr;
 /// use furiosa_device::DeviceConfig;
 ///
-/// let config = DeviceConfig::from_env(); // default key is "FURIOSA_DEVICES"
 /// let config = DeviceConfig::from_env_with_key("SOME_OTHER_ENV_KEY");
 /// let config = DeviceConfig::from_str("0:0,0:1"); // get config directly from a string literal
 /// ```
