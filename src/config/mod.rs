@@ -1,4 +1,5 @@
 mod builder;
+mod env;
 pub(crate) mod find;
 mod inner;
 
@@ -122,6 +123,14 @@ impl FromStr for DeviceConfig {
         Ok(Self {
             inner: DeviceConfigInner::from_str(s)?,
         })
+    }
+}
+
+impl<'a> TryFrom<&'a str> for DeviceConfig {
+    type Error = eyre::Error;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        DeviceConfig::from_str(value)
     }
 }
 
