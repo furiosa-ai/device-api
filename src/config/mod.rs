@@ -117,7 +117,7 @@ impl Default for DeviceConfig {
 }
 
 impl FromStr for DeviceConfig {
-    type Err = eyre::Error;
+    type Err = DeviceError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
@@ -127,7 +127,7 @@ impl FromStr for DeviceConfig {
 }
 
 impl<'a> TryFrom<&'a str> for DeviceConfig {
-    type Error = eyre::Error;
+    type Error = DeviceError;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         DeviceConfig::from_str(value)

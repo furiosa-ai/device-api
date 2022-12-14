@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::builder::NotDetermined;
-use crate::{DeviceConfig, DeviceError};
+use crate::{DeviceConfig, DeviceError, DeviceResult};
 
 #[derive(Debug)]
 enum Source {
@@ -42,17 +42,22 @@ impl EnvBuilder<NotDetermined> {
     }
 }
 
-impl<T: TryInto<DeviceConfig>> EnvBuilder<T>
-where
-    <T as TryInto<DeviceConfig>>::Error: std::fmt::Debug,
-{
-    fn build(self) -> eyre::Result<DeviceConfig> {
+impl<T: TryInto<DeviceConfig, Error = DeviceError>> EnvBuilder<T> {
+    fn build(self) -> DeviceResult<DeviceConfig> {
         for item in self.list {
             match item {
-                Source::Env(key) => match std::env::var(key) {
+                Source::Env(ref key) => match std::env::var(key) {
                     Ok(value) => return DeviceConfig::from_str(value.as_str()),
                     Err(std::env::VarError::NotPresent) => continue,
-                    Err(err) => eyre::bail!("cause: {}", err), // TODO
+                    Err(std::env::VarError::NotUnicode(msg)) => {
+                        return Err(DeviceError::parse_error(
+                            msg.to_string_lossy(),
+                            format!(
+                                "Environment variable '{}' value is not a valid unicode",
+                                key,
+                            ),
+                        ))
+                    }
                 },
                 Source::Try(item) => return DeviceConfig::from_str(item.as_str()),
             }
