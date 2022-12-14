@@ -49,7 +49,7 @@ impl EnvBuilder<NotDetermined> {
     }
 }
 
-impl<T: TryInto<DeviceConfig, Error = DeviceError>> EnvBuilder<T> {
+impl<T: TryInto<DeviceConfig, Error: Into<DeviceError>>> EnvBuilder<T> {
     pub fn build(self) -> DeviceResult<DeviceConfig> {
         for item in self.list {
             match item {
@@ -70,6 +70,6 @@ impl<T: TryInto<DeviceConfig, Error = DeviceError>> EnvBuilder<T> {
             }
         }
 
-        self.fallback.try_into()
+        self.fallback.try_into().map_err(|e| e.into())
     }
 }
