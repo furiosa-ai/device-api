@@ -174,4 +174,42 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_config_comma_separated() -> eyre::Result<()> {
+        let config = "0:0,0:1,0:0-1,warboy(1)*1,warboy(2)*2,npu0pe0".parse::<DeviceConfig>()?;
+
+        assert_eq!(
+            config.inner.cfgs,
+            vec![
+                "0:0".parse::<crate::config::inner::Config>()?,
+                "0:1".parse::<crate::config::inner::Config>()?,
+                "0:0-1".parse::<crate::config::inner::Config>()?,
+                "warboy(1)*1".parse::<crate::config::inner::Config>()?,
+                "warboy(2)*2".parse::<crate::config::inner::Config>()?,
+                "npu0pe0".parse::<crate::config::inner::Config>()?,
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_from_env() -> eyre::Result<()> {
+        let key = "ENV_KEY";
+        std::env::set_var(key, "0:0,0:1,0:0-1,warboy(1)*1,warboy(2)*2,npu0pe0");
+        let config = DeviceConfig::from_env(key).build()?;
+
+        assert_eq!(
+            config.inner.cfgs,
+            vec![
+                "0:0".parse::<crate::config::inner::Config>()?,
+                "0:1".parse::<crate::config::inner::Config>()?,
+                "0:0-1".parse::<crate::config::inner::Config>()?,
+                "warboy(1)*1".parse::<crate::config::inner::Config>()?,
+                "warboy(2)*2".parse::<crate::config::inner::Config>()?,
+                "npu0pe0".parse::<crate::config::inner::Config>()?,
+            ]
+        );
+        Ok(())
+    }
 }

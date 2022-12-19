@@ -340,4 +340,37 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_from_legacy_text_repr() -> eyre::Result<()> {
+        assert!("npu0pe".parse::<Config>().is_err());
+        assert!("npupe0".parse::<Config>().is_err());
+        assert!("npu0pe0,".parse::<Config>().is_err());
+
+        assert_eq!(
+            "npu1pe1".parse::<Config>()?,
+            Config::Named {
+                device_id: 1,
+                core_range: CoreRange::Range((1, 1))
+            }
+        );
+
+        assert_eq!(
+            "npu1pe0-1".parse::<Config>()?,
+            Config::Named {
+                device_id: 1,
+                core_range: CoreRange::Range((0, 1))
+            }
+        );
+
+        assert_eq!(
+            "npu1".parse::<Config>()?,
+            Config::Named {
+                device_id: 1,
+                core_range: CoreRange::All
+            }
+        );
+
+        Ok(())
+    }
 }
