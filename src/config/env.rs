@@ -9,6 +9,7 @@ enum Source {
     Try(String),
 }
 
+/// A struct for building `DeviceConfig` from an environment variable.
 pub struct EnvBuilder<T> {
     list: Vec<Source>,
     fallback: T,
@@ -57,6 +58,7 @@ impl EnvBuilder<NotDetermined> {
 }
 
 impl<T: TryInto<DeviceConfig, Error: Into<DeviceError>>> EnvBuilder<T> {
+    /// Finalize the config.
     pub fn build(self) -> DeviceResult<DeviceConfig> {
         for item in self.list {
             match item {

@@ -9,8 +9,9 @@ use std::str::FromStr;
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
 
+use self::builder::NotDetermined;
+pub use self::env::EnvBuilder;
 use self::inner::DeviceConfigInner;
-use self::{builder::NotDetermined, env::EnvBuilder};
 use crate::{Arch, DeviceError};
 
 /// Describes a required set of devices for [`find_devices`][crate::find_devices].
