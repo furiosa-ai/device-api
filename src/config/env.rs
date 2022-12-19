@@ -22,11 +22,14 @@ impl EnvBuilder<NotDetermined> {
         }
     }
 
+    /// Provides a fallback env variable to the builder when the previous options are empty.
     pub fn or_env<K: ToString>(mut self, key: K) -> Self {
         self.list.push(Source::Env(key.to_string()));
         self
     }
 
+    /// Provides a fallback option to the builder when the previous options are empty.
+    /// The builder will try `from_str()` method if the item is `Some`.
     pub fn or_try<T: ToString>(mut self, item: Option<T>) -> Self {
         if let Some(s) = &item {
             self.list.push(Source::Try(s.to_string()))
@@ -34,6 +37,8 @@ impl EnvBuilder<NotDetermined> {
         self
     }
 
+    /// Provides a fallback config to the builder when the previous options are empty.
+    /// Note that incorrect syntax causes the build to fail rather than fallback.
     pub fn or(self, fallback: DeviceConfig) -> EnvBuilder<DeviceConfig> {
         EnvBuilder::<DeviceConfig> {
             list: self.list,
@@ -41,6 +46,8 @@ impl EnvBuilder<NotDetermined> {
         }
     }
 
+    /// Provides a fallback default config to the builder when the previous options are empty.
+    /// Note that incorrect syntax causes the build to fail rather than fallback.
     pub fn or_default(self) -> EnvBuilder<DeviceConfig> {
         EnvBuilder::<DeviceConfig> {
             list: self.list,

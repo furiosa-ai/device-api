@@ -77,8 +77,8 @@ impl DeviceConfig {
         }
     }
 
-    /// Returns a DeviceConfig equivalent to the textual representation saved in an environment variable.
-    /// Returns error if the environment variable is empty or the syntax is not met.
+    /// Returns a builder struct to read config saved in an environment variable.
+    /// You can provide fallback options to the builder in case the envrionment variable is empty.
     pub fn from_env<K: ToString>(key: K) -> EnvBuilder<NotDetermined> {
         EnvBuilder::<NotDetermined>::from_env(key)
     }
