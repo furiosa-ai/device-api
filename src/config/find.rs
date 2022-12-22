@@ -4,6 +4,7 @@ use std::ops::Deref;
 use super::DeviceConfig;
 use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile};
 use crate::error::DeviceResult;
+use crate::DeviceError;
 
 pub(crate) struct DeviceWithStatus {
     pub device: Device,
@@ -79,8 +80,7 @@ pub(crate) fn find_devices_in(
                 }
             }
 
-            // TODO: we have to return error here
-            return Ok(vec![]);
+            return Err(DeviceError::device_not_found(cfg));
         }
     }
 

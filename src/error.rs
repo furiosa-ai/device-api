@@ -32,6 +32,12 @@ pub enum DeviceError {
 }
 
 impl DeviceError {
+    pub(crate) fn device_not_found<F: Display>(device: F) -> DeviceError {
+        DeviceError::DeviceNotFound {
+            name: device.to_string(),
+        }
+    }
+
     pub(crate) fn file_not_found<F: Display>(file: F) -> DeviceError {
         use io::ErrorKind;
         IoError {
