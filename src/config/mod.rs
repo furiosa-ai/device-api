@@ -213,4 +213,47 @@ mod tests {
         );
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_find_devices_with_comma_separated() -> eyre::Result<()> {
+        // test directory contains 2 warboy NPUs
+        let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
+        let devices_with_statuses = expand_status(devices).await?;
+
+        // try lookup with various valid configs
+        let config = "0:0,0:1,1:0,1:1".parse::<DeviceConfig>()?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
+        assert_eq!(found.len(), 4);
+        assert_eq!(found[0].filename(), "npu0pe0");
+        assert_eq!(found[1].filename(), "npu0pe1");
+        assert_eq!(found[2].filename(), "npu1pe0");
+        assert_eq!(found[3].filename(), "npu1pe1");
+
+        let config = "0:0,npu0pe1,1:0,npu1pe1".parse::<DeviceConfig>()?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
+        assert_eq!(found.len(), 4);
+        assert_eq!(found[0].filename(), "npu0pe0");
+        assert_eq!(found[1].filename(), "npu0pe1");
+        assert_eq!(found[2].filename(), "npu1pe0");
+        assert_eq!(found[3].filename(), "npu1pe1");
+
+        let config = "warboy(1)*1,warboy(1)*1,warboy(1)*1,warboy(1)*1".parse::<DeviceConfig>()?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
+        assert_eq!(found.len(), 4);
+        assert_eq!(found[0].filename(), "npu0pe0");
+        assert_eq!(found[1].filename(), "npu0pe1");
+        assert_eq!(found[2].filename(), "npu1pe0");
+        assert_eq!(found[3].filename(), "npu1pe1");
+
+        let config = "0:0,0:1,warboy(1)*2".parse::<DeviceConfig>()?;
+        let found = find_devices_in(&config, &devices_with_statuses)?;
+        assert_eq!(found.len(), 4);
+        assert_eq!(found[0].filename(), "npu0pe0");
+        assert_eq!(found[1].filename(), "npu0pe1");
+        assert_eq!(found[2].filename(), "npu1pe0");
+        assert_eq!(found[3].filename(), "npu1pe1");
+
+        // test trivial failing cases
+        Ok(())
+    }
 }
