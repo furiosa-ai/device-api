@@ -56,7 +56,7 @@ use crate::{Arch, DeviceError};
 /// DeviceConfig::from_str("0:0-1"); // npu0pe0-1
 ///
 /// // Using device configs
-/// DeviceConfig::from_str("warboy*2"); // warboy multi core mode x 2
+/// DeviceConfig::from_str("warboy*2"); // single pe x 2 (equivalent to "warboy(1)*2")
 /// DeviceConfig::from_str("warboy(1)*2"); // single pe x 2
 /// DeviceConfig::from_str("warboy(2)*2"); // 2-pe fusioned x 2
 ///
