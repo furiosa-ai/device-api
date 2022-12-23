@@ -49,11 +49,10 @@ pub(crate) fn find_devices_in(
         );
     }
 
-    let config_count = config.cfgs.iter().fold(0, |acc, cfg| acc + cfg.count());
-    let mut found: Vec<DeviceFile> = Vec::with_capacity(config_count.into());
+    let mut found = Vec::new();
 
     for cfg in &config.cfgs {
-        'outer: for _ in 0..config_count {
+        'outer: for _ in 0..cfg.count() {
             for device in devices {
                 'inner: for dev_file in device.dev_files() {
                     if !cfg.fit(device.arch(), dev_file) {
