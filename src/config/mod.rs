@@ -259,7 +259,30 @@ mod tests {
         assert_eq!(found[2].filename(), "npu1pe0");
         assert_eq!(found[3].filename(), "npu1pe1");
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_devices_with_comma_separated_failing_cases() -> eyre::Result<()> {
+        // test directory contains 2 warboy NPUs
+        let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
+        let devices_with_statuses = expand_status(devices).await?;
+
         // test trivial failing cases
+        let config = "0:0,0:0".parse::<DeviceConfig>()?;
+        let found = find_devices_in(&config, &devices_with_statuses);
+        match found {
+            Ok(_) => panic!("looking for duplicate devices should fail"),
+            Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
+        }
+
+        let config = "0:0-1,npu0pe0-1".parse::<DeviceConfig>()?;
+        let found = find_devices_in(&config, &devices_with_statuses);
+        match found {
+            Ok(_) => panic!("looking for duplicate devices should fail"),
+            Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
+        }
+
         Ok(())
     }
 }
