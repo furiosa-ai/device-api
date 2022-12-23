@@ -174,8 +174,11 @@ mod tests {
 
         // looking for 5 different cores should fail
         let config = DeviceConfig::warboy().single().count(5);
-        let found = find_devices_in(&config, &devices_with_statuses)?;
-        assert_eq!(found, vec![]);
+        let found = find_devices_in(&config, &devices_with_statuses);
+        match found {
+            Ok(_) => panic!("looking for 5 different cores should fail"),
+            Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
+        }
 
         // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
@@ -186,8 +189,11 @@ mod tests {
 
         // looking for 3 different fused cores should fail
         let config = DeviceConfig::warboy().fused().count(3);
-        let found = find_devices_in(&config, &devices_with_statuses)?;
-        assert_eq!(found, vec![]);
+        let found = find_devices_in(&config, &devices_with_statuses);
+        match found {
+            Ok(_) => panic!("looking for 3 different fused cores should fail"),
+            Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
+        }
 
         Ok(())
     }
