@@ -32,9 +32,9 @@ pub enum DeviceError {
 }
 
 impl DeviceError {
-    pub(crate) fn device_not_found<F: Display>(device: F) -> DeviceError {
+    pub(crate) fn device_not_found<D: Display>(name: D) -> DeviceError {
         DeviceError::DeviceNotFound {
-            name: device.to_string(),
+            name: name.to_string(),
         }
     }
 
