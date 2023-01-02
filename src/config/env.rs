@@ -6,7 +6,7 @@ use crate::{DeviceConfig, DeviceError, DeviceResult};
 #[derive(Debug)]
 enum Source {
     Env(String),
-    Try(String),
+    Str(String),
 }
 
 /// A struct for building `DeviceConfig` from an environment variable.
@@ -33,7 +33,7 @@ impl EnvBuilder<NotDetermined> {
     /// The builder will try `from_str()` method if the item is `Some`.
     pub fn or_try<T: ToString>(mut self, item: Option<T>) -> Self {
         if let Some(s) = &item {
-            self.list.push(Source::Try(s.to_string()))
+            self.list.push(Source::Str(s.to_string()))
         }
         self
     }
@@ -75,7 +75,7 @@ impl<T: TryInto<DeviceConfig, Error: Into<DeviceError>>> EnvBuilder<T> {
                         ))
                     }
                 },
-                Source::Try(item) => return DeviceConfig::from_str(item.as_str()),
+                Source::Str(item) => return DeviceConfig::from_str(item.as_str()),
             }
         }
 
