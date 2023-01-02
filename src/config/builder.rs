@@ -1,10 +1,21 @@
-use super::inner::DeviceConfigInner;
+use super::inner::{Config, DeviceConfigInner};
 use crate::arch::Arch;
 use crate::device::DeviceMode;
-use crate::DeviceConfig;
+use crate::{DeviceConfig, DeviceError};
 
 pub struct NotDetermined {
     pub(crate) _priv: (),
+}
+
+impl TryInto<DeviceConfig> for NotDetermined {
+    type Error = DeviceError;
+
+    fn try_into(self) -> Result<DeviceConfig, Self::Error> {
+        Err(DeviceError::parse_error(
+            "",
+            "fallback device config is not set",
+        ))
+    }
 }
 
 impl From<NotDetermined> for Arch {
@@ -82,11 +93,13 @@ where
         };
 
         DeviceConfig {
-            inner: DeviceConfigInner::Unnamed {
-                arch: Arch::from(self.arch),
-                core_num,
-                mode,
-                count: u8::from(self.count),
+            inner: DeviceConfigInner {
+                cfgs: vec![Config::Unnamed {
+                    arch: Arch::from(self.arch),
+                    core_num,
+                    mode,
+                    count: u8::from(self.count),
+                }],
             },
         }
     }

@@ -4,6 +4,7 @@ use std::ops::Deref;
 use super::DeviceConfig;
 use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile};
 use crate::error::DeviceResult;
+use crate::DeviceError;
 
 pub(crate) struct DeviceWithStatus {
     pub device: Device,
@@ -33,7 +34,7 @@ pub(crate) fn find_devices_in(
     config: &DeviceConfig,
     devices: &[DeviceWithStatus],
 ) -> DeviceResult<Vec<DeviceFile>> {
-    let config = config.inner;
+    let config = &config.inner;
     let mut allocated: HashMap<u8, HashSet<u8>> = HashMap::with_capacity(devices.len());
 
     for device in devices {
@@ -48,35 +49,38 @@ pub(crate) fn find_devices_in(
         );
     }
 
-    let config_count = config.count();
-    let mut found: Vec<DeviceFile> = Vec::with_capacity(config_count.into());
-    'outer: for _ in 0..config_count {
-        for device in devices {
-            'inner: for dev_file in device.dev_files() {
-                if !config.fit(device.arch(), dev_file) {
-                    continue 'inner;
-                }
+    let mut found = Vec::new();
 
-                let used = allocated.get_mut(&device.device_index()).unwrap();
-
-                for core in used.iter() {
-                    if dev_file.core_range().contains(core) {
+    for cfg in &config.cfgs {
+        'outer: for _ in 0..cfg.count() {
+            for device in devices {
+                'inner: for dev_file in device.dev_files() {
+                    if !cfg.fit(device.arch(), dev_file) {
                         continue 'inner;
                     }
-                }
 
-                // this dev_file is suitable
-                found.push(dev_file.clone());
-                used.extend(
-                    device
-                        .cores()
-                        .iter()
-                        .filter(|idx| dev_file.core_range().contains(idx)),
-                );
-                continue 'outer;
+                    let used = allocated.get_mut(&device.device_index()).unwrap();
+
+                    for core in used.iter() {
+                        if dev_file.core_range().contains(core) {
+                            continue 'inner;
+                        }
+                    }
+
+                    // this dev_file is suitable
+                    found.push(dev_file.clone());
+                    used.extend(
+                        device
+                            .cores()
+                            .iter()
+                            .filter(|idx| dev_file.core_range().contains(idx)),
+                    );
+                    continue 'outer;
+                }
             }
+
+            return Err(DeviceError::device_not_found(cfg));
         }
-        return Ok(vec![]);
     }
 
     Ok(found)

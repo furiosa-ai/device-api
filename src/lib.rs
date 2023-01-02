@@ -50,10 +50,11 @@
 
 // Allows displaying feature flags in the documentation.
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![feature(associated_type_bounds)]
 
 pub use crate::arch::Arch;
 use crate::config::{expand_status, find_devices_in};
-pub use crate::config::{DeviceConfig, DeviceConfigBuilder};
+pub use crate::config::{DeviceConfig, DeviceConfigBuilder, EnvBuilder};
 pub use crate::device::{CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
 pub use crate::error::{DeviceError, DeviceResult};
 use crate::list::list_devices_with;

@@ -378,7 +378,7 @@ pub(crate) type CoreIdx = u8;
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub enum CoreRange {
-    All,
+    All, // TODO: rename this to MultiCore
     Range((u8, u8)),
 }
 

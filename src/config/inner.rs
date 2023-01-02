@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
+use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
@@ -10,9 +11,34 @@ use nom::Parser;
 
 use crate::arch::Arch;
 use crate::device::{CoreRange, DeviceFile, DeviceMode};
+use crate::{DeviceError, DeviceResult};
+
+#[derive(Clone, Debug)]
+pub(crate) struct DeviceConfigInner {
+    pub(crate) cfgs: Vec<Config>,
+}
+
+impl FromStr for DeviceConfigInner {
+    type Err = DeviceError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self {
+            cfgs: s
+                .split(',')
+                .map(Config::from_str)
+                .collect::<Result<Vec<_>, Self::Err>>()?,
+        })
+    }
+}
+
+impl Display for DeviceConfigInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.cfgs.iter().map(|c| c.to_string()).join(","))
+    }
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(crate) enum DeviceConfigInner {
+pub(crate) enum Config {
     // TODO: Named cannot describe MultiCore yet.
     Named {
         device_id: u8,
@@ -26,7 +52,7 @@ pub(crate) enum DeviceConfigInner {
     },
 }
 
-impl DeviceConfigInner {
+impl Config {
     pub(crate) fn fit(&self, arch: Arch, device_file: &DeviceFile) -> bool {
         match self {
             Self::Named {
@@ -37,85 +63,108 @@ impl DeviceConfigInner {
             }
             Self::Unnamed {
                 arch: config_arch,
-                core_num: _,
                 mode,
-                count: _,
+                ..
             } => arch == *config_arch && device_file.mode() == *mode,
         }
     }
 
     pub(crate) fn count(&self) -> u8 {
         match self {
-            Self::Named {
-                device_id: _,
-                core_range: _,
-            } => 1,
-            Self::Unnamed {
-                arch: _,
-                core_num: _,
-                mode: _,
-                count,
-            } => *count,
+            Self::Named { .. } => 1,
+            Self::Unnamed { count, .. } => *count,
         }
     }
 }
 
-impl FromStr for DeviceConfigInner {
-    type Err = nom::Err<()>;
+impl FromStr for Config {
+    type Err = DeviceError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        fn digit_to_u8<'a>() -> impl FnMut(&'a str) -> nom::IResult<&'a str, u8, ()> {
+        fn digit_to_u8<'a>(
+        ) -> impl FnMut(&'a str) -> nom::IResult<&'a str, u8, nom::error::Error<&'a str>> {
             map_res(digit1, |s: &str| s.parse::<u8>())
         }
-        // try parsing named configs, from patterns e.g., "0:0" or "0:0-1"
-        let parsed_named = all_consuming::<_, _, (), _>(digit_to_u8().and(opt(preceded(
-            tag(":"),
+
+        fn parse_cores<'a>(
+        ) -> impl FnMut(&'a str) -> nom::IResult<&'a str, CoreRange, nom::error::Error<&'a str>>
+        {
             alt((
                 map_res(
                     separated_pair(digit_to_u8(), tag("-"), digit_to_u8()),
                     CoreRange::try_from,
                 ),
                 map(digit_to_u8(), CoreRange::from),
-            )),
-        ))))(s);
-
-        match parsed_named {
-            Ok((_, (device_id, core_id))) => {
-                let core_range = core_id.unwrap_or(CoreRange::All);
-                Ok(Self::Named {
-                    device_id,
-                    core_range,
-                })
-            }
-            Err(_) => {
-                // try parsing unnamed configs, from patterns e.g., "warboy*1" or "warboy(1)*2"
-                let (_, ((arch, mode), count)) = all_consuming(separated_pair(
-                    map_res(tag("warboy"), |s: &str| s.parse::<Arch>()).and(opt(delimited(
-                        tag("("),
-                        digit_to_u8(),
-                        tag(")"),
-                    ))),
-                    tag("*"),
-                    digit_to_u8(),
-                ))(s)?;
-                let (core_num, mode) = match mode {
-                    None | Some(1) => (1, DeviceMode::Single),
-                    // TODO: Improve below
-                    Some(n) => (n, DeviceMode::Fusion),
-                };
-
-                Ok(Self::Unnamed {
-                    arch,
-                    core_num,
-                    mode,
-                    count,
-                })
-            }
+            ))
         }
+
+        // Try parsing a "npu0pe0" pattern. Note that "npu0" is also valid, which represents npu0 as MultiCore mode.
+        fn legacy_parser(s: &str) -> DeviceResult<Config> {
+            let parser_id = preceded(tag("npu"), digit_to_u8());
+            let parser_cores = map(opt(preceded(tag("pe"), parse_cores())), |c| {
+                c.unwrap_or(CoreRange::All)
+            });
+
+            let (_, (device_id, core_range)) = all_consuming(parser_id.and(parser_cores))(s)
+                .map_err(|e| DeviceError::parse_error(s, e.to_string()))?;
+
+            Ok(Config::Named {
+                device_id,
+                core_range,
+            })
+        }
+
+        // Try parsing a "0:0" or "0:0-1" pattern. Note that "0" is also valid, which represents npu0 as MultiCore mode.
+        fn named_cfg_parser(s: &str) -> DeviceResult<Config> {
+            let parser_cores = map(opt(preceded(tag(":"), parse_cores())), |c| {
+                c.unwrap_or(CoreRange::All)
+            });
+
+            let (_, (device_id, core_range)) = all_consuming(digit_to_u8().and(parser_cores))(s)
+                .map_err(|e| DeviceError::parse_error(s, e.to_string()))?;
+
+            Ok(Config::Named {
+                device_id,
+                core_range,
+            })
+        }
+
+        // Try parsing a "warboy(1)*1" pattern
+        fn unnamed_cfg_parser(s: &str) -> DeviceResult<Config> {
+            // Currently supports "warboy" only
+            let parser_arch = map_res(tag("warboy"), |s: &str| s.parse::<Arch>());
+            let parser_mode =
+                map(
+                    opt(delimited(tag("("), digit_to_u8(), tag(")"))),
+                    |mode| match mode {
+                        // "warboy" is equivalent to "warboy(1)"
+                        None | Some(1) => (1, DeviceMode::Single),
+                        // TODO: Improve below
+                        Some(n) => (n, DeviceMode::Fusion),
+                    },
+                );
+            let parser_count = preceded(tag("*"), digit_to_u8());
+
+            // Note: nom::sequence::tuple requires parsers to have equivalent signatures
+            let (_, ((arch, (core_num, mode)), count)) =
+                all_consuming(parser_arch.and(parser_mode).and(parser_count))(s)
+                    .map_err(|e| DeviceError::parse_error(s, e.to_string()))?;
+
+            Ok(Config::Unnamed {
+                arch,
+                core_num,
+                mode,
+                count,
+            })
+        }
+
+        legacy_parser(s)
+            .or_else(|_| named_cfg_parser(s))
+            .or_else(|_| unnamed_cfg_parser(s))
     }
 }
 
-impl Display for DeviceConfigInner {
+impl Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Named {
@@ -154,9 +203,19 @@ mod tests {
     use super::*;
     use crate::DeviceResult;
 
+    #[test]
+    fn test_multiple_configs_repr() -> eyre::Result<()> {
+        let repr = "0:0,0:1";
+        let config = repr.parse::<DeviceConfigInner>()?;
+
+        assert_eq!(repr, config.to_string().as_str());
+
+        Ok(())
+    }
+
     #[tokio::test]
     async fn test_named_config_fit() -> DeviceResult<()> {
-        let config = "0:0".parse::<DeviceConfigInner>().unwrap();
+        let config = "0:0".parse::<Config>().unwrap();
         let npu0pe0 = crate::get_device_with("test_data/test-0/dev", "npu0pe0").await?;
         let npu0pe1 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
         let npu0pe0_1 = crate::get_device_with("test_data/test-0/dev", "npu0pe0-1").await?;
@@ -174,7 +233,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unnamed_config_fit() -> DeviceResult<()> {
-        let config = "warboy(1)*2".parse::<DeviceConfigInner>().unwrap();
+        let config = "warboy(1)*2".parse::<Config>().unwrap();
 
         assert_eq!(config.count(), 2);
 
@@ -191,93 +250,126 @@ mod tests {
     }
 
     #[test]
-    fn test_config_from_named_text_repr() -> Result<(), nom::Err<()>> {
-        assert!("0:".parse::<DeviceConfigInner>().is_err());
-        assert!(":0".parse::<DeviceConfigInner>().is_err());
-        assert!("0:0-1-".parse::<DeviceConfigInner>().is_err());
-        assert!("0:1-0".parse::<DeviceConfigInner>().is_err());
+    fn test_config_from_named_text_repr() -> eyre::Result<()> {
+        assert!("0:".parse::<Config>().is_err());
+        assert!(":0".parse::<Config>().is_err());
+        assert!("0:0-1-".parse::<Config>().is_err());
+        assert!("0:1-0".parse::<Config>().is_err());
 
         assert_eq!(
-            "0".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Named {
+            "0".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::All
-            })
+            }
         );
         assert_eq!(
-            "1".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Named {
+            "1".parse::<Config>()?,
+            Config::Named {
                 device_id: 1,
                 core_range: CoreRange::All
-            })
+            }
         );
         assert_eq!(
-            "0:0".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Named {
+            "0:0".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((0, 0))
-            })
+            }
         );
         assert_eq!(
-            "0:1".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Named {
+            "0:1".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((1, 1))
-            })
+            }
         );
         assert_eq!(
-            "1:1".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Named {
+            "1:1".parse::<Config>()?,
+            Config::Named {
                 device_id: 1,
                 core_range: CoreRange::Range((1, 1))
-            })
+            }
         );
         assert_eq!(
-            "0:0-1".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Named {
+            "0:0-1".parse::<Config>()?,
+            Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((0, 1))
-            })
+            }
         );
 
         Ok(())
     }
 
     #[test]
-    fn test_config_from_unnamed_text_repr() -> Result<(), nom::Err<()>> {
-        assert!("warboy".parse::<DeviceConfigInner>().is_err());
-        assert!("warboy*".parse::<DeviceConfigInner>().is_err());
-        assert!("*1".parse::<DeviceConfigInner>().is_err());
-        assert!("some_npu*10".parse::<DeviceConfigInner>().is_err());
-        assert!("warboy(2*10".parse::<DeviceConfigInner>().is_err());
+    fn test_config_from_unnamed_text_repr() -> eyre::Result<()> {
+        assert!("warboy".parse::<Config>().is_err());
+        assert!("warboy*".parse::<Config>().is_err());
+        assert!("*1".parse::<Config>().is_err());
+        assert!("some_npu*10".parse::<Config>().is_err());
+        assert!("warboy(2*10".parse::<Config>().is_err());
         assert_eq!(
-            "warboy(1)*2".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Unnamed {
+            "warboy(1)*2".parse::<Config>()?,
+            Config::Unnamed {
                 arch: Arch::Warboy,
                 core_num: 1,
                 mode: DeviceMode::Single,
                 count: 2
-            })
+            }
         );
         assert_eq!(
-            "warboy(2)*4".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Unnamed {
+            "warboy(2)*4".parse::<Config>()?,
+            Config::Unnamed {
                 arch: Arch::Warboy,
                 core_num: 2,
                 mode: DeviceMode::Fusion,
                 count: 4
-            })
+            }
         );
         assert_eq!(
-            "warboy*12".parse::<DeviceConfigInner>(),
-            Ok(DeviceConfigInner::Unnamed {
+            "warboy*12".parse::<Config>()?,
+            Config::Unnamed {
                 arch: Arch::Warboy,
                 core_num: 1,
                 mode: DeviceMode::Single,
                 count: 12
-            })
+            }
         );
-        // assert!("npu*10".parse::<DeviceConfigInner>().is_ok());
+        // assert!("npu*10".parse::<Config>().is_ok());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_legacy_text_repr() -> eyre::Result<()> {
+        assert!("npu0pe".parse::<Config>().is_err());
+        assert!("npupe0".parse::<Config>().is_err());
+        assert!("npu0pe0,".parse::<Config>().is_err());
+
+        assert_eq!(
+            "npu1pe1".parse::<Config>()?,
+            Config::Named {
+                device_id: 1,
+                core_range: CoreRange::Range((1, 1))
+            }
+        );
+
+        assert_eq!(
+            "npu1pe0-1".parse::<Config>()?,
+            Config::Named {
+                device_id: 1,
+                core_range: CoreRange::Range((0, 1))
+            }
+        );
+
+        assert_eq!(
+            "npu1".parse::<Config>()?,
+            Config::Named {
+                device_id: 1,
+                core_range: CoreRange::All
+            }
+        );
 
         Ok(())
     }

@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fmt::Display;
 use std::io;
 
@@ -26,9 +27,17 @@ pub enum DeviceError {
     HwmonError { device_index: u8, cause: HwmonError },
     #[error("Unexpected value: {message}")]
     UnexpectedValue { message: String },
+    #[error("Failed to parse given message {message}: {cause}")]
+    ParseError { message: String, cause: String },
 }
 
 impl DeviceError {
+    pub(crate) fn device_not_found<D: Display>(name: D) -> DeviceError {
+        DeviceError::DeviceNotFound {
+            name: name.to_string(),
+        }
+    }
+
     pub(crate) fn file_not_found<F: Display>(file: F) -> DeviceError {
         use io::ErrorKind;
         IoError {
@@ -66,6 +75,13 @@ impl DeviceError {
             message: message.to_string(),
         }
     }
+
+    pub(crate) fn parse_error<S: ToString, C: ToString>(message: S, cause: C) -> DeviceError {
+        DeviceError::ParseError {
+            message: message.to_string(),
+            cause: cause.to_string(),
+        }
+    }
 }
 
 impl From<io::Error> for DeviceError {
@@ -75,5 +91,11 @@ impl From<io::Error> for DeviceError {
         } else {
             Self::IoError { cause: e }
         }
+    }
+}
+
+impl From<Infallible> for DeviceError {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
     }
 }
