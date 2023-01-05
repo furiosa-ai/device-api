@@ -75,7 +75,7 @@ impl<T: TryInto<DeviceConfig, Error: Into<DeviceError>>> EnvBuilder<T> {
                     Err(std::env::VarError::NotUnicode(msg)) => {
                         return Err(DeviceError::parse_error(
                             msg.to_string_lossy(),
-                            format!("Config value from \"{}\" should be a valid unicode", key,),
+                            format!("Config value from \"{}\" should be a valid unicode", key),
                         ))
                     }
                 },
