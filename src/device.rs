@@ -106,6 +106,11 @@ impl Device {
         self.device_info.get(sysfs::npu_mgmt::DEV)
     }
 
+    /// Returns serial number of the device.
+    pub fn device_sn(&self) -> DeviceResult<String> {
+        self.device_info.get(sysfs::npu_mgmt::DEVICE_SN)
+    }
+
     /// Returns UUID of the device.
     pub fn device_uuid(&self) -> DeviceResult<String> {
         self.device_info.get(sysfs::npu_mgmt::DEVICE_UUID)

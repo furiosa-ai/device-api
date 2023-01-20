@@ -51,6 +51,7 @@ pub mod npu_mgmt {
     pub(crate) static CUR_PE_IDS: &str = "cur_pe_ids";
     pub(crate) static DEV: &str = "dev";
     pub(crate) static DEVICE_LED: &str = "device_led";
+    pub(crate) static DEVICE_SN: &str = "device_sn";
     pub(crate) static DEVICE_STATE: &str = "device_state";
     pub(crate) static DEVICE_TYPE: &str = "device_type";
     pub(crate) static DEVICE_UUID: &str = "device_uuid";
@@ -73,6 +74,7 @@ pub mod npu_mgmt {
         (BUSNAME, true),
         (CUR_PE_IDS, false),
         (DEV, true),
+        (DEVICE_SN, false),
         (DEVICE_STATE, false),
         (DEVICE_TYPE, true),
         (DEVICE_UUID, false),
