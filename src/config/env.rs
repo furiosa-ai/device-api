@@ -63,19 +63,26 @@ impl<T: TryInto<DeviceConfig, Error: Into<DeviceError>>> EnvBuilder<T> {
         for item in self.list {
             match item {
                 Source::Env(ref key) => match std::env::var(key) {
-                    Ok(value) => return DeviceConfig::from_str(value.as_str()),
+                    Ok(value) => {
+                        tracing::info!(
+                            "Using config \"{}\" from environment variable \"{}\"",
+                            value,
+                            key,
+                        );
+                        return DeviceConfig::from_str(value.as_str());
+                    }
                     Err(std::env::VarError::NotPresent) => continue,
                     Err(std::env::VarError::NotUnicode(msg)) => {
                         return Err(DeviceError::parse_error(
                             msg.to_string_lossy(),
-                            format!(
-                                "Environment variable '{}' value is not a valid unicode",
-                                key,
-                            ),
+                            format!("Config value from \"{}\" should be a valid unicode", key),
                         ))
                     }
                 },
-                Source::Str(item) => return DeviceConfig::from_str(item.as_str()),
+                Source::Str(item) => {
+                    tracing::info!("Using explicit config literal: \"{}\"", item);
+                    return DeviceConfig::from_str(item.as_str());
+                }
             }
         }
 
