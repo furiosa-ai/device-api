@@ -5,6 +5,7 @@ use std::io;
 use thiserror::Error;
 
 use crate::hwmon::error::HwmonError;
+use crate::perf_regs::error::PerformanceCounterError;
 use crate::DeviceError::{IncompatibleDriver, IoError, UnexpectedValue};
 
 /// Type alias for `Result<T, DeviceError>`.
@@ -25,6 +26,8 @@ pub enum DeviceError {
     IncompatibleDriver { cause: String },
     #[error("HwmonError: [npu{device_index}] {cause}")]
     HwmonError { device_index: u8, cause: HwmonError },
+    #[error("PerformanceCounterError: {cause}")]
+    PerformanceCounterError { cause: PerformanceCounterError },
     #[error("Unexpected value: {message}")]
     UnexpectedValue { message: String },
     #[error("Failed to parse given message {message}: {cause}")]
@@ -68,6 +71,10 @@ impl DeviceError {
             device_index,
             cause,
         }
+    }
+
+    pub(crate) fn performance_counter_error(cause: PerformanceCounterError) -> DeviceError {
+        DeviceError::PerformanceCounterError { cause }
     }
 
     pub(crate) fn unexpected_value<S: ToString>(message: S) -> DeviceError {

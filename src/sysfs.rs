@@ -203,6 +203,16 @@ pub(crate) mod pci {
     }
 }
 
+pub mod perf_regs {
+    use std::path::{Path, PathBuf};
+
+    pub(crate) fn path<P: AsRef<Path>>(base_dir: P, dev_name: &str) -> PathBuf {
+        base_dir
+            .as_ref()
+            .join(format!("class/npu_mgmt/{}/perf_regs", dev_name))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

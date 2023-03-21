@@ -69,6 +69,7 @@ mod device;
 mod error;
 pub mod hwmon;
 mod list;
+pub mod perf_regs;
 pub mod proc;
 mod status;
 mod sysfs;
