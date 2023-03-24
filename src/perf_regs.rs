@@ -181,6 +181,9 @@ impl PerformanceCounter {
         ))
     }
 
+    // Except for "cycle count", the other fields have a u32 type.
+    // If the performance counter value exceeds the range of the type, an overflow occurs,
+    // and we use this function to compute the difference.
     fn safe_u32_subtract(fst: u32, snd: u32) -> usize {
         if fst >= snd {
             (fst - snd) as usize
