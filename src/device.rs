@@ -8,6 +8,7 @@ use std::str::FromStr;
 
 use crate::arch::Arch;
 use crate::hwmon;
+use crate::perf_regs::PerformanceCounter;
 use crate::status::{get_device_status, DeviceStatus};
 use crate::{devfs, sysfs, DeviceError, DeviceResult};
 
@@ -186,6 +187,19 @@ impl Device {
         &self.dev_files
     }
 
+    /// List performance counters for each device files.
+    pub fn performance_counters(&self) -> Vec<(&DeviceFile, PerformanceCounter)> {
+        let mut counters = vec![];
+
+        for dev_file in self.dev_files() {
+            if let Ok(perf_counter) = self.device_info().get_performance_counter(dev_file) {
+                counters.push((dev_file, perf_counter));
+            }
+        }
+
+        counters
+    }
+
     /// Examine a specific core of the device, whether it is available or not.
     pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
         for file in &self.dev_files {
@@ -332,6 +346,11 @@ impl DeviceInfo {
 
         *self.numa_node.borrow_mut() = Some(node);
         Ok(node)
+    }
+
+    pub fn get_performance_counter(&self, file: &DeviceFile) -> DeviceResult<PerformanceCounter> {
+        PerformanceCounter::read(&self.sys_root, file.filename())
+            .map_err(DeviceError::performance_counter_error)
     }
 }
 
