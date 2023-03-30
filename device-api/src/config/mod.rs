@@ -123,7 +123,7 @@ mod tests {
     #[tokio::test]
     async fn test_find_devices() -> eyre::Result<()> {
         // test directory contains 2 warboy NPUs
-        let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
+        let devices = list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys").await?;
         let devices_with_statuses = expand_status(devices).await?;
 
         // try lookup 4 different single cores
@@ -223,7 +223,7 @@ mod tests {
     #[tokio::test]
     async fn test_find_devices_with_comma_separated() -> eyre::Result<()> {
         // test directory contains 2 warboy NPUs
-        let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
+        let devices = list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys").await?;
         let devices_with_statuses = expand_status(devices).await?;
 
         // try lookup with various valid configs
@@ -265,7 +265,7 @@ mod tests {
     #[tokio::test]
     async fn test_find_devices_with_comma_separated_failing_cases() -> eyre::Result<()> {
         // test directory contains 2 warboy NPUs
-        let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys").await?;
+        let devices = list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys").await?;
         let devices_with_statuses = expand_status(devices).await?;
 
         // test trivial failing cases

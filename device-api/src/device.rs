@@ -640,11 +640,11 @@ mod tests {
 
     #[test]
     fn test_lazy_read_sysfs() -> DeviceResult<()> {
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
+        let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 0)?)?;
         let device_info = DeviceInfo::new(
             0,
-            PathBuf::from("test_data/test-0/dev"),
-            PathBuf::from("test_data/test-0/sys"),
+            PathBuf::from("../test_data/test-0/dev"),
+            PathBuf::from("../test_data/test-0/sys"),
             device_meta,
         );
 
@@ -675,11 +675,11 @@ mod tests {
     #[test]
     fn test_numa_node() -> DeviceResult<()> {
         // npu0 => numa node 0
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?;
+        let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 0)?)?;
         let device_info = DeviceInfo::new(
             0,
-            PathBuf::from("test_data/test-0/dev"),
-            PathBuf::from("test_data/test-0/sys"),
+            PathBuf::from("../test_data/test-0/dev"),
+            PathBuf::from("../test_data/test-0/sys"),
             device_meta,
         );
 
@@ -688,11 +688,11 @@ mod tests {
         assert_eq!(*device_info.numa_node.borrow(), Some(NumaNode::Id(0)));
 
         // npu1 => numa node unsupported
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?;
+        let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 1)?)?;
         let device_info = DeviceInfo::new(
             0,
-            PathBuf::from("test_data/test-0/dev"),
-            PathBuf::from("test_data/test-0/sys"),
+            PathBuf::from("../test_data/test-0/dev"),
+            PathBuf::from("../test_data/test-0/sys"),
             device_meta,
         );
 

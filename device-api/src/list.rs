@@ -119,7 +119,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_dev_files() -> DeviceResult<()> {
-        let dev_files = filter_dev_files(list_devfs("test_data/test-0/dev").await?)?;
+        let dev_files = filter_dev_files(list_devfs("../test_data/test-0/dev").await?)?;
         assert_eq!(
             dev_files.keys().copied().sorted().collect::<Vec<u8>>(),
             vec![0, 1]
@@ -129,13 +129,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_is_furiosa_device() -> tokio::io::Result<()> {
-        let res = is_furiosa_device(0, "test_data/test-0/sys").await;
+        let res = is_furiosa_device(0, "../test_data/test-0/sys").await;
         assert!(res);
 
-        let res = is_furiosa_device(1, "test_data/test-0/sys").await;
+        let res = is_furiosa_device(1, "../test_data/test-0/sys").await;
         assert!(res);
 
-        let res = is_furiosa_device(2, "test_data/test-0/sys").await;
+        let res = is_furiosa_device(2, "../test_data/test-0/sys").await;
         assert!(!res);
 
         Ok(())
@@ -144,11 +144,11 @@ mod tests {
     #[test]
     fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
-            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 0)?)?.arch,
+            DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 0)?)?.arch,
             Arch::Warboy
         );
         assert_eq!(
-            DeviceMetadata::try_from(read_mgmt_files("test_data/test-0/sys", 1)?)?.arch,
+            DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 1)?)?.arch,
             Arch::Warboy
         );
         Ok(())

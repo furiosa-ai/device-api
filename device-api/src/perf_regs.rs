@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_read() {
-        let res = PerformanceCounter::read("test_data/test-0/sys", "npu0pe0");
+        let res = PerformanceCounter::read("../test_data/test-0/sys", "npu0pe0");
         assert!(res.is_ok());
     }
 
