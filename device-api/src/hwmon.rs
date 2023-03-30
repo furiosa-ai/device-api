@@ -133,7 +133,7 @@ impl TryFrom<DirEntry> for MetricEntry {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct Sensor {
     name: String,
     items: HashMap<String, PathBuf>,
@@ -164,7 +164,7 @@ impl Sensor {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct SensorContainer(pub(crate) HashMap<HwmonType, Vec<Sensor>>);
 
 impl SensorContainer {
@@ -268,7 +268,7 @@ pub struct SensorValue {
     pub value: i32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Fetcher {
     pub(crate) device_index: u8,
     pub(crate) sensor_container: SensorContainer,
