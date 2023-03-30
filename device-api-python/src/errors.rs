@@ -1,6 +1,5 @@
 use furiosa_device::{DeviceError, DeviceResult};
-use pyo3::{PyErr, PyResult, exceptions::PyRuntimeError};
-
+use pyo3::{exceptions::PyRuntimeError, PyErr, PyResult};
 
 pub fn to_py_result<T>(result: DeviceResult<T>) -> PyResult<T> {
     match result {

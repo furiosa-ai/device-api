@@ -1,5 +1,5 @@
+use furiosa_device::list_devices;
 use pyo3::prelude::*;
-use furiosa_device::{list_devices};
 
 mod device;
 mod errors;

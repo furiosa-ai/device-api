@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use pyo3::{prelude::*, exceptions::PyValueError};
-use furiosa_device::{Arch, CoreStatus, Device, DeviceFile, DeviceMode, CoreRange};
+use furiosa_device::{Arch, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
+use pyo3::{exceptions::PyValueError, prelude::*};
 use tokio::runtime::Runtime;
 
 use crate::errors::{to_py_err, to_py_result};
@@ -11,24 +11,28 @@ use crate::hwmon::FetcherPy;
 pub struct AvailablePy {}
 
 impl AvailablePy {
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 #[pyclass(name = "Unavailable")]
 pub struct UnavailablePy {}
 
 impl UnavailablePy {
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 #[pyclass(name = "Occupied")]
 pub struct OccupiedPy {
-    str : String
+    str: String,
 }
 
 impl OccupiedPy {
     pub fn new(s: String) -> Self {
-        Self {str: s}
+        Self { str: s }
     }
 }
 
@@ -36,25 +40,34 @@ impl OccupiedPy {
 pub struct CoreStatusPy {
     available: Option<AvailablePy>,
     occupied: Option<OccupiedPy>,
-    unavailable: Option<UnavailablePy>
+    unavailable: Option<UnavailablePy>,
 }
 
 impl CoreStatusPy {
     pub fn new(cs: CoreStatus) -> Self {
         match cs {
-            CoreStatus::Available =>
-                Self { available: Some(AvailablePy::new()), occupied: None, unavailable: None},
-            CoreStatus::Occupied(s) =>
-                Self { available: None, occupied: Some(OccupiedPy::new(s)), unavailable: None},
-            CoreStatus::Unavailable =>
-                Self { available: None, occupied: None, unavailable: Some(UnavailablePy::new())}
+            CoreStatus::Available => Self {
+                available: Some(AvailablePy::new()),
+                occupied: None,
+                unavailable: None,
+            },
+            CoreStatus::Occupied(s) => Self {
+                available: None,
+                occupied: Some(OccupiedPy::new(s)),
+                unavailable: None,
+            },
+            CoreStatus::Unavailable => Self {
+                available: None,
+                occupied: None,
+                unavailable: Some(UnavailablePy::new()),
+            },
         }
     }
 }
 
 #[pyclass(name = "Device")]
 pub struct DevicePy {
-    inner: Device
+    inner: Device,
 }
 
 impl DevicePy {
@@ -78,7 +91,7 @@ impl DevicePy {
             Arch::Warboy => "Warboy",
             Arch::WarboyB0 => "WarboyB0",
             Arch::Renegade => "Renegade",
-            Arch::U250 => "U250"
+            Arch::U250 => "U250",
         }
     }
 
@@ -127,19 +140,29 @@ impl DevicePy {
     }
 
     pub fn dev_files(&self) -> Vec<DeviceFilePy> {
-        self.inner.dev_files().iter().map(|d| DeviceFilePy::new(d.clone())).collect()
+        self.inner
+            .dev_files()
+            .iter()
+            .map(|d| DeviceFilePy::new(d.clone()))
+            .collect()
     }
 
     pub fn get_status_core(&self, core: u8) -> PyResult<CoreStatusPy> {
-        let cores = Runtime::new().unwrap().block_on(self.inner.get_status_core(core)).map_err(to_py_err);
+        let cores = Runtime::new()
+            .unwrap()
+            .block_on(self.inner.get_status_core(core))
+            .map_err(to_py_err);
         match cores {
             Ok(c) => Ok(CoreStatusPy::new(c)),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
     pub fn get_status_all(&self) -> PyResult<HashMap<u8, CoreStatusPy>> {
-        let status = Runtime::new().unwrap().block_on(self.inner.get_status_all()).map_err(to_py_err);
+        let status = Runtime::new()
+            .unwrap()
+            .block_on(self.inner.get_status_all())
+            .map_err(to_py_err);
         match status {
             Ok(s) => {
                 let mut status_py = HashMap::new();
@@ -147,8 +170,8 @@ impl DevicePy {
                     status_py.insert(*k, CoreStatusPy::new(v.clone()));
                 }
                 Ok(status_py)
-            },
-            Err(e) => Err(e)
+            }
+            Err(e) => Err(e),
         }
     }
 
@@ -164,12 +187,14 @@ impl DevicePy {
 pub struct AllPy {}
 
 impl AllPy {
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 #[pyclass(name = "Range")]
 pub struct RangePy {
-    range: (u8, u8)
+    range: (u8, u8),
 }
 
 impl RangePy {
@@ -181,16 +206,20 @@ impl RangePy {
 #[pyclass(name = "CoreRange")]
 pub struct CoreRangePy {
     all: Option<AllPy>,
-    range: Option<RangePy>
+    range: Option<RangePy>,
 }
 
 impl CoreRangePy {
     pub fn new(cr: CoreRange) -> Self {
         match cr {
-            CoreRange::All =>
-                Self { all: Some(AllPy::new()), range: None },
-            CoreRange::Range(r) =>
-                Self { all: None, range: Some(RangePy::new(r)) }
+            CoreRange::All => Self {
+                all: Some(AllPy::new()),
+                range: None,
+            },
+            CoreRange::Range(r) => Self {
+                all: None,
+                range: Some(RangePy::new(r)),
+            },
         }
     }
 }
@@ -202,8 +231,8 @@ impl CoreRangePy {
             Some(r) => {
                 let (s, e) = r.range;
                 (s..=e).contains(&idx)
-            },
-            None => true
+            }
+            None => true,
         }
     }
 }
@@ -211,7 +240,7 @@ impl CoreRangePy {
 #[pyclass(name = "DeviceFile")]
 #[derive(Clone)]
 pub struct DeviceFilePy {
-    inner: DeviceFile
+    inner: DeviceFile,
 }
 
 impl DeviceFilePy {
