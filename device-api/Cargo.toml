@@ -1,0 +1,54 @@
+[package]
+name = "furiosa-device"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+description = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
+
+[features]
+blocking = [] # Enable blocking APIs
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "list_npu"
+path = "bin/list_npu.rs"
+
+[[bin]]
+name = "list_npu_blocking"
+path = "bin/list_npu_blocking.rs"
+required-features = ["blocking"]
+
+[[bin]]
+name = "list_hwmon"
+path = "bin/list_hwmon.rs"
+
+[[bin]]
+name = "list_proc"
+path = "bin/list_proc.rs"
+
+[dependencies]
+array_tool = { workspace = true }
+cli-table = { workspace = true }
+enum-display-derive = { workspace = true }
+enum-utils = { workspace = true }
+itertools = { workspace = true }
+lazy_static = { workspace = true }
+memoize = { workspace = true, features = ["full"] }
+nom = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "rt-multi-thread", "macros"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+eyre = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
