@@ -336,9 +336,10 @@ mod tests {
 
     #[tokio::test]
     async fn hwmon_metric_entry_try_from_test() -> error::HwmonResult<()> {
-        let mut entries =
-            tokio::fs::read_dir("../test_data/test-0/sys/bus/pci/devices/0000:ff:00.0/hwmon/hwmon0")
-                .await?;
+        let mut entries = tokio::fs::read_dir(
+            "../test_data/test-0/sys/bus/pci/devices/0000:ff:00.0/hwmon/hwmon0",
+        )
+        .await?;
 
         if let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
