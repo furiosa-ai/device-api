@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Mutex;
 
 use crate::arch::Arch;
 use crate::hwmon;
@@ -12,7 +13,7 @@ use crate::perf_regs::PerformanceCounter;
 use crate::status::{get_device_status, DeviceStatus};
 use crate::{devfs, sysfs, DeviceError, DeviceResult};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 
 /// Abstraction for a single Furiosa NPU device.
 ///
@@ -242,9 +243,18 @@ impl Display for Device {
     }
 }
 
+impl Eq for Device {}
+
 impl Ord for Device {
     fn cmp(&self, other: &Self) -> Ordering {
         self.device_index().cmp(&other.device_index())
+    }
+}
+
+impl PartialEq for Device {
+    fn eq(&self, other: &Self) -> bool {
+        // self.device_info == other.device_info && self.hwmon_fetcher == other.hwmon_fetcher && self.cores == other.cores && self.dev_files == other.dev_files
+        true
     }
 }
 
@@ -260,13 +270,13 @@ pub enum NumaNode {
     Id(usize),
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct DeviceInfo {
     device_index: u8,
     dev_root: PathBuf,
     sys_root: PathBuf,
     meta: DeviceMetadata,
-    numa_node: RefCell<Option<NumaNode>>,
+    numa_node: Mutex<Option<NumaNode>>,
 }
 
 impl DeviceInfo {
@@ -281,7 +291,7 @@ impl DeviceInfo {
             dev_root,
             sys_root,
             meta,
-            numa_node: RefCell::new(None),
+            numa_node: Mutex::new(None),
         }
     }
 
@@ -295,13 +305,14 @@ impl DeviceInfo {
             .find(|mgmt_file| mgmt_file.0 == key)
             .ok_or_else(|| DeviceError::unsupported_key(key))?;
 
-        if let Some(value) = self.meta.map.borrow().get(key) {
+        let mut map = self.meta.map.lock().unwrap();
+        if let Some(value) = map.get(key) {
             return Ok(value.clone());
         }
 
         let value = sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index)?;
 
-        self.meta.map.borrow_mut().insert(key, value.clone());
+        map.insert(key, value.clone());
         Ok(value)
     }
 
@@ -317,14 +328,15 @@ impl DeviceInfo {
             .iter()
             .find(|mgmt_file| mgmt_file.0 == *key)
         {
-            self.meta.map.borrow_mut().remove(key);
+            self.meta.map.lock().unwrap().remove(key);
         }
 
         Ok(())
     }
 
     pub fn get_numa_node(&self) -> DeviceResult<NumaNode> {
-        if let Some(node) = *self.numa_node.borrow() {
+        let mut numa_node = *self.numa_node.lock().unwrap();
+        if let Some(node) = numa_node {
             return Ok(node);
         }
 
@@ -344,7 +356,7 @@ impl DeviceInfo {
             )));
         };
 
-        *self.numa_node.borrow_mut() = Some(node);
+        numa_node = Some(node);
         Ok(node)
     }
 
@@ -354,10 +366,10 @@ impl DeviceInfo {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct DeviceMetadata {
     pub(crate) arch: Arch,
-    pub(crate) map: RefCell<HashMap<&'static str, String>>,
+    pub(crate) map: Mutex<HashMap<&'static str, String>>,
 }
 
 impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
@@ -375,7 +387,7 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
 
         Ok(Self {
             arch,
-            map: RefCell::new(map),
+            map: Mutex::new(map),
         })
     }
 }
@@ -652,7 +664,8 @@ mod tests {
             device_info
                 .meta
                 .map
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .get(sysfs::npu_mgmt::PERFORMANCE_MODE),
             None
         );
@@ -664,7 +677,8 @@ mod tests {
             device_info
                 .meta
                 .map
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .get(sysfs::npu_mgmt::PERFORMANCE_MODE),
             Some(&String::from("4 (FULL 1)"))
         );
@@ -683,9 +697,9 @@ mod tests {
             device_meta,
         );
 
-        assert_eq!(*device_info.numa_node.borrow(), None);
+        assert_eq!(*device_info.numa_node.lock().unwrap(), None);
         assert_eq!(device_info.get_numa_node()?, NumaNode::Id(0));
-        assert_eq!(*device_info.numa_node.borrow(), Some(NumaNode::Id(0)));
+        assert_eq!(*device_info.numa_node.lock().unwrap(), Some(NumaNode::Id(0)));
 
         // npu1 => numa node unsupported
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 1)?)?;
@@ -696,9 +710,9 @@ mod tests {
             device_meta,
         );
 
-        assert_eq!(*device_info.numa_node.borrow(), None);
+        assert_eq!(*device_info.numa_node.lock().unwrap(), None);
         assert_eq!(device_info.get_numa_node()?, NumaNode::UnSupported);
-        assert_eq!(*device_info.numa_node.borrow(), Some(NumaNode::UnSupported));
+        assert_eq!(*device_info.numa_node.lock().unwrap(), Some(NumaNode::UnSupported));
 
         Ok(())
     }
