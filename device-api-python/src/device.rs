@@ -2,12 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use furiosa_device::{Arch, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
-use pyo3::{exceptions::PyValueError, prelude::*};
-use pyo3_asyncio::*;
-use tokio::runtime::Runtime;
+use pyo3::prelude::*;
 
 use crate::arch::ArchPy;
-use crate::errors::{to_py_err, to_py_result};
+use crate::errors::to_py_err;
 use crate::hwmon::FetcherPy;
 
 #[pyclass(name = "Available")]
@@ -166,7 +164,7 @@ impl DevicePy {
 
     pub fn get_status_core<'py, 'a>(&'a self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
-        pyo3_asyncio::async_std::future_into_py(py, async move {
+        pyo3_asyncio::tokio::future_into_py(py, async move {
             device
                 .get_status_core(core)
                 .await
@@ -177,7 +175,7 @@ impl DevicePy {
 
     pub fn get_status_all<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
-        pyo3_asyncio::async_std::future_into_py(py, async move {
+        pyo3_asyncio::tokio::future_into_py(py, async move {
             device
                 .get_status_all()
                 .await
@@ -195,7 +193,7 @@ impl DevicePy {
     }
 }
 
-// exporting enum to python is not supported yet
+// exporting enum with field to python is not supported yet
 // https://github.com/PyO3/pyo3/issues/417
 #[pyclass(name = "All")]
 #[derive(Default, Clone)]
@@ -282,11 +280,18 @@ impl DeviceFilePy {
         CoreRangePy::new(self.inner.core_range())
     }
 
-    pub fn mode(&self) -> &str {
+    pub fn mode(&self) -> DeviceModePy {
         match self.inner.mode() {
-            DeviceMode::Single => "Single",
-            DeviceMode::Fusion => "Fusion",
-            DeviceMode::MultiCore => "MultiCore",
+            DeviceMode::Single => DeviceModePy::Single,
+            DeviceMode::Fusion => DeviceModePy::Fusion,
+            DeviceMode::MultiCore => DeviceModePy::MultiCore,
         }
     }
+}
+
+#[pyclass(name = "DeviceMode")]
+pub enum DeviceModePy {
+    Single,
+    Fusion,
+    MultiCore
 }

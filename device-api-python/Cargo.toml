@@ -10,7 +10,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.18.1"
-pyo3-asyncio = { version = "0.18", features = ["attributes", "async-std-runtime"] }
-async-std = "1.9"
+pyo3-asyncio = { version = "0.18", features = ["attributes", "tokio-runtime"] }
 tokio = { workspace = true }
 furiosa-device = { path = "../device-api" }
