@@ -253,8 +253,10 @@ impl Ord for Device {
 
 impl PartialEq for Device {
     fn eq(&self, other: &Self) -> bool {
-        // self.device_info == other.device_info && self.hwmon_fetcher == other.hwmon_fetcher && self.cores == other.cores && self.dev_files == other.dev_files
-        true
+        self.device_info == other.device_info
+            && self.hwmon_fetcher == other.hwmon_fetcher
+            && self.cores == other.cores
+            && self.dev_files == other.dev_files
     }
 }
 
@@ -366,6 +368,18 @@ impl DeviceInfo {
     }
 }
 
+impl Eq for DeviceInfo {}
+
+impl PartialEq for DeviceInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.device_index == other.device_index
+            && self.dev_root == other.dev_root
+            && self.sys_root == other.sys_root
+            && self.meta == other.meta
+            && *self.numa_node.lock().unwrap() == *other.numa_node.lock().unwrap()
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct DeviceMetadata {
     pub(crate) arch: Arch,
@@ -389,6 +403,14 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
             arch,
             map: Mutex::new(map),
         })
+    }
+}
+
+impl Eq for DeviceMetadata {}
+
+impl PartialEq for DeviceMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.arch == other.arch && *self.map.lock().unwrap() == *other.map.lock().unwrap()
     }
 }
 
