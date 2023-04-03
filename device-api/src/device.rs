@@ -699,7 +699,10 @@ mod tests {
 
         assert_eq!(*device_info.numa_node.lock().unwrap(), None);
         assert_eq!(device_info.get_numa_node()?, NumaNode::Id(0));
-        assert_eq!(*device_info.numa_node.lock().unwrap(), Some(NumaNode::Id(0)));
+        assert_eq!(
+            *device_info.numa_node.lock().unwrap(),
+            Some(NumaNode::Id(0))
+        );
 
         // npu1 => numa node unsupported
         let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 1)?)?;
@@ -712,7 +715,10 @@ mod tests {
 
         assert_eq!(*device_info.numa_node.lock().unwrap(), None);
         assert_eq!(device_info.get_numa_node()?, NumaNode::UnSupported);
-        assert_eq!(*device_info.numa_node.lock().unwrap(), Some(NumaNode::UnSupported));
+        assert_eq!(
+            *device_info.numa_node.lock().unwrap(),
+            Some(NumaNode::UnSupported)
+        );
 
         Ok(())
     }

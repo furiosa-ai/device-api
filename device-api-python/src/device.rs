@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use furiosa_device::{Arch, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
 use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3_asyncio::*;
 use tokio::runtime::Runtime;
 
+use crate::arch::ArchPy;
 use crate::errors::{to_py_err, to_py_result};
 use crate::hwmon::FetcherPy;
 
@@ -16,12 +19,24 @@ impl AvailablePy {
     }
 }
 
+impl Default for AvailablePy {
+    fn default() -> Self {
+        AvailablePy::new()
+    }
+}
+
 #[pyclass(name = "Unavailable")]
 pub struct UnavailablePy {}
 
 impl UnavailablePy {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl Default for UnavailablePy {
+    fn default() -> Self {
+        UnavailablePy::new()
     }
 }
 
@@ -67,12 +82,14 @@ impl CoreStatusPy {
 
 #[pyclass(name = "Device")]
 pub struct DevicePy {
-    inner: Device,
+    inner: Arc<Device>,
 }
 
 impl DevicePy {
     pub fn new(dev: Device) -> Self {
-        Self { inner: dev }
+        Self {
+            inner: Arc::new(dev),
+        }
     }
 }
 
@@ -86,12 +103,12 @@ impl DevicePy {
         self.inner.device_index()
     }
 
-    pub fn arch(&self) -> &str {
+    pub fn arch(&self) -> ArchPy {
         match self.inner.arch() {
-            Arch::Warboy => "Warboy",
-            Arch::WarboyB0 => "WarboyB0",
-            Arch::Renegade => "Renegade",
-            Arch::U250 => "U250",
+            Arch::Warboy => ArchPy::Warboy,
+            Arch::WarboyB0 => ArchPy::WarboyB0,
+            Arch::Renegade => ArchPy::Renegade,
+            Arch::U250 => ArchPy::U250,
         }
     }
 
@@ -147,32 +164,30 @@ impl DevicePy {
             .collect()
     }
 
-    pub fn get_status_core(&self, core: u8) -> PyResult<CoreStatusPy> {
-        let cores = Runtime::new()
-            .unwrap()
-            .block_on(self.inner.get_status_core(core))
-            .map_err(to_py_err);
-        match cores {
-            Ok(c) => Ok(CoreStatusPy::new(c)),
-            Err(e) => Err(e),
-        }
+    pub fn get_status_core<'py, 'a>(&'a self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
+        let device = self.inner.clone();
+        pyo3_asyncio::async_std::future_into_py(py, async move {
+            device
+                .get_status_core(core)
+                .await
+                .map(CoreStatusPy::new)
+                .map_err(to_py_err)
+        })
     }
 
-    pub fn get_status_all(&self) -> PyResult<HashMap<u8, CoreStatusPy>> {
-        let status = Runtime::new()
-            .unwrap()
-            .block_on(self.inner.get_status_all())
-            .map_err(to_py_err);
-        match status {
-            Ok(s) => {
-                let mut status_py = HashMap::new();
-                for (k, v) in s.iter() {
-                    status_py.insert(*k, CoreStatusPy::new(v.clone()));
-                }
-                Ok(status_py)
-            }
-            Err(e) => Err(e),
-        }
+    pub fn get_status_all<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
+        let device = self.inner.clone();
+        pyo3_asyncio::async_std::future_into_py(py, async move {
+            device
+                .get_status_all()
+                .await
+                .map(|r| {
+                    r.iter()
+                        .map(|(k, v)| (*k, CoreStatusPy::new(v.clone())))
+                        .collect::<HashMap<u8, CoreStatusPy>>()
+                })
+                .map_err(to_py_err)
+        })
     }
 
     pub fn get_hwmon_fetcher(&self) -> FetcherPy {
