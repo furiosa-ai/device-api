@@ -1,11 +1,17 @@
-use furiosa_device::{DeviceConfig};
+mod builder;
+mod env;
+mod inner;
+
+use furiosa_device::DeviceConfig;
 use pyo3::prelude::*;
 
-use crate::builder::*;
+use builder::DeviceConfigBuilderACPy;
+use env::EnvBuilderNotDeterminedPy;
 
 #[pyclass(name = "DeviceConfig")]
+#[derive(Clone)]
 pub struct DeviceConfigPy {
-    inner : DeviceConfig
+    inner: DeviceConfig,
 }
 
 impl DeviceConfigPy {
@@ -16,7 +22,13 @@ impl DeviceConfigPy {
 
 #[pymethods]
 impl DeviceConfigPy {
-    pub fn warboy() -> DeviceConfigBuilder<String, NotDetermined, NotDetermined> {
+    #[staticmethod]
+    pub fn warboy() -> DeviceConfigBuilderACPy {
+        DeviceConfigBuilderACPy::new(DeviceConfig::warboy())
+    }
 
+    #[staticmethod]
+    pub fn from_env(key: &str) -> EnvBuilderNotDeterminedPy {
+        EnvBuilderNotDeterminedPy::new(DeviceConfig::from_env(key))
     }
 }

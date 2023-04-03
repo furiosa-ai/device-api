@@ -1,6 +1,8 @@
 use furiosa_device::list_devices;
 use pyo3::prelude::*;
 
+mod arch;
+mod config;
 mod device;
 mod errors;
 mod hwmon;

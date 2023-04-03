@@ -293,5 +293,5 @@ impl DeviceFilePy {
 pub enum DeviceModePy {
     Single,
     Fusion,
-    MultiCore
+    MultiCore,
 }

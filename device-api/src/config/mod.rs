@@ -9,7 +9,7 @@ use std::str::FromStr;
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
 
-use self::builder::NotDetermined;
+pub use self::builder::NotDetermined;
 pub use self::env::EnvBuilder;
 use self::inner::DeviceConfigInner;
 use crate::{Arch, DeviceError};
