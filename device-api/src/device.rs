@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -337,8 +336,8 @@ impl DeviceInfo {
     }
 
     pub fn get_numa_node(&self) -> DeviceResult<NumaNode> {
-        let mut numa_node = *self.numa_node.lock().unwrap();
-        if let Some(node) = numa_node {
+        let mut numa_node = self.numa_node.lock().unwrap();
+        if let Some(node) = *numa_node {
             return Ok(node);
         }
 
@@ -358,7 +357,7 @@ impl DeviceInfo {
             )));
         };
 
-        numa_node = Some(node);
+        *numa_node = Some(node);
         Ok(node)
     }
 
