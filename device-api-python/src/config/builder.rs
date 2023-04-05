@@ -4,7 +4,6 @@ use pyo3::prelude::*;
 use super::DeviceConfigPy;
 
 #[pyclass(name = "DeviceConfigBuilderAC")]
-#[derive(Clone)]
 pub struct DeviceConfigBuilderACPy {
     inner: DeviceConfigBuilder<Arch, NotDetermined, u8>,
 }

@@ -290,6 +290,7 @@ impl DeviceFilePy {
 }
 
 #[pyclass(name = "DeviceMode")]
+#[derive(Clone)]
 pub enum DeviceModePy {
     Single,
     Fusion,
