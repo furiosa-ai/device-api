@@ -12,7 +12,7 @@ use crate::perf_regs::PerformanceCounter;
 use crate::status::{get_device_status, DeviceStatus};
 use crate::{devfs, sysfs, DeviceError, DeviceResult};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 
 /// Abstraction for a single Furiosa NPU device.
 ///
@@ -379,6 +379,18 @@ impl PartialEq for DeviceInfo {
     }
 }
 
+impl Clone for DeviceInfo {
+    fn clone(&self) -> Self {
+        Self {
+            device_index: self.device_index,
+            dev_root: self.dev_root.clone(),
+            sys_root: self.sys_root.clone(),
+            meta: self.meta.clone(),
+            numa_node: Mutex::new(*self.numa_node.lock().unwrap()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct DeviceMetadata {
     pub(crate) arch: Arch,
@@ -410,6 +422,15 @@ impl Eq for DeviceMetadata {}
 impl PartialEq for DeviceMetadata {
     fn eq(&self, other: &Self) -> bool {
         self.arch == other.arch && *self.map.lock().unwrap() == *other.map.lock().unwrap()
+    }
+}
+
+impl Clone for DeviceMetadata {
+    fn clone(&self) -> Self {
+        Self {
+            arch: self.arch,
+            map: Mutex::new(self.map.lock().unwrap().clone()),
+        }
     }
 }
 
