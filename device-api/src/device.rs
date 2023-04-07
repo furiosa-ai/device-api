@@ -122,6 +122,11 @@ impl Device {
         self.device_info.get(sysfs::npu_mgmt::FW_VERSION)
     }
 
+    /// Retrieves driver version for the device.
+    pub fn driver_version(&self) -> DeviceResult<String> {
+        self.device_info.get(sysfs::npu_mgmt::VERSION)
+    }
+
     /// Returns uptime of the device.
     pub fn heartbeat(&self) -> DeviceResult<u32> {
         self.device_info
