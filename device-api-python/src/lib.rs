@@ -13,7 +13,7 @@ use device::{DeviceFilePy, DeviceModePy, DevicePy};
 use errors::to_py_err;
 
 #[pyfunction(name = "list_devices")]
-fn list_devices_python(py: Python) -> PyResult<&PyAny> {
+fn list_devices_python(py: Python<'_>) -> PyResult<&PyAny> {
     pyo3_asyncio::tokio::future_into_py(py, async move {
         list_devices()
             .await
@@ -27,7 +27,7 @@ fn list_devices_python(py: Python) -> PyResult<&PyAny> {
 }
 
 #[pyfunction(name = "find_devices")]
-fn find_devices_python(py: Python, config: DeviceConfigPy) -> PyResult<&PyAny> {
+fn find_devices_python(py: Python<'_>, config: DeviceConfigPy) -> PyResult<&PyAny> {
     pyo3_asyncio::tokio::future_into_py(py, async move {
         find_devices(&config.inner)
             .await
@@ -41,7 +41,7 @@ fn find_devices_python(py: Python, config: DeviceConfigPy) -> PyResult<&PyAny> {
 }
 
 #[pyfunction(name = "get_device")]
-fn get_device_python(py: Python, device_name: String) -> PyResult<&PyAny> {
+fn get_device_python(py: Python<'_>, device_name: String) -> PyResult<&PyAny> {
     pyo3_asyncio::tokio::future_into_py(py, async move {
         get_device(device_name)
             .await
@@ -53,7 +53,7 @@ fn get_device_python(py: Python, device_name: String) -> PyResult<&PyAny> {
 /// A Python module implemented in Rust.
 #[pymodule]
 #[pyo3(name = "furiosa_device")]
-fn furiosa_device_python(_py: Python, m: &PyModule) -> PyResult<()> {
+fn furiosa_device_python(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<ArchPy>()?;
     m.add_class::<DeviceModePy>()?;
     m.add_class::<DeviceConfigPy>()?;
