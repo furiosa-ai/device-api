@@ -52,10 +52,11 @@ fn get_device_python(py: Python, device_name: String) -> PyResult<&PyAny> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
+#[pyo3(name = "furiosa_device")]
 fn furiosa_device_python(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<ArchPy>();
-    m.add_class::<DeviceModePy>();
-    m.add_class::<DeviceConfigPy>();
+    m.add_class::<ArchPy>()?;
+    m.add_class::<DeviceModePy>()?;
+    m.add_class::<DeviceConfigPy>()?;
     m.add_function(wrap_pyfunction!(list_devices_python, m)?)?;
     m.add_function(wrap_pyfunction!(find_devices_python, m)?)?;
     m.add_function(wrap_pyfunction!(get_device_python, m)?)?;

@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use furiosa_device::hwmon::{Fetcher, SensorValue};
 use pyo3::prelude::*;
-use tokio::runtime::Runtime;
 
 use crate::errors::to_py_err;
 

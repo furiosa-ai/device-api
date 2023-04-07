@@ -1,6 +1,5 @@
 mod builder;
 mod env;
-mod inner;
 
 use std::str::FromStr;
 
@@ -26,8 +25,8 @@ impl DeviceConfigPy {
 #[pymethods]
 impl DeviceConfigPy {
     #[new]
-    #[pyo3(signature = (arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
-    fn py_new(arch: ArchPy, mode: DeviceModePy, count: u8) -> Self {
+    #[pyo3(signature = (_arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
+    fn py_new(_arch: ArchPy, mode: DeviceModePy, count: u8) -> Self {
         // Currently only Arch::Warboy is supported
         let config = DeviceConfig::warboy();
         let config = match mode {
@@ -40,7 +39,7 @@ impl DeviceConfigPy {
     }
 
     #[classmethod]
-    fn from_env(cls: &PyType, key: &str) -> PyResult<DeviceConfigPy> {
+    fn from_env(_cls: &PyType, key: &str) -> PyResult<DeviceConfigPy> {
         DeviceConfig::from_env(key)
             .build()
             .map(DeviceConfigPy::new)
@@ -48,7 +47,7 @@ impl DeviceConfigPy {
     }
 
     #[classmethod]
-    fn from_str(cls: &PyType, key: &str) -> PyResult<DeviceConfigPy> {
+    fn from_str(_cls: &PyType, key: &str) -> PyResult<DeviceConfigPy> {
         DeviceConfig::from_str(key)
             .map(DeviceConfigPy::new)
             .map_err(to_py_err)
