@@ -8,71 +8,37 @@ use crate::arch::ArchPy;
 use crate::errors::to_py_err;
 use crate::hwmon::FetcherPy;
 
-#[pyclass(name = "Available")]
-pub struct AvailablePy {}
-
-impl AvailablePy {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Default for AvailablePy {
-    fn default() -> Self {
-        AvailablePy::new()
-    }
-}
-
-#[pyclass(name = "Unavailable")]
-pub struct UnavailablePy {}
-
-impl UnavailablePy {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Default for UnavailablePy {
-    fn default() -> Self {
-        UnavailablePy::new()
-    }
-}
-
-#[pyclass(name = "Occupied")]
-pub struct OccupiedPy {
-    str: String,
-}
-
-impl OccupiedPy {
-    pub fn new(s: String) -> Self {
-        Self { str: s }
-    }
+#[pyclass(name = "CoreStatusType")]
+#[derive(Clone)]
+pub enum CoreStatusTypePy {
+    Available,
+    Occupied,
+    Unavailable,
 }
 
 #[pyclass(name = "CoreStatus")]
+#[derive(Clone)]
 pub struct CoreStatusPy {
-    available: Option<AvailablePy>,
-    occupied: Option<OccupiedPy>,
-    unavailable: Option<UnavailablePy>,
+    #[pyo3(get)]
+    status_type: CoreStatusTypePy,
+    #[pyo3(get)]
+    value: Option<String>,
 }
 
 impl CoreStatusPy {
     pub fn new(cs: CoreStatus) -> Self {
         match cs {
             CoreStatus::Available => Self {
-                available: Some(AvailablePy::new()),
-                occupied: None,
-                unavailable: None,
+                status_type: CoreStatusTypePy::Available,
+                value: None,
             },
             CoreStatus::Occupied(s) => Self {
-                available: None,
-                occupied: Some(OccupiedPy::new(s)),
-                unavailable: None,
+                status_type: CoreStatusTypePy::Occupied,
+                value: Some(s),
             },
             CoreStatus::Unavailable => Self {
-                available: None,
-                occupied: None,
-                unavailable: Some(UnavailablePy::new()),
+                status_type: CoreStatusTypePy::Unavailable,
+                value: None,
             },
         }
     }
@@ -197,45 +163,32 @@ impl DevicePy {
     }
 }
 
-// exporting enum with field to python is not supported yet
-// https://github.com/PyO3/pyo3/issues/417
-#[pyclass(name = "All")]
-#[derive(Default, Clone)]
-pub struct AllPy {}
-
-impl AllPy {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[pyclass(name = "Range")]
-pub struct RangePy {
-    range: (u8, u8),
-}
-
-impl RangePy {
-    pub fn new(r: (u8, u8)) -> Self {
-        Self { range: r }
-    }
+#[pyclass(name = "CoreRangeType")]
+#[derive(Clone)]
+pub enum CoreRangeTypePy {
+    All,
+    Range,
 }
 
 #[pyclass(name = "CoreRange")]
+#[derive(Clone)]
 pub struct CoreRangePy {
-    all: Option<AllPy>,
-    range: Option<RangePy>,
+    #[pyo3(get)]
+    range_type: CoreRangeTypePy,
+    #[pyo3(get)]
+    value: Option<(u8, u8)>,
 }
 
 impl CoreRangePy {
     pub fn new(cr: CoreRange) -> Self {
         match cr {
             CoreRange::All => Self {
-                all: Some(AllPy::new()),
-                range: None,
+                range_type: CoreRangeTypePy::All,
+                value: None,
             },
             CoreRange::Range(r) => Self {
-                all: None,
-                range: Some(RangePy::new(r)),
+                range_type: CoreRangeTypePy::Range,
+                value: Some(r),
             },
         }
     }
@@ -244,12 +197,10 @@ impl CoreRangePy {
 #[pymethods]
 impl CoreRangePy {
     pub fn contains(&self, idx: u8) -> bool {
-        match &self.range {
-            Some(r) => {
-                let (s, e) = r.range;
-                (s..=e).contains(&idx)
-            }
-            None => true,
+        if let Some((s, e)) = self.value {
+            (s..=e).contains(&idx)
+        } else {
+            true
         }
     }
 }
