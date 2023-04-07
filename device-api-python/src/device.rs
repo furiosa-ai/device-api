@@ -10,7 +10,7 @@ use crate::hwmon::FetcherPy;
 
 #[pyclass(name = "CoreStatusType")]
 #[derive(Clone)]
-pub enum CoreStatusTypePy {
+enum CoreStatusTypePy {
     Available,
     Occupied,
     Unavailable,
@@ -18,7 +18,7 @@ pub enum CoreStatusTypePy {
 
 #[pyclass(name = "CoreStatus")]
 #[derive(Clone)]
-pub struct CoreStatusPy {
+struct CoreStatusPy {
     #[pyo3(get)]
     status_type: CoreStatusTypePy,
     #[pyo3(get)]
@@ -26,7 +26,7 @@ pub struct CoreStatusPy {
 }
 
 impl CoreStatusPy {
-    pub fn new(cs: CoreStatus) -> Self {
+    fn new(cs: CoreStatus) -> Self {
         match cs {
             CoreStatus::Available => Self {
                 status_type: CoreStatusTypePy::Available,
@@ -59,15 +59,15 @@ impl DevicePy {
 
 #[pymethods]
 impl DevicePy {
-    pub fn name(&self) -> String {
+    fn name(&self) -> String {
         self.inner.name()
     }
 
-    pub fn device_index(&self) -> u8 {
+    fn device_index(&self) -> u8 {
         self.inner.device_index()
     }
 
-    pub fn arch(&self) -> ArchPy {
+    fn arch(&self) -> ArchPy {
         match self.inner.arch() {
             Arch::Warboy => ArchPy::Warboy,
             Arch::WarboyB0 => ArchPy::WarboyB0,
@@ -76,55 +76,55 @@ impl DevicePy {
         }
     }
 
-    pub fn alive(&self) -> PyResult<bool> {
+    fn alive(&self) -> PyResult<bool> {
         self.inner.alive().map_err(to_py_err)
     }
 
-    pub fn atr_error(&self) -> PyResult<HashMap<String, u32>> {
+    fn atr_error(&self) -> PyResult<HashMap<String, u32>> {
         self.inner.atr_error().map_err(to_py_err)
     }
 
-    pub fn busname(&self) -> PyResult<String> {
+    fn busname(&self) -> PyResult<String> {
         self.inner.busname().map_err(to_py_err)
     }
 
-    pub fn pci_dev(&self) -> PyResult<String> {
+    fn pci_dev(&self) -> PyResult<String> {
         self.inner.pci_dev().map_err(to_py_err)
     }
 
-    pub fn device_sn(&self) -> PyResult<String> {
+    fn device_sn(&self) -> PyResult<String> {
         self.inner.device_sn().map_err(to_py_err)
     }
 
-    pub fn device_uuid(&self) -> PyResult<String> {
+    fn device_uuid(&self) -> PyResult<String> {
         self.inner.device_uuid().map_err(to_py_err)
     }
 
-    pub fn firmware_version(&self) -> PyResult<String> {
+    fn firmware_version(&self) -> PyResult<String> {
         self.inner.firmware_version().map_err(to_py_err)
     }
 
-    pub fn driver_version(&self) -> PyResult<String> {
+    fn driver_version(&self) -> PyResult<String> {
         self.inner.driver_version().map_err(to_py_err)
     }
 
-    pub fn hearbeat(&self) -> PyResult<u32> {
+    fn hearbeat(&self) -> PyResult<u32> {
         self.inner.heartbeat().map_err(to_py_err)
     }
 
-    pub fn ctrl_device_led(&self, led: (bool, bool, bool)) -> PyResult<()> {
+    fn ctrl_device_led(&self, led: (bool, bool, bool)) -> PyResult<()> {
         self.inner.ctrl_device_led(led).map_err(to_py_err)
     }
 
-    pub fn core_num(&self) -> u8 {
+    fn core_num(&self) -> u8 {
         self.inner.core_num()
     }
 
-    pub fn cores(&self) -> Vec<u8> {
+    fn cores(&self) -> Vec<u8> {
         self.inner.cores().to_vec()
     }
 
-    pub fn dev_files(&self) -> Vec<DeviceFilePy> {
+    fn dev_files(&self) -> Vec<DeviceFilePy> {
         self.inner
             .dev_files()
             .iter()
@@ -132,7 +132,7 @@ impl DevicePy {
             .collect()
     }
 
-    pub fn get_status_core<'py, 'a>(&'a self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
+    fn get_status_core<'py, 'a>(&'a self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             device
@@ -143,7 +143,7 @@ impl DevicePy {
         })
     }
 
-    pub fn get_status_all<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
+    fn get_status_all<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             device
@@ -165,7 +165,7 @@ impl DevicePy {
 
 #[pyclass(name = "CoreRangeType")]
 #[derive(Clone)]
-pub enum CoreRangeTypePy {
+enum CoreRangeTypePy {
     All,
     Range,
 }
@@ -180,7 +180,7 @@ pub struct CoreRangePy {
 }
 
 impl CoreRangePy {
-    pub fn new(cr: CoreRange) -> Self {
+    fn new(cr: CoreRange) -> Self {
         match cr {
             CoreRange::All => Self {
                 range_type: CoreRangeTypePy::All,
@@ -196,7 +196,7 @@ impl CoreRangePy {
 
 #[pymethods]
 impl CoreRangePy {
-    pub fn contains(&self, idx: u8) -> bool {
+    fn contains(&self, idx: u8) -> bool {
         if let Some((s, e)) = self.value {
             (s..=e).contains(&idx)
         } else {
@@ -219,23 +219,23 @@ impl DeviceFilePy {
 
 #[pymethods]
 impl DeviceFilePy {
-    pub fn path(&self) -> &str {
+    fn path(&self) -> &str {
         self.inner.path().to_str().unwrap()
     }
 
-    pub fn filename(&self) -> &str {
+    fn filename(&self) -> &str {
         self.inner.filename()
     }
 
-    pub fn device_index(&self) -> u8 {
+    fn device_index(&self) -> u8 {
         self.inner.device_index()
     }
 
-    pub fn core_range(&self) -> CoreRangePy {
+    fn core_range(&self) -> CoreRangePy {
         CoreRangePy::new(self.inner.core_range())
     }
 
-    pub fn mode(&self) -> DeviceModePy {
+    fn mode(&self) -> DeviceModePy {
         match self.inner.mode() {
             DeviceMode::Single => DeviceModePy::Single,
             DeviceMode::Fusion => DeviceModePy::Fusion,

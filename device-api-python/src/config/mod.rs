@@ -14,7 +14,7 @@ pub struct DeviceConfigPy {
 }
 
 impl DeviceConfigPy {
-    pub fn new(d: DeviceConfig) -> Self {
+    fn new(d: DeviceConfig) -> Self {
         Self { inner: d }
     }
 }
