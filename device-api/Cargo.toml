@@ -1,13 +1,13 @@
 [package]
 name = "furiosa-device"
-version = "0.1.5-dev"
-authors = ["FuriosaAI SW Team <pkg@furiosa.ai>"]
-edition = "2021"
-description = "APIs that offer FuriosaAI NPU devices' information and allow to control the devices"
-license = "Apache-2.0"
-homepage = "https://furiosa.ai"
-repository = "https://github.com/furiosa-ai/device-api"
-readme = "README.md"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+description = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
 
 [features]
 blocking = [] # Enable blocking APIs
@@ -44,7 +44,7 @@ regex = "1.5"
 strum = "0.24"
 strum_macros = "0.24"
 thiserror = "1"
-tokio = { version = "1.17.0", features = ["fs", "rt-multi-thread", "macros"] }
+tokio = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter", "json"] }
 
