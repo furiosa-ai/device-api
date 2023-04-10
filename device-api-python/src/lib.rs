@@ -18,8 +18,8 @@ fn list_devices_python(py: Python<'_>) -> PyResult<&PyAny> {
         list_devices()
             .await
             .map(|list| {
-                list.iter()
-                    .map(|d| DevicePy::new(d.clone()))
+                list.into_iter()
+                    .map(DevicePy::new)
                     .collect::<Vec<DevicePy>>()
             })
             .map_err(to_py_err)
@@ -32,8 +32,8 @@ fn find_devices_python(py: Python<'_>, config: DeviceConfigPy) -> PyResult<&PyAn
         find_devices(&config.inner)
             .await
             .map(|list| {
-                list.iter()
-                    .map(|d| DeviceFilePy::new(d.clone()))
+                list.into_iter()
+                    .map(DeviceFilePy::new)
                     .collect::<Vec<DeviceFilePy>>()
             })
             .map_err(to_py_err)

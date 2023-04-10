@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use furiosa_device::DeviceConfig;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
@@ -22,9 +23,13 @@ impl DeviceConfigPy {
 #[pymethods]
 impl DeviceConfigPy {
     #[new]
-    #[pyo3(signature = (_arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
-    fn py_new(_arch: ArchPy, mode: DeviceModePy, count: u8) -> Self {
-        // Currently only Arch::Warboy is supported
+    #[pyo3(signature = (arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
+    fn py_new(arch: ArchPy, mode: DeviceModePy, count: u8) -> PyResult<DeviceConfigPy> {
+        if arch == ArchPy::Renegade || arch == ArchPy::U250 {
+            return Err(PyRuntimeError::new_err(
+                "Invalid architecture: Currently only Warboy is supported",
+            ));
+        }
         let config = DeviceConfig::warboy();
         let config = match mode {
             DeviceModePy::Single => config.single(),
@@ -32,7 +37,7 @@ impl DeviceConfigPy {
             DeviceModePy::Fusion => config.fused(),
         }
         .count(count);
-        DeviceConfigPy::new(config)
+        Ok(DeviceConfigPy::new(config))
     }
 
     #[classmethod]

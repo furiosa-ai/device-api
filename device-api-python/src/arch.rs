@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 #[pyclass(name = "Arch")]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ArchPy {
     Warboy,
     WarboyB0,

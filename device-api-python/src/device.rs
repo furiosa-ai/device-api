@@ -150,8 +150,8 @@ impl DevicePy {
                 .get_status_all()
                 .await
                 .map(|r| {
-                    r.iter()
-                        .map(|(k, v)| (*k, CoreStatusPy::new(v.clone())))
+                    r.into_iter()
+                        .map(|(k, v)| (k, CoreStatusPy::new(v)))
                         .collect::<HashMap<u8, CoreStatusPy>>()
                 })
                 .map_err(to_py_err)
