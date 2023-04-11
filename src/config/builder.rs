@@ -20,7 +20,7 @@ impl TryInto<DeviceConfig> for NotDetermined {
 
 impl From<NotDetermined> for Arch {
     fn from(_: NotDetermined) -> Self {
-        Arch::Warboy
+        Arch::WarboyB0
     }
 }
 

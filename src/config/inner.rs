@@ -223,10 +223,10 @@ mod tests {
 
         assert_eq!(config.count(), 1);
 
-        assert!(config.fit(Arch::Warboy, &npu0pe0));
-        assert!(!config.fit(Arch::Warboy, &npu0pe1));
-        assert!(!config.fit(Arch::Warboy, &npu0pe0_1));
-        assert!(!config.fit(Arch::Warboy, &npu1pe0));
+        assert!(config.fit(Arch::WarboyB0, &npu0pe0));
+        assert!(!config.fit(Arch::WarboyB0, &npu0pe1));
+        assert!(!config.fit(Arch::WarboyB0, &npu0pe0_1));
+        assert!(!config.fit(Arch::WarboyB0, &npu1pe0));
 
         Ok(())
     }
@@ -241,10 +241,10 @@ mod tests {
         let npu0pe1 = crate::get_device_with("test_data/test-0/dev", "npu0pe1").await?;
         let npu0pe0_1 = crate::get_device_with("test_data/test-0/dev", "npu0pe0-1").await?;
 
-        assert!(config.fit(Arch::Warboy, &npu0pe0));
-        assert!(config.fit(Arch::Warboy, &npu0pe1));
+        assert!(config.fit(Arch::WarboyB0, &npu0pe0));
+        assert!(config.fit(Arch::WarboyB0, &npu0pe1));
         assert!(!config.fit(Arch::Renegade, &npu0pe0));
-        assert!(!config.fit(Arch::Warboy, &npu0pe0_1));
+        assert!(!config.fit(Arch::WarboyB0, &npu0pe0_1));
 
         Ok(())
     }
@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(
             "warboy(1)*2".parse::<Config>()?,
             Config::Unnamed {
-                arch: Arch::Warboy,
+                arch: Arch::WarboyB0,
                 core_num: 1,
                 mode: DeviceMode::Single,
                 count: 2
@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(
             "warboy(2)*4".parse::<Config>()?,
             Config::Unnamed {
-                arch: Arch::Warboy,
+                arch: Arch::WarboyB0,
                 core_num: 2,
                 mode: DeviceMode::Fusion,
                 count: 4
@@ -330,7 +330,7 @@ mod tests {
         assert_eq!(
             "warboy*12".parse::<Config>()?,
             Config::Unnamed {
-                arch: Arch::Warboy,
+                arch: Arch::WarboyB0,
                 core_num: 1,
                 mode: DeviceMode::Single,
                 count: 12

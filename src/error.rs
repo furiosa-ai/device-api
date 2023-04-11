@@ -20,8 +20,8 @@ pub enum DeviceError {
     IoError { cause: io::Error },
     #[error("PermissionDenied: {cause}")]
     PermissionDenied { cause: io::Error },
-    #[error("Unknown architecture: {arch}")]
-    UnknownArch { arch: String },
+    #[error("Unknown architecture, arch: {arch}, rev: {rev}")]
+    UnknownArch { arch: String, rev: String },
     #[error("Incompatible device driver: {cause}")]
     IncompatibleDriver { cause: String },
     #[error("HwmonError: [npu{device_index}] {cause}")]
