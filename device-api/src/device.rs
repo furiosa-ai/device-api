@@ -411,9 +411,17 @@ impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
         let device_type = map
             .get(DEVICE_TYPE)
             .ok_or_else(|| DeviceError::file_not_found(DEVICE_TYPE))?;
-        let arch = Arch::from_str(device_type).map_err(|_| DeviceError::UnknownArch {
-            arch: device_type.clone(),
-        })?;
+        let soc_rev = map
+            .get(SOC_REV)
+            .ok_or_else(|| DeviceError::file_not_found(SOC_REV))?;
+
+        let arch =
+            Arch::from_str(format!("{}{}", device_type, soc_rev).as_str()).map_err(|_| {
+                DeviceError::UnknownArch {
+                    arch: device_type.clone(),
+                    rev: soc_rev.clone(),
+                }
+            })?;
 
         Ok(Self {
             arch,

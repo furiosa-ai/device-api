@@ -145,11 +145,11 @@ mod tests {
     fn test_identify_arch() -> DeviceResult<()> {
         assert_eq!(
             DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 0)?)?.arch,
-            Arch::Warboy
+            Arch::WarboyB0
         );
         assert_eq!(
             DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 1)?)?.arch,
-            Arch::Warboy
+            Arch::WarboyB0
         );
         Ok(())
     }

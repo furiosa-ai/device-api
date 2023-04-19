@@ -86,7 +86,7 @@ pub mod npu_mgmt {
         (PERFORMANCE_LEVEL, false),
         (PERFORMANCE_MODE, false),
         (PLATFORM_TYPE, false),
-        (SOC_REV, false),
+        (SOC_REV, true),
         (SOC_UID, false),
         (VERSION, false),
     ];
