@@ -72,7 +72,7 @@ impl DeviceConfig {
     /// Returns a builder associated with Warboy NPUs.
     pub fn warboy() -> DeviceConfigBuilder<Arch, NotDetermined, NotDetermined> {
         DeviceConfigBuilder {
-            arch: Arch::Warboy,
+            arch: Arch::WarboyB0,
             mode: NotDetermined { _priv: () },
             count: NotDetermined { _priv: () },
         }

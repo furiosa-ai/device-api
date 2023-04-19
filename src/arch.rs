@@ -6,7 +6,8 @@ use strum_macros::AsRefStr;
 #[derive(AsRefStr, Clone, Copy, Debug, enum_utils::FromStr, Eq, PartialEq)]
 #[enumeration(case_insensitive)]
 pub enum Arch {
-    Warboy,
+    WarboyA0,
+    #[enumeration(alias = "Warboy")]
     WarboyB0,
     Renegade,
     U250, /* TODO - It's somewhat ambiguous. We need two attributes to distinguish both HW type
@@ -19,8 +20,8 @@ impl Display for Arch {
 
         // Keep the same as npu-id of Compiler to display
         match self {
-            Warboy => write!(f, "warboy"),
-            WarboyB0 => write!(f, "warboy-b0"),
+            WarboyA0 => write!(f, "warboy-a0"),
+            WarboyB0 => write!(f, "warboy"),
             Renegade => write!(f, "renegade"),
             U250 => write!(f, "u250"),
         }
