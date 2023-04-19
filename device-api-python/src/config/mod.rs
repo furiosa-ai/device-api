@@ -25,13 +25,16 @@ impl DeviceConfigPy {
     #[new]
     #[pyo3(signature = (arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
     fn py_new(arch: ArchPy, mode: DeviceModePy, count: u8) -> PyResult<DeviceConfigPy> {
-        if arch == ArchPy::WarboyB0 || arch == ArchPy::Renegade || arch == ArchPy::U250 {
-            return Err(PyRuntimeError::new_err(format!(
-                "Invalid architecture: Not supported architecture '{:?}'",
-                arch
-            )));
-        }
-        let config = DeviceConfig::warboy();
+        let config = match arch {
+            ArchPy::WarboyA0 => DeviceConfig::warboy_a0(),
+            ArchPy::Warboy => DeviceConfig::warboy(),
+            _ => {
+                return Err(PyRuntimeError::new_err(format!(
+                    "Invalid architecture: Not supported architecture '{:?}'",
+                    arch
+                )))
+            }
+        };
         let config = match mode {
             DeviceModePy::Single => config.single(),
             DeviceModePy::MultiCore => config.multicore(),

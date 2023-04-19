@@ -78,6 +78,14 @@ impl DeviceConfig {
         }
     }
 
+    pub fn warboy_a0() -> DeviceConfigBuilder<Arch, NotDetermined, NotDetermined> {
+        DeviceConfigBuilder {
+            arch: Arch::WarboyA0,
+            mode: NotDetermined { _priv: () },
+            count: NotDetermined { _priv: () },
+        }
+    }
+
     /// Returns a builder struct to read config saved in an environment variable.
     /// You can provide fallback options to the builder in case the envrionment variable is empty.
     pub fn from_env<K: ToString>(key: K) -> EnvBuilder<NotDetermined> {
