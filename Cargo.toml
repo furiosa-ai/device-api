@@ -2,7 +2,7 @@
 
 members = [
     "device-api",
-    "device-api-python"
+    "bindings/python"
 ]
 
 [workspace.package]
