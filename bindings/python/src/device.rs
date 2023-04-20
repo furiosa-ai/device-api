@@ -108,7 +108,7 @@ impl DevicePy {
         self.inner.driver_version().map_err(to_py_err)
     }
 
-    fn hearbeat(&self) -> PyResult<u32> {
+    fn heartbeat(&self) -> PyResult<u32> {
         self.inner.heartbeat().map_err(to_py_err)
     }
 
