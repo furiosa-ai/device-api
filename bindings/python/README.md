@@ -5,5 +5,15 @@ Python binding of Furiosa Device API.
 ## Develop environment with maturin
 ```
 pip install maturin
-maturin develop
+make develop
 ```
+
+## Test
+
+```
+make test
+```
+
+## Examples
+
+ Some examples for using Python API is available [here](bindings/python/examples) and [here](bindings/python/tests).

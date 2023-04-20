@@ -16,7 +16,7 @@ cargo rustdoc --lib --all-features -- --cfg docsrs
 
 # For Python
 
-The Python API for FuriosaAI's NPU device is available [here](device-api-python/).
+The Python API for FuriosaAI's NPU device is available [here](bindings/python).
 
 # License
 
