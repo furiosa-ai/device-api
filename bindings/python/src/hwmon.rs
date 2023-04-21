@@ -22,6 +22,13 @@ impl SensorValuePy {
     }
 }
 
+#[pymethods]
+impl SensorValuePy {
+    fn __repr__(&self) -> String {
+        format!("{}:\t{}", self.label, self.value)
+    }
+}
+
 #[pyclass(name = "Fetcher")]
 pub struct FetcherPy {
     inner: Arc<Fetcher>,

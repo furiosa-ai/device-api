@@ -44,6 +44,10 @@ impl DeviceConfigPy {
         Ok(DeviceConfigPy::new(config))
     }
 
+    fn __repr__(&self) -> String {
+        self.inner.to_string()
+    }
+
     #[classmethod]
     fn from_env(_cls: &PyType, key: &str) -> PyResult<DeviceConfigPy> {
         DeviceConfig::from_env(key)

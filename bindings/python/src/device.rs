@@ -44,6 +44,17 @@ impl CoreStatusPy {
     }
 }
 
+#[pymethods]
+impl CoreStatusPy {
+    fn __repr__(&self) -> String {
+        match self.status_type {
+            CoreStatusTypePy::Available => String::from("Available"),
+            CoreStatusTypePy::Occupied => format!("Occupied by {}", self.value.as_ref().unwrap()),
+            CoreStatusTypePy::Unavailable => String::from("Unavailable"),
+        }
+    }
+}
+
 #[pyclass(name = "Device")]
 pub struct DevicePy {
     inner: Arc<Device>,
@@ -59,6 +70,10 @@ impl DevicePy {
 
 #[pymethods]
 impl DevicePy {
+    fn __repr__(&self) -> String {
+        self.inner.to_string()
+    }
+
     fn name(&self) -> String {
         self.inner.name()
     }
@@ -196,6 +211,17 @@ impl CoreRangePy {
 
 #[pymethods]
 impl CoreRangePy {
+    fn __repr__(&self) -> String {
+        match self.range_type {
+            CoreRangeTypePy::All => String::from("All"),
+            CoreRangeTypePy::Range => format!(
+                "Range ({}, {})",
+                self.value.unwrap().0,
+                self.value.unwrap().1
+            ),
+        }
+    }
+
     fn contains(&self, idx: u8) -> bool {
         if let Some((s, e)) = self.value {
             (s..=e).contains(&idx)
@@ -219,6 +245,10 @@ impl DeviceFilePy {
 
 #[pymethods]
 impl DeviceFilePy {
+    fn __repr__(&self) -> String {
+        self.inner.to_string()
+    }
+
     fn path(&self) -> &str {
         self.inner.path().to_str().unwrap()
     }
