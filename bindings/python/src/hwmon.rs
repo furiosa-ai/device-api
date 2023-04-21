@@ -25,13 +25,13 @@ impl SensorValuePy {
 #[pymethods]
 impl SensorValuePy {
     fn __repr__(&self) -> String {
-        format!("{}:\t{}", self.label, self.value)
+        format!("{}: {}", self.label, self.value)
     }
 }
 
-#[pyclass(name = "Fetcher")]
+#[pyclass(name = "Fetcher", subclass)]
 pub struct FetcherPy {
-    inner: Arc<Fetcher>,
+    pub inner: Arc<Fetcher>,
 }
 
 impl FetcherPy {

@@ -18,7 +18,7 @@ enum CoreStatusTypePy {
 
 #[pyclass(name = "CoreStatus")]
 #[derive(Clone)]
-struct CoreStatusPy {
+pub struct CoreStatusPy {
     #[pyo3(get)]
     status_type: CoreStatusTypePy,
     #[pyo3(get)]
@@ -26,7 +26,7 @@ struct CoreStatusPy {
 }
 
 impl CoreStatusPy {
-    fn new(cs: CoreStatus) -> Self {
+    pub fn new(cs: CoreStatus) -> Self {
         match cs {
             CoreStatus::Available => Self {
                 status_type: CoreStatusTypePy::Available,
@@ -55,9 +55,9 @@ impl CoreStatusPy {
     }
 }
 
-#[pyclass(name = "Device")]
+#[pyclass(name = "Device", subclass)]
 pub struct DevicePy {
-    inner: Arc<Device>,
+    pub inner: Arc<Device>,
 }
 
 impl DevicePy {
@@ -164,8 +164,8 @@ impl DevicePy {
             device
                 .get_status_all()
                 .await
-                .map(|r| {
-                    r.into_iter()
+                .map(|map| {
+                    map.into_iter()
                         .map(|(k, v)| (k, CoreStatusPy::new(v)))
                         .collect::<HashMap<u8, CoreStatusPy>>()
                 })
