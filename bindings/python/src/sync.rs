@@ -141,7 +141,7 @@ fn find_devices_python_sync(config: DeviceConfigPy) -> PyResult<Vec<DeviceFilePy
         .map_err(to_py_err)
 }
 
-#[pyfunction(name = "get_device")]
+#[pyfunction(name = "get_device_sync")]
 fn get_device_python_sync(device_name: String) -> PyResult<DeviceFilePy> {
     Runtime::new()
         .unwrap()
