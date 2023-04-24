@@ -143,7 +143,8 @@ impl DevicePy {
         self.inner
             .dev_files()
             .iter()
-            .map(|d| DeviceFilePy::new(d.clone()))
+            .cloned()
+            .map(DeviceFilePy::new)
             .collect()
     }
 

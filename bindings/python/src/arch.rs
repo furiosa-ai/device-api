@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ArchPy {
     WarboyA0,
-    // It indeicates WarboyB0 since WarboyB0 is default
+    // It indicates WarboyB0 since WarboyB0 is the default
     Warboy,
     Renegade,
     U250,
