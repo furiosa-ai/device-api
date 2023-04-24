@@ -16,6 +16,7 @@ enum CoreStatusTypePy {
     Unavailable,
 }
 
+/// Enum for NPU core status.
 #[pyclass(name = "CoreStatus")]
 #[derive(Clone)]
 pub struct CoreStatusPy {
@@ -55,6 +56,26 @@ impl CoreStatusPy {
     }
 }
 
+/// Abstraction for a single Furiosa NPU device.
+///
+/// # About Furiosa NPU
+///
+/// A Furiosa NPU device contains a number of cores and offers several ways called
+/// `DeviceMode` to combine multiple cores to a single logical device,
+/// as following:
+/// * `Single`: A logical device is composed of a single core.
+/// * `Fusion`: Multiple cores work together as if
+///     they were one device. This mode is useful when a DNN model requires
+///      much computation power and large memory capacity.
+/// * `MultiCore`: A logical device uses multiple cores,
+///     each of which communicates to one another through interconnect.
+///     In this mode, partitions of a model or multiple models can be pipelined.
+/// (See `DeviceConfig` and `find_devices`).
+///
+/// Hence a Furiosa NPU device exposes several devfs files for each purpose
+/// above. They can be listed by calling `dev_files` method, which returns a list of
+/// `DeviceFile`s. Each `DeviceFile` again offers `mode` method to identify its
+/// `DeviceMode`.
 #[pyclass(name = "Device", subclass)]
 pub struct DevicePy {
     pub inner: Arc<Device>,
@@ -74,14 +95,17 @@ impl DevicePy {
         self.inner.to_string()
     }
 
+    /// Return the name of the device (e.g., npu0).
     fn name(&self) -> String {
         self.inner.name()
     }
 
+    /// Returns the device index (e.g., 0 for npu0).
     fn device_index(&self) -> u8 {
         self.inner.device_index()
     }
 
+    /// Returns `Arch` of the device(e.g., `Warboy`).
     fn arch(&self) -> ArchPy {
         match self.inner.arch() {
             Arch::WarboyA0 => ArchPy::WarboyA0,
@@ -91,54 +115,67 @@ impl DevicePy {
         }
     }
 
+    /// Returns a liveness state of the device.
     fn alive(&self) -> PyResult<bool> {
         self.inner.alive().map_err(to_py_err)
     }
 
+    /// Returns error states of the device.
     fn atr_error(&self) -> PyResult<HashMap<String, u32>> {
         self.inner.atr_error().map_err(to_py_err)
     }
 
+    /// Returns PCI bus number of the device.
     fn busname(&self) -> PyResult<String> {
         self.inner.busname().map_err(to_py_err)
     }
 
+    /// Returns PCI device ID of the device.
     fn pci_dev(&self) -> PyResult<String> {
         self.inner.pci_dev().map_err(to_py_err)
     }
 
+    /// Returns serial number of the device.
     fn device_sn(&self) -> PyResult<String> {
         self.inner.device_sn().map_err(to_py_err)
     }
 
+    /// Returns UUID of the device.
     fn device_uuid(&self) -> PyResult<String> {
         self.inner.device_uuid().map_err(to_py_err)
     }
 
+    /// Retrieves firmware revision from the device.
     fn firmware_version(&self) -> PyResult<String> {
         self.inner.firmware_version().map_err(to_py_err)
     }
 
+    /// Retrieves driver version for the device.
     fn driver_version(&self) -> PyResult<String> {
         self.inner.driver_version().map_err(to_py_err)
     }
 
+    /// Returns uptime of the device.
     fn heartbeat(&self) -> PyResult<u32> {
         self.inner.heartbeat().map_err(to_py_err)
     }
 
+    /// Controls the device led.
     fn ctrl_device_led(&self, led: (bool, bool, bool)) -> PyResult<()> {
         self.inner.ctrl_device_led(led).map_err(to_py_err)
     }
 
+    /// Counts the number of cores.
     fn core_num(&self) -> u8 {
         self.inner.core_num()
     }
 
+    /// List the core indices.
     fn cores(&self) -> Vec<u8> {
         self.inner.cores().to_vec()
     }
 
+    /// List device files under this device.
     pub fn dev_files(&self) -> Vec<DeviceFilePy> {
         self.inner
             .dev_files()
@@ -148,6 +185,7 @@ impl DevicePy {
             .collect()
     }
 
+    /// Examine a specific core of the device, whether it is available or not.
     fn get_status_core<'py, 'a>(&'a self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
@@ -159,6 +197,7 @@ impl DevicePy {
         })
     }
 
+    /// Examine each core of the device, whether it is available or not.
     fn get_status_all<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
@@ -174,6 +213,7 @@ impl DevicePy {
         })
     }
 
+    /// Returns `Fetcher` for hwmon metric of the device.
     pub fn get_hwmon_fetcher(&self) -> FetcherPy {
         FetcherPy::new(self.inner.get_hwmon_fetcher())
     }
@@ -232,6 +272,7 @@ impl CoreRangePy {
     }
 }
 
+/// An abstraction for a device file and its mode.
 #[pyclass(name = "DeviceFile")]
 #[derive(Clone)]
 pub struct DeviceFilePy {
@@ -250,22 +291,27 @@ impl DeviceFilePy {
         self.inner.to_string()
     }
 
+    /// Returns `PathBuf` to the device file.
     fn path(&self) -> &str {
         self.inner.path().to_str().unwrap()
     }
 
+    /// Returns the file name (e.g., npu0pe0 for /dev/npu0pe0).
     fn filename(&self) -> &str {
         self.inner.filename()
     }
 
+    /// Returns the device index (e.g., 1 for npu1pe0).
     fn device_index(&self) -> u8 {
         self.inner.device_index()
     }
 
+    /// Returns the range of cores this device file may occupy.
     pub fn core_range(&self) -> CoreRangePy {
         CoreRangePy::new(self.inner.core_range())
     }
 
+    /// Return the mode of this device file.
     fn mode(&self) -> DeviceModePy {
         match self.inner.mode() {
             DeviceMode::Single => DeviceModePy::Single,
@@ -275,6 +321,7 @@ impl DeviceFilePy {
     }
 }
 
+/// Enum for NPU's operating mode.
 #[pyclass(name = "DeviceMode")]
 #[derive(Clone)]
 pub enum DeviceModePy {

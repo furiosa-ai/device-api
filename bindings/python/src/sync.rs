@@ -9,7 +9,7 @@ use crate::errors::to_py_err;
 use crate::hwmon::{FetcherPy, SensorValuePy};
 use crate::DeviceConfigPy;
 
-#[pyclass(extends=DevicePy)]
+#[pyclass(extends=DevicePy, name="DeviceSync")]
 struct DeviceSyncPy {
     runtime: Runtime,
 }
@@ -49,7 +49,7 @@ impl DeviceSyncPy {
     }
 }
 
-#[pyclass(extends=FetcherPy)]
+#[pyclass(extends=FetcherPy, name="FetcherSync")]
 struct FetcherSyncPy {
     runtime: Runtime,
 }
@@ -149,6 +149,8 @@ pub fn furiosa_device_python_sync(_py: Python<'_>, m: &PyModule) -> PyResult<()>
     m.add_function(wrap_pyfunction!(list_devices_python_sync, m)?)?;
     m.add_function(wrap_pyfunction!(find_devices_python_sync, m)?)?;
     m.add_function(wrap_pyfunction!(get_device_python_sync, m)?)?;
+    m.add_class::<DeviceSyncPy>()?;
+    m.add_class::<FetcherSyncPy>()?;
 
     Ok(())
 }

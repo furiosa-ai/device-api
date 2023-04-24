@@ -8,6 +8,52 @@ use pyo3::types::PyType;
 use crate::errors::to_py_err;
 use crate::{arch::ArchPy, device::DeviceModePy};
 
+/// Describes a required set of devices for `find_devices`.
+///
+/// # Examples
+/// ```python
+/// from furiosa_device import Arch, DeviceConfig, DeviceMode
+///
+/// # 1 core
+/// config = DeviceConfig(arch=Arch.Warboy)
+///
+/// # 1 core x 2
+/// config = DeviceConfig(arch=Arch.Warboy, count=2)
+///
+/// # Fused 2 cores x 2
+/// config = DeviceConfig(arch=Arch.Warboy, mode=DeviceMode.Fusion, count=2)
+/// ```
+///
+/// # Textual Representation
+///
+/// DeviceConfig supports textual representation, which is its equivalent string representation.
+/// One can obtain the corresponding DeviceConfig from the textual representation
+/// by using the from_str function.
+///
+/// ```python
+/// from furiosa_device import DeviceConfig
+///
+/// config = DeviceConfig.from_env("SOME_OTHER_ENV_KEY")
+/// config = DeviceConfig.from_str("0:0,0:1"); # get config directly from a string literal
+/// ```
+///
+/// The rules for textual representation are as follows:
+///
+/// ```python
+/// from furiosa_device import DeviceConfig
+///
+/// # Using specific device names
+/// config = DeviceConfig.from_str("0:0"); # npu0pe0
+/// config = DeviceConfig.from_str("0:0-1"); # npu0pe0-1
+///
+/// # Using device configs
+/// config = DeviceConfig.from_str("warboy*2"); # single pe x 2 (equivalent to "warboy(1)*2")
+/// config = DeviceConfig.from_str("warboy(1)*2"); # single pe x 2
+/// config = DeviceConfig.from_str("warboy(2)*2"); # 2-pe fusioned x 2
+///
+/// # Combine multiple representations separated by commas
+/// config = DeviceConfig.from_str("0:0-1, 1:0-1"); # npu0pe0-1, npu1pe0-1
+/// ```
 #[pyclass(name = "DeviceConfig")]
 #[derive(Clone)]
 pub struct DeviceConfigPy {

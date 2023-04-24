@@ -1,13 +1,5 @@
-from furiosa_device import (
-    Arch,
-    DeviceConfig,
-    DeviceMode,
-)
-from furiosa_device.sync import (
-    find_devices_sync,
-    get_device_sync,
-    list_devices_sync,
-)
+from furiosa_device import Arch, DeviceConfig, DeviceMode
+from furiosa_device.sync import find_devices_sync, get_device_sync, list_devices_sync
 
 
 def test_list_devices():
