@@ -16,4 +16,4 @@ make test
 
 ## Examples
 
- Some examples for using Python API is available [here](bindings/python/examples) and [here](bindings/python/tests).
+ Some examples for using Python API is available [here](examples).
