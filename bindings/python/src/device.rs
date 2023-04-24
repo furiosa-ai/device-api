@@ -139,7 +139,7 @@ impl DevicePy {
         self.inner.cores().to_vec()
     }
 
-    fn dev_files(&self) -> Vec<DeviceFilePy> {
+    pub fn dev_files(&self) -> Vec<DeviceFilePy> {
         self.inner
             .dev_files()
             .iter()
@@ -222,7 +222,7 @@ impl CoreRangePy {
         }
     }
 
-    fn contains(&self, idx: u8) -> bool {
+    pub fn contains(&self, idx: u8) -> bool {
         if let Some((s, e)) = self.value {
             (s..=e).contains(&idx)
         } else {
@@ -261,7 +261,7 @@ impl DeviceFilePy {
         self.inner.device_index()
     }
 
-    fn core_range(&self) -> CoreRangePy {
+    pub fn core_range(&self) -> CoreRangePy {
         CoreRangePy::new(self.inner.core_range())
     }
 
