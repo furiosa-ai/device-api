@@ -24,7 +24,7 @@ impl DeviceSyncPy {
 
 #[pymethods]
 impl DeviceSyncPy {
-    fn get_status_core_sync(self_: PyRef<'_, Self>, core: u8) -> PyResult<CoreStatusPy> {
+    fn get_status_core(self_: PyRef<'_, Self>, core: u8) -> PyResult<CoreStatusPy> {
         self_
             .runtime
             .block_on(self_.as_ref().inner.get_status_core(core))
@@ -32,7 +32,7 @@ impl DeviceSyncPy {
             .map_err(to_py_err)
     }
 
-    fn get_status_all_sync(self_: PyRef<'_, Self>) -> PyResult<HashMap<u8, CoreStatusPy>> {
+    fn get_status_all(self_: PyRef<'_, Self>) -> PyResult<HashMap<u8, CoreStatusPy>> {
         self_
             .runtime
             .block_on(self_.as_ref().inner.get_status_all())
@@ -44,7 +44,7 @@ impl DeviceSyncPy {
             .map_err(to_py_err)
     }
 
-    fn get_hwmon_fetcher_sync(self_: PyRef<'_, Self>, py: Python<'_>) -> Py<PyAny> {
+    fn get_hwmon_fetcher(self_: PyRef<'_, Self>, py: Python<'_>) -> Py<PyAny> {
         let fetcher = self_.as_ref().get_hwmon_fetcher();
         let initializer = PyClassInitializer::from(fetcher).add_subclass(FetcherSyncPy::new());
         Py::new(py, initializer).unwrap().into_py(py)
