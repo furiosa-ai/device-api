@@ -44,7 +44,7 @@ impl DeviceSyncPy {
             .map_err(to_py_err)
     }
 
-    fn get_hwmon_fetcher_sync(self_: PyRef<'_, Self>, py: Python) -> Py<PyAny> {
+    fn get_hwmon_fetcher_sync(self_: PyRef<'_, Self>, py: Python<'_>) -> Py<PyAny> {
         let fetcher = self_.as_ref().get_hwmon_fetcher();
         let initializer = PyClassInitializer::from(fetcher).add_subclass(FetcherSyncPy::new());
         Py::new(py, initializer).unwrap().into_py(py)
