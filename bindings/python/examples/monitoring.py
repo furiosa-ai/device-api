@@ -18,7 +18,6 @@ async def main():
     while True:
         for device in devices:
             name = device.name()
-            heartbeat = device.heartbeat()
             fetcher = device.get_hwmon_fetcher()
 
             currents = await fetcher.read_currents()
@@ -27,7 +26,7 @@ async def main():
             temperatures = await fetcher.read_temperatures()
 
             os.system("clear")
-            print(f"NPU: {name}, HEARTBEAT: {heartbeat}")
+            print(f"NPU: {name}")
             print_sensor_value("CURRENTS", currents)
             print_sensor_value("VOLTAGES", voltages)
             print_sensor_value("POWERS", powers)
