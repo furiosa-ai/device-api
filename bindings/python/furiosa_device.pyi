@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Tuple, Dict, Union
+from typing import Dict, List, Tuple, Union
 
 class Arch(Enum):
     Warboy = ...
