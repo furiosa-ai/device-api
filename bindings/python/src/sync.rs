@@ -113,7 +113,8 @@ impl FetcherSyncPy {
     }
 }
 
-#[pyfunction(name = "list_devices_sync")]
+/// This is sync version of list_devices
+#[pyfunction(name = "list_devices")]
 fn list_devices_python_sync(py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
     let mut device_syncs = vec![];
     for device in list_devices().unwrap() {
@@ -125,7 +126,8 @@ fn list_devices_python_sync(py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
     Ok(device_syncs)
 }
 
-#[pyfunction(name = "find_devices_sync")]
+/// This is sync version of find_devices
+#[pyfunction(name = "find_devices")]
 fn find_devices_python_sync(config: DeviceConfigPy) -> PyResult<Vec<DeviceFilePy>> {
     find_devices(&config.inner)
         .map(|vec| {
@@ -136,7 +138,8 @@ fn find_devices_python_sync(config: DeviceConfigPy) -> PyResult<Vec<DeviceFilePy
         .map_err(to_py_err)
 }
 
-#[pyfunction(name = "get_device_sync")]
+/// This is sync version of get_device
+#[pyfunction(name = "get_device")]
 fn get_device_python_sync(device_name: String) -> PyResult<DeviceFilePy> {
     get_device(device_name)
         .map(DeviceFilePy::new)
