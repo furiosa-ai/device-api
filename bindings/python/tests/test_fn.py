@@ -32,5 +32,6 @@ async def test_find_devices():
 
 @pytest.mark.asyncio
 async def test_get_device():
-    device = await get_device("npu0pe1")
-    assert device.filename() == "npu0pe1"
+    dev_name = get_first_device_name()
+    device = await get_device(f"{dev_name}pe1")
+    assert device.filename() == f"{dev_name}pe1"
