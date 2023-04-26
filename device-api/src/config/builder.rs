@@ -3,6 +3,7 @@ use crate::arch::Arch;
 use crate::device::DeviceMode;
 use crate::{DeviceConfig, DeviceError};
 
+#[derive(Clone)]
 pub struct NotDetermined {
     pub(crate) _priv: (),
 }
@@ -37,6 +38,7 @@ impl From<NotDetermined> for u8 {
 }
 
 /// A builder struct for `DeviceConfig`.
+#[derive(Clone)]
 pub struct DeviceConfigBuilder<A, M, C> {
     pub(crate) arch: A,
     pub(crate) mode: M,

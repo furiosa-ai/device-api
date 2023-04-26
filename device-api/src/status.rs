@@ -34,7 +34,7 @@ mod tests {
 
     #[tokio::test]
     async fn test() -> DeviceResult<()> {
-        let res = get_device_status("test_data/test-0/dev/npu0").await?;
+        let res = get_device_status("../test_data/test-0/dev/npu0").await?;
         assert_eq!(res, DeviceStatus::Available);
         Ok(())
     }

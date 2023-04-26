@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn test_find_devices() -> DeviceResult<()> {
         // test directory contains 2 warboy NPUs
-        let devices = list_devices_with("test_data/test-0/dev", "test_data/test-0/sys")?;
+        let devices = list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys")?;
         let devices_with_statuses = expand_status(devices)?;
 
         // try lookup 4 different single cores
@@ -200,13 +200,13 @@ mod tests {
 
     #[test]
     fn test_get_device() -> DeviceResult<()> {
-        get_with("test_data/test-0/dev", "npu0")?;
-        assert!(get_with("test_data/test-0/dev", "npu0pe0").is_ok());
-        assert!(get_with("test_data/test-0/dev", "npu0pe1").is_ok());
-        assert!(get_with("test_data/test-0/dev", "npu0pe0-1").is_ok());
+        get_with("../test_data/test-0/dev", "npu0")?;
+        assert!(get_with("../test_data/test-0/dev", "npu0pe0").is_ok());
+        assert!(get_with("../test_data/test-0/dev", "npu0pe1").is_ok());
+        assert!(get_with("../test_data/test-0/dev", "npu0pe0-1").is_ok());
 
         assert!(matches!(
-            get_with("test_data/test-0/dev", "npu9"),
+            get_with("../test_data/test-0/dev", "npu9"),
             Err(DeviceError::DeviceNotFound { .. })
         ));
 

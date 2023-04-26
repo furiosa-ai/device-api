@@ -1,0 +1,22 @@
+[build-system]
+requires = ["maturin>=0.14,<0.15"]
+build-backend = "maturin"
+
+[project]
+name = "furiosa_device"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest ~= 7.3",
+    "pytest-asyncio ~= 0.21",
+]
+
+
+[tool.maturin]
+features = ["pyo3/extension-module"]

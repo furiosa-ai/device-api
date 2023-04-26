@@ -133,7 +133,7 @@ impl TryFrom<DirEntry> for MetricEntry {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct Sensor {
     name: String,
     items: HashMap<String, PathBuf>,
@@ -164,7 +164,7 @@ impl Sensor {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct SensorContainer(pub(crate) HashMap<HwmonType, Vec<Sensor>>);
 
 impl SensorContainer {
@@ -268,7 +268,7 @@ pub struct SensorValue {
     pub value: i32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Fetcher {
     pub(crate) device_index: u8,
     pub(crate) sensor_container: SensorContainer,
@@ -336,9 +336,10 @@ mod tests {
 
     #[tokio::test]
     async fn hwmon_metric_entry_try_from_test() -> error::HwmonResult<()> {
-        let mut entries =
-            tokio::fs::read_dir("test_data/test-0/sys/bus/pci/devices/0000:ff:00.0/hwmon/hwmon0")
-                .await?;
+        let mut entries = tokio::fs::read_dir(
+            "../test_data/test-0/sys/bus/pci/devices/0000:ff:00.0/hwmon/hwmon0",
+        )
+        .await?;
 
         if let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
@@ -359,7 +360,7 @@ mod tests {
 
     #[tokio::test]
     async fn sensor_fetch_entries_test() -> error::HwmonResult<()> {
-        let path = PathBuf::from("test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon");
+        let path = PathBuf::from("../test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon");
         let res = SensorContainer::fetch_entries(path).await?;
         assert_eq!(res.len(), 16);
 
@@ -381,14 +382,14 @@ mod tests {
                 metric_type: MetricType { hwmon_type: HwmonType::Temperature, idx: 1 },
                 metric_item: MetricItem {
                     item_name: String::from("label"),
-                    path: PathBuf::from("test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_label")
+                    path: PathBuf::from("../test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_label")
                 }
             },
             MetricEntry {
                 metric_type: MetricType { hwmon_type: HwmonType::Temperature, idx: 1 },
                 metric_item: MetricItem {
                     item_name: String::from("input"),
-                    path: PathBuf::from("test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_input")
+                    path: PathBuf::from("../test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_input")
                 }
             },
         ];
@@ -411,7 +412,7 @@ mod tests {
             metric_item: MetricItem {
                 item_name: String::from("input"),
                 path: PathBuf::from(
-                    "test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_input",
+                    "../test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_input",
                 ),
             },
         }];
@@ -443,7 +444,7 @@ mod tests {
             metric_item: MetricItem {
                 item_name: String::from("label"),
                 path: PathBuf::from(
-                    "test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_label",
+                    "../test_data/test-0/sys/bus/pci/devices/0000:6d:00.0/hwmon/hwmon0/temp1_label",
                 ),
             },
         }];
@@ -474,7 +475,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetcher_read_test() -> DeviceResult<()> {
-        let fetcher = Fetcher::new("test_data/test-0/sys", 0, "0000:6d:00.0").await?;
+        let fetcher = Fetcher::new("../test_data/test-0/sys", 0, "0000:6d:00.0").await?;
 
         let currents = fetcher.read_currents().await?;
         assert_eq!(currents.len(), 2);

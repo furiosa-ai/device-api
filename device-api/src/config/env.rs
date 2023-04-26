@@ -3,13 +3,14 @@ use std::str::FromStr;
 use super::builder::NotDetermined;
 use crate::{DeviceConfig, DeviceError, DeviceResult};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Source {
     Env(String),
     Str(String),
 }
 
 /// A struct for building `DeviceConfig` from an environment variable.
+#[derive(Clone)]
 pub struct EnvBuilder<T> {
     list: Vec<Source>,
     fallback: T,

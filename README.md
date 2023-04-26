@@ -6,12 +6,17 @@ A set of APIs to list and retrieve information of FuriosaAI's NPU devices. To le
 
 This crate requires FuriosaAI's NPU device and its kernel driver. Currently, FuriosaAI offers NPU devices for only users who register Early Access Program (EAP). Please contact <contact@furiosa.ai> to learn how to start the EAP. You can also refer to [Driver, Firmware, and Runtime Installation](https://furiosa-ai.github.io/docs/latest/en/software/installation.html) to learn the kernel driver installation.
 
-# Documentation
+# Documentation for Rust
 
 To render docs in local, please use a command as below (*requires nightly):
 ```bash
+cd device-api
 cargo rustdoc --lib --all-features -- --cfg docsrs
 ```
+
+# For Python
+
+The Python API for FuriosaAI's NPU device is available [here](bindings/python).
 
 # License
 
