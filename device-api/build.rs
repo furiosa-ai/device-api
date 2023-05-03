@@ -56,6 +56,7 @@ fn git_short_hash() -> Result<String, Box<dyn std::error::Error>> {
 fn build_timestamp() -> String {
     Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     set_metadata_env_vars()?;
     Ok(())
