@@ -98,6 +98,9 @@ fn furiosa_device_python(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<CoreRangePy>()?;
     m.add_class::<ArchPy>()?;
     m.add_class::<DeviceModePy>()?;
+    m.add("__version__", furiosa_device::VERSION)?;
+    m.add("__git_short_hash__", furiosa_device::GIT_SHORT_HASH)?;
+    m.add("__build_timestamp__", furiosa_device::BUILD_TIMESTAMP)?;
 
     let sync_module = pyo3::wrap_pymodule!(sync::furiosa_device_python_sync);
     m.add_wrapped(sync_module)?;

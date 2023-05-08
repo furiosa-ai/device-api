@@ -74,6 +74,10 @@ pub mod proc;
 mod status;
 mod sysfs;
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const GIT_SHORT_HASH: &str = env!("FURIOSA_GIT_SHORT_HASH");
+pub const BUILD_TIMESTAMP: &str = env!("FURIOSA_BUILD_TIMESTAMP");
+
 /// List all Furiosa NPU devices in the system.
 ///
 /// See the [crate-level documentation](crate).
