@@ -39,6 +39,7 @@ use crate::{Arch, DeviceError};
 ///
 /// ```rust
 /// use std::str::FromStr;
+///
 /// use furiosa_device::DeviceConfig;
 ///
 /// let config = DeviceConfig::from_env("SOME_OTHER_ENV_KEY").build();
@@ -49,6 +50,7 @@ use crate::{Arch, DeviceError};
 ///
 /// ```rust
 /// use std::str::FromStr;
+///
 /// use furiosa_device::DeviceConfig;
 ///
 /// // Using specific device names
