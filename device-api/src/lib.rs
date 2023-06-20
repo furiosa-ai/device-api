@@ -24,8 +24,12 @@
 //!
 //! 1. [`list_devices`] enumerates all Furiosa NPU devices in the system.
 //! One can simply call as below:
-//! ```rust,ignore
+//! ```rust,no_run
+//! # #[tokio::main]
+//! # async fn main() -> eyre::Result<()> {
 //! let devices = furiosa_device::list_devices().await?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! [Struct `Device`][`Device`] offers methods for further information of each
@@ -34,18 +38,26 @@
 //! 2. If you have a desired configuration, call [`find_devices`] with your device configuration
 //! described by a [`DeviceConfig`]. [`find_devices`] will return a list of
 //! [`DeviceFile`]s if there are matched devices.
-//! ```rust,ignore
-//! use furiosa_device::{DeviceConfig, find_devices};
+//! ```rust,no_run
+//! use furiosa_device::{find_devices, DeviceConfig};
 //!
 //! // Find two Warboy devices, fused.
+//! # #[tokio::main]
+//! # async fn main() -> eyre::Result<()> {
 //! let config = DeviceConfig::warboy().fused().count(2);
 //! let dev_files = find_devices(&config).await?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! 3. In case you have prior knowledge on the system and want to pick out a
 //! device with specific name, use [`get_device`].
-//! ```rust,ignore
+//! ```rust,no_run
+//! # #[tokio::main]
+//! # async fn main() -> eyre::Result<()> {
 //! let device = furiosa_device::get_device("npu0pe0").await?;
+//! # Ok(())
+//! # }
 //! ```
 
 // Allows displaying feature flags in the documentation.
