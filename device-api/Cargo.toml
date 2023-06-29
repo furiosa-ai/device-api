@@ -30,6 +30,10 @@ path = "bin/list_hwmon.rs"
 name = "list_proc"
 path = "bin/list_proc.rs"
 
+[[bin]]
+name = "list_clock_frequency"
+path = "bin/list_clock_frequency.rs"
+
 [dependencies]
 array_tool = "1"
 cli-table = "0.4"

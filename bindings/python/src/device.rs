@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use furiosa_device::{Arch, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
+use furiosa_device::{Arch, ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
 use pyo3::prelude::*;
 
 use crate::arch::ArchPy;
@@ -53,6 +53,35 @@ impl CoreStatusPy {
             CoreStatusTypePy::Occupied => format!("Occupied by {}", self.value.as_ref().unwrap()),
             CoreStatusTypePy::Unavailable => String::from("Unavailable"),
         }
+    }
+}
+
+/// clock frequency of NPU components.
+#[pyclass(name = "NeClockFrequency")]
+#[derive(Clone)]
+pub struct ClockFrequencyPy {
+    #[pyo3(get)]
+    name: String,
+    #[pyo3(get)]
+    unit: String,
+    #[pyo3(get)]
+    value: u32,
+}
+
+impl ClockFrequencyPy {
+    pub fn new(cf: ClockFrequency) -> Self {
+        Self {
+            name: cf.name().to_string(),
+            unit: cf.unit().to_string(),
+            value: cf.value(),
+        }
+    }
+}
+
+#[pymethods]
+impl ClockFrequencyPy {
+    fn __repr__(&self) -> String {
+        format!("{:15} : {} {}", self.name, self.value, self.unit)
     }
 }
 
@@ -158,6 +187,14 @@ impl DevicePy {
     /// Returns uptime of the device.
     fn heartbeat(&self) -> PyResult<u32> {
         self.inner.heartbeat().map_err(to_py_err)
+    }
+
+    /// Returns clock frequencies of components in the device.
+    fn clock_frequency(&self) -> PyResult<Vec<ClockFrequencyPy>> {
+        self.inner
+            .clock_frequency()
+            .map_err(to_py_err)
+            .map(|v| v.into_iter().map(ClockFrequencyPy::new).collect())
     }
 
     /// Controls the device led.
