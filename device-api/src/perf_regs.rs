@@ -157,12 +157,12 @@ impl PerformanceCounter {
 
         // when the cycle count is reversed, NPU was restarted.
         if next.cycle_count < prev.cycle_count {
-            return next.clone();
+            return *next;
         }
 
         let elapsed_time = next.now.duration_since(prev.now);
         if elapsed_time.is_err() {
-            return next.clone();
+            return *next;
         }
 
         let elapsed_time = elapsed_time.unwrap().as_nanos() as usize;
@@ -170,7 +170,7 @@ impl PerformanceCounter {
 
         // Unfortunately, it's a naive implementation for now.
         if (cycle_gap as f64 / elapsed_time as f64) < 0.45 {
-            return next.clone();
+            return *next;
         }
 
         let task_cycle_gap =
