@@ -149,7 +149,8 @@ impl Device {
     }
 
     /// Controls the device led.
-    pub fn ctrl_device_led(&self, led: (bool, bool, bool)) -> DeviceResult<()> {
+    #[allow(dead_code)]
+    fn ctrl_device_led(&self, led: (bool, bool, bool)) -> DeviceResult<()> {
         self.device_info.ctrl(
             sysfs::npu_mgmt::DEVICE_LED,
             &(led.0 as i32 + 0b10 * led.1 as i32 + 0b100 * led.2 as i32).to_string(),
@@ -157,18 +158,21 @@ impl Device {
     }
 
     /// Control NE clocks.
+    #[allow(dead_code)]
     fn ctrl_ne_clock(&self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_CLOCK, &(toggle as u8).to_string())
     }
 
     /// Control the Dynamic Thermal Management policy.
+    #[allow(dead_code)]
     fn ctrl_ne_dtm_policy(&self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, &(policy as u8).to_string())
     }
 
     /// Control NE performance level
+    #[allow(dead_code)]
     fn ctrl_performance_level(&self, level: sysfs::npu_mgmt::PerfLevel) -> DeviceResult<()> {
         self.device_info.ctrl(
             sysfs::npu_mgmt::PERFORMANCE_LEVEL,
@@ -177,13 +181,14 @@ impl Device {
     }
 
     /// Control NE performance mode
+    #[allow(dead_code)]
     fn ctrl_performance_mode(&self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
 
     /// Retrieve NUMA node ID associated with the NPU's PCI lane
-    fn numa_node(&self) -> DeviceResult<NumaNode> {
+    pub fn numa_node(&self) -> DeviceResult<NumaNode> {
         self.device_info.get_numa_node()
     }
 
@@ -203,7 +208,8 @@ impl Device {
     }
 
     /// List performance counters for each device files.
-    pub fn performance_counters(&self) -> Vec<(&DeviceFile, PerformanceCounter)> {
+    #[allow(dead_code)]
+    fn performance_counters(&self) -> Vec<(&DeviceFile, PerformanceCounter)> {
         let mut counters = vec![];
 
         for dev_file in self.dev_files() {
@@ -376,7 +382,8 @@ impl DeviceInfo {
         Ok(node)
     }
 
-    pub fn get_performance_counter(&self, file: &DeviceFile) -> DeviceResult<PerformanceCounter> {
+    #[allow(dead_code)]
+    fn get_performance_counter(&self, file: &DeviceFile) -> DeviceResult<PerformanceCounter> {
         PerformanceCounter::read(&self.sys_root, file.filename())
             .map_err(DeviceError::performance_counter_error)
     }

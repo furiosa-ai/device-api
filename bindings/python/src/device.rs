@@ -197,11 +197,6 @@ impl DevicePy {
             .map(|v| v.into_iter().map(ClockFrequencyPy::new).collect())
     }
 
-    /// Controls the device led.
-    fn ctrl_device_led(&self, led: (bool, bool, bool)) -> PyResult<()> {
-        self.inner.ctrl_device_led(led).map_err(to_py_err)
-    }
-
     /// Counts the number of cores.
     fn core_num(&self) -> u8 {
         self.inner.core_num()
