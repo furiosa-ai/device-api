@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Mutex;
 
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use crate::arch::Arch;
 use crate::hwmon;
 use crate::perf_regs::PerformanceCounter;
@@ -136,6 +139,13 @@ impl Device {
                     DeviceError::unexpected_value(format!("Bad heartbeat value: {}", str))
                 })
             })
+    }
+
+    /// Returns clock frequencies of components in the device.
+    pub fn clock_frequency(&self) -> DeviceResult<Vec<ClockFrequency>> {
+        self.device_info
+            .get(sysfs::npu_mgmt::NE_CLK_FREQ_INFO)
+            .map(|str| str.lines().flat_map(ClockFrequency::try_from).collect())
     }
 
     /// Controls the device led.
@@ -610,6 +620,50 @@ pub enum DeviceMode {
     MultiCore,
 }
 
+lazy_static! {
+    // Update CLOCK_FREQUENCY_FMT when you change this pattern
+    static ref CLOCK_FREQUENCY_FMT: Regex =
+    Regex::new(r"(?P<name>(\w| )+)\((?P<unit>.*)\): (?P<value>\d+)").unwrap();
+}
+
+#[derive(Clone)]
+pub struct ClockFrequency {
+    pub(crate) name: String,
+    pub(crate) unit: String,
+    pub(crate) value: u32,
+}
+
+impl TryFrom<&str> for ClockFrequency {
+    type Error = ();
+
+    fn try_from(line: &str) -> Result<Self, Self::Error> {
+        let items = CLOCK_FREQUENCY_FMT.captures(line).ok_or(())?;
+        let name = items.name("name").ok_or(())?.as_str().trim();
+        let unit = items.name("unit").ok_or(())?.as_str().trim();
+        let value = items.name("value").ok_or(())?.as_str().trim();
+
+        Ok(Self {
+            name: name.to_string(),
+            unit: unit.to_string(),
+            value: value.parse().map_err(|_| ())?,
+        })
+    }
+}
+
+impl ClockFrequency {
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn unit(&self) -> &str {
+        self.unit.as_str()
+    }
+
+    pub fn value(&self) -> u32 {
+        self.value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -776,5 +830,17 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_clock_frequency() {
+        let line = "ne tensor (MHz): 2000";
+        let res = ClockFrequency::try_from(line);
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+        assert_eq!(res.name(), "ne tensor");
+        assert_eq!(res.unit(), "MHz");
+        assert_eq!(res.value(), 2000);
     }
 }
