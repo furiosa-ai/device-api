@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use furiosa_device::{find_devices, get_device, list_devices};
+use furiosa_device::blocking::{find_devices, get_device, list_devices};
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
@@ -118,9 +118,8 @@ impl FetcherSyncPy {
 /// This is sync version of list_devices
 #[pyfunction(name = "list_devices")]
 fn list_devices_python_sync(py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
-    let devices = Runtime::new().unwrap().block_on(list_devices());
     let mut device_syncs = vec![];
-    for device in devices.unwrap() {
+    for device in list_devices().unwrap() {
         let initializer =
             PyClassInitializer::from(DevicePy::new(device)).add_subclass(DeviceSyncPy::new());
         let device_sync_py = Py::new(py, initializer).unwrap().into_py(py);
@@ -132,9 +131,7 @@ fn list_devices_python_sync(py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
 /// This is sync version of find_devices
 #[pyfunction(name = "find_devices")]
 fn find_devices_python_sync(config: DeviceConfigPy) -> PyResult<Vec<DeviceFilePy>> {
-    Runtime::new()
-        .unwrap()
-        .block_on(find_devices(&config.inner))
+    find_devices(&config.inner)
         .map(|vec| {
             vec.into_iter()
                 .map(DeviceFilePy::new)
@@ -146,9 +143,7 @@ fn find_devices_python_sync(config: DeviceConfigPy) -> PyResult<Vec<DeviceFilePy
 /// This is sync version of get_device
 #[pyfunction(name = "get_device")]
 fn get_device_python_sync(device_name: String) -> PyResult<DeviceFilePy> {
-    Runtime::new()
-        .unwrap()
-        .block_on(get_device(device_name))
+    get_device(device_name)
         .map(DeviceFilePy::new)
         .map_err(to_py_err)
 }
