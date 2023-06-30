@@ -207,32 +207,11 @@ impl PerformanceCounter {
     }
 
     /// Calculate utilization using performance counters at two points in time
-    pub fn calculate_utilization(&self, other: &Self) -> Option<Utilization> {
-        // let (prev, next) = if self.now < other.now {
-        //     (self, other)
-        // } else {
-        //     (other, self)
-        // };
-
-        // // when the cycle count is reversed, it is considered invalid.
-        // if next.cycle_count < prev.cycle_count {
-        //     return None;
-        // }
-
-        // let cycle_gap = next.cycle_count - prev.cycle_count;
-        // let task_cycle_gap =
-        //     Self::safe_u32_subtract(next.task_execution_cycle, prev.task_execution_cycle);
-        // let tensor_cycle_gap =
-        //     Self::safe_u32_subtract(next.tensor_execution_cycle, prev.tensor_execution_cycle);
-
-        // // If the task cycle is bigger than the total cycle, it is considered invalid.
-        // if cycle_gap < task_cycle_gap {
-        //     return None;
-        // }
+    pub fn calculate_utilization(&self, other: &Self) -> Utilization {
         let diff = self.calculate_increased(other);
 
         if diff.task_execution_cycle == 0 {
-            return Some(Utilization::default());
+            return Utilization::default();
         }
 
         let npu_utilization =
@@ -245,11 +224,7 @@ impl PerformanceCounter {
         );
         let io_ratio = 1.0 - computation_ratio;
 
-        Some(Utilization::new(
-            npu_utilization,
-            computation_ratio,
-            io_ratio,
-        ))
+        Utilization::new(npu_utilization, computation_ratio, io_ratio)
     }
 
     // Except for "cycle count", the other fields have a u32 type.
@@ -407,10 +382,7 @@ CycleCountHigh: 0x0
         assert!(res.is_ok());
         let next = res.unwrap();
 
-        let res = next.calculate_utilization(&prev);
-        assert!(res.is_some());
-
-        let values = res.unwrap();
+        let values = next.calculate_utilization(&prev);
         assert_eq!(4880, (values.npu_utilization() * 10000.0).round() as i64);
         assert_eq!(9811, (values.computation_ratio() * 10000.0).round() as i64);
         assert_eq!(189, (values.io_ratio() * 10000.0).round() as i64);
