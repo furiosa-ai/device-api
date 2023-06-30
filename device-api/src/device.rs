@@ -286,6 +286,7 @@ impl PartialOrd for Device {
     }
 }
 
+/// Non Uniform Memory Access (NUMA) node
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum NumaNode {
     UnSupported,
