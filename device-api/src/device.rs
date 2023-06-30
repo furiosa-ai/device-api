@@ -72,7 +72,7 @@ impl Device {
     }
 
     /// Returns the `DeviceInfo` struct.
-    pub fn device_info(&self) -> &DeviceInfo {
+    fn device_info(&self) -> &DeviceInfo {
         &self.device_info
     }
 
@@ -157,19 +157,19 @@ impl Device {
     }
 
     /// Control NE clocks.
-    pub fn ctrl_ne_clock(&self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
+    fn ctrl_ne_clock(&self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_CLOCK, &(toggle as u8).to_string())
     }
 
     /// Control the Dynamic Thermal Management policy.
-    pub fn ctrl_ne_dtm_policy(&self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
+    fn ctrl_ne_dtm_policy(&self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, &(policy as u8).to_string())
     }
 
     /// Control NE performance level
-    pub fn ctrl_performance_level(&self, level: sysfs::npu_mgmt::PerfLevel) -> DeviceResult<()> {
+    fn ctrl_performance_level(&self, level: sysfs::npu_mgmt::PerfLevel) -> DeviceResult<()> {
         self.device_info.ctrl(
             sysfs::npu_mgmt::PERFORMANCE_LEVEL,
             &(level as u8).to_string(),
@@ -177,13 +177,13 @@ impl Device {
     }
 
     /// Control NE performance mode
-    pub fn ctrl_performance_mode(&self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
+    fn ctrl_performance_mode(&self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
 
     /// Retrieve NUMA node ID associated with the NPU's PCI lane
-    pub fn numa_node(&self) -> DeviceResult<NumaNode> {
+    fn numa_node(&self) -> DeviceResult<NumaNode> {
         self.device_info.get_numa_node()
     }
 
