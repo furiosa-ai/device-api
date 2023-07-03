@@ -72,27 +72,28 @@ pub mod npu_mgmt {
     pub(crate) static SOC_UID: &str = "soc_uid";
     pub(crate) static VERSION: &str = "version";
 
-    pub(crate) static MGMT_FILES: &[(&str, bool)] = &[
-        (ALIVE, false),
-        (ATR_ERROR, false),
-        (BUSNAME, true),
-        (CUR_PE_IDS, false),
-        (DEV, true),
-        (DEVICE_SN, false),
-        (DEVICE_STATE, false),
-        (DEVICE_TYPE, true),
-        (DEVICE_UUID, false),
-        (EVB_REV, false),
-        (FW_VERSION, false),
-        (HEARTBEAT, false),
-        (NE_CLK_FREQ_INFO, false),
-        (NE_DTM_POLICY, false),
-        (PERFORMANCE_LEVEL, false),
-        (PERFORMANCE_MODE, false),
-        (PLATFORM_TYPE, false),
-        (SOC_REV, true),
-        (SOC_UID, false),
-        (VERSION, false),
+    // filename, required, real-time value
+    pub(crate) static MGMT_FILES: &[(&str, bool, bool)] = &[
+        (ALIVE, false, false),
+        (ATR_ERROR, false, true),
+        (BUSNAME, true, false),
+        (CUR_PE_IDS, false, false),
+        (DEV, true, false),
+        (DEVICE_SN, false, false),
+        (DEVICE_STATE, false, true),
+        (DEVICE_TYPE, true, false),
+        (DEVICE_UUID, false, false),
+        (EVB_REV, false, false),
+        (FW_VERSION, false, false),
+        (HEARTBEAT, false, true),
+        (NE_CLK_FREQ_INFO, false, true),
+        (NE_DTM_POLICY, false, true),
+        (PERFORMANCE_LEVEL, false, true),
+        (PERFORMANCE_MODE, false, true),
+        (PLATFORM_TYPE, false, false),
+        (SOC_REV, true, false),
+        (SOC_UID, false, false),
+        (VERSION, false, false),
     ];
 
     pub(crate) static CTRL_FILES: &[&str] = &[
@@ -129,8 +130,8 @@ pub mod npu_mgmt {
         idx: u8,
     ) -> io::Result<HashMap<&'static str, String>> {
         let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-        for (mgmt_file, required) in MGMT_FILES {
-            if !required {
+        for (mgmt_file, required, is_realtime) in MGMT_FILES {
+            if !required || *is_realtime {
                 continue;
             }
 
