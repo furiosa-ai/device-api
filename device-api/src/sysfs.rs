@@ -89,7 +89,7 @@ pub mod npu_mgmt {
         (NE_CLK_FREQ_INFO, false, true),
         (NE_DTM_POLICY, false, true),
         (PERFORMANCE_LEVEL, false, true),
-        (PERFORMANCE_MODE, false, true),
+        (PERFORMANCE_MODE, false, false),
         (PLATFORM_TYPE, false, false),
         (SOC_REV, true, false),
         (SOC_UID, false, false),
