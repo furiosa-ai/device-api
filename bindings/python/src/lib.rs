@@ -10,7 +10,10 @@ mod hwmon;
 mod sync;
 use arch::ArchPy;
 use config::DeviceConfigPy;
-use device::{CoreRangePy, DeviceFilePy, DeviceModePy, DevicePy};
+use device::{
+    ClockFrequencyPy, CoreRangePy, DeviceFilePy, DeviceModePy, DevicePy, PerformanceCounterPy,
+    UtilizationPy,
+};
 use errors::to_py_err;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -102,6 +105,9 @@ fn furiosa_device_python(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<CoreRangePy>()?;
     m.add_class::<ArchPy>()?;
     m.add_class::<DeviceModePy>()?;
+    m.add_class::<ClockFrequencyPy>()?;
+    m.add_class::<PerformanceCounterPy>()?;
+    m.add_class::<UtilizationPy>()?;
     m.add("__version__", VERSION)?;
     m.add("__git_short_hash__", GIT_SHORT_HASH)?;
     m.add("__build_timestamp__", BUILD_TIMESTAMP)?;

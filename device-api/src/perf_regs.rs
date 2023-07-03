@@ -136,18 +136,22 @@ impl PerformanceCounter {
         Ok(counter)
     }
 
+    /// Returns cycle count of the device file.
     pub fn cycle_count(&self) -> usize {
         self.cycle_count
     }
 
+    /// Returns task execution cycle count of the device file.
     pub fn task_execution_cycle(&self) -> u32 {
         self.task_execution_cycle
     }
 
+    /// Returns tensor execution cycle count of the device file.
     pub fn tensor_execution_cycle(&self) -> u32 {
         self.tensor_execution_cycle
     }
 
+    /// Returns the difference between two counters.
     pub fn calculate_increased(&self, other: &Self) -> Self {
         let (prev, next) = if self.now < other.now {
             (self, other)
@@ -178,35 +182,18 @@ impl PerformanceCounter {
         let tensor_cycle_gap =
             Self::safe_u32_subtract(next.tensor_execution_cycle, prev.tensor_execution_cycle);
 
-        let task_cycle_gap = if cycle_gap < task_cycle_gap {
-            cycle_gap
-        } else {
-            task_cycle_gap
-        };
-
-        let tensor_cycle_gap = if task_cycle_gap < tensor_cycle_gap {
-            task_cycle_gap
-        } else {
-            tensor_cycle_gap
-        };
+        let task_cycle_gap = std::cmp::min(cycle_gap, task_cycle_gap);
+        let tensor_cycle_gap = std::cmp::min(task_cycle_gap, tensor_cycle_gap);
 
         Self {
             now: next.now,
             cycle_count: cycle_gap,
-            task_execution_cycle: if task_cycle_gap > u32::MAX as usize {
-                u32::MAX
-            } else {
-                task_cycle_gap as u32
-            },
-            tensor_execution_cycle: if tensor_cycle_gap > u32::MAX as usize {
-                u32::MAX
-            } else {
-                tensor_cycle_gap as u32
-            },
+            task_execution_cycle: std::cmp::min(task_cycle_gap, u32::MAX as usize) as u32,
+            tensor_execution_cycle: std::cmp::min(tensor_cycle_gap, u32::MAX as usize) as u32,
         }
     }
 
-    /// Calculate utilization using performance counters at two points in time
+    /// Returns NPU utilization based on the difference between two counters.
     pub fn calculate_utilization(&self, other: &Self) -> Utilization {
         let diff = self.calculate_increased(other);
 

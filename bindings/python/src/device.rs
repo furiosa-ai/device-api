@@ -231,6 +231,7 @@ impl DevicePy {
             .collect()
     }
 
+    /// Retrieves the pair of device files and performance counters under this device.
     pub fn performance_counters(&self) -> Vec<(DeviceFilePy, PerformanceCounterPy)> {
         self.inner
             .performance_counters()
