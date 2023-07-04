@@ -12,7 +12,7 @@ async fn main() -> Result<(), DeviceError> {
     }
 
     for device in found.iter() {
-        println!("{:?}", device);
+        println!("{device:?}");
     }
 
     let mut rows = vec![];

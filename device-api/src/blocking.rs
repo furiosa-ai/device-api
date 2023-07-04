@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 use crate::config::find::DeviceWithStatus;
 use crate::devfs::is_character_device;
-use crate::device::{CoreIdx, CoreStatus, DeviceInfo, DeviceMetadata};
+use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
 use crate::hwmon;
 use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
-use crate::sysfs::npu_mgmt::PLATFORM_TYPE;
+use crate::sysfs::npu_mgmt::MgmtFile;
 use crate::{devfs, find_devices_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult};
 
 /// List all Furiosa NPU devices in the system.
@@ -63,7 +63,7 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs) {
             let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
-            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
+            let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
             let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
 
             let device = collect_devices(device_info, hwmon_fetcher, paths)?;
@@ -92,7 +92,7 @@ fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
 fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
     std::fs::read_to_string(npu_mgmt::path(
         sysfs,
-        StaticMgmtFile::PlatformType.path(),
+        npu_mgmt::StaticMgmtFile::PlatformType.path(),
         idx,
     ))
     .ok()
