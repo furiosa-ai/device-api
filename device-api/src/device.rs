@@ -208,7 +208,7 @@ impl Device {
     }
 
     /// List performance counters for each device files.
-    fn performance_counters(&self) -> Vec<(&DeviceFile, PerformanceCounter)> {
+    pub fn performance_counters(&self) -> Vec<(&DeviceFile, PerformanceCounter)> {
         let mut counters = vec![];
 
         for dev_file in self.dev_files() {
@@ -382,7 +382,7 @@ impl DeviceInfo {
         Ok(node)
     }
 
-    fn get_performance_counter(&self, file: &DeviceFile) -> DeviceResult<PerformanceCounter> {
+    pub fn get_performance_counter(&self, file: &DeviceFile) -> DeviceResult<PerformanceCounter> {
         PerformanceCounter::read(&self.sys_root, file.filename())
             .map_err(DeviceError::performance_counter_error)
     }
