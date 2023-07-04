@@ -22,7 +22,7 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
             let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
 
             // Since busname is a required field, it is guaranteed to exist.
-            let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
+            let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
             let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, &busname).await?;
 
             let device = collect_devices(device_info, hwmon_fetcher, paths)?;
@@ -100,11 +100,15 @@ pub(crate) fn filter_dev_files(dev_files: Vec<DevFile>) -> DeviceResult<HashMap<
 }
 
 async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
-    fs::read_to_string(npu_mgmt::path(sysfs, PLATFORM_TYPE, idx))
-        .await
-        .ok()
-        .filter(|c| npu_mgmt::is_furiosa_platform(c))
-        .is_some()
+    fs::read_to_string(npu_mgmt::path(
+        sysfs,
+        StaticMgmtFile::PlatformType.path(),
+        idx,
+    ))
+    .await
+    .ok()
+    .filter(|c| npu_mgmt::is_furiosa_platform(c))
+    .is_some()
 }
 
 #[cfg(test)]

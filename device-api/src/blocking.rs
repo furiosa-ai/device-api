@@ -62,10 +62,7 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
 
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs) {
-            let mgmt_files = npu_mgmt::read_mgmt_files(sysfs, idx)?;
-            let device_meta = DeviceMetadata::try_from(mgmt_files)?;
-            let device_info =
-                DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
+            let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
             let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
             let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
 
@@ -93,10 +90,14 @@ fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
 }
 
 fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
-    std::fs::read_to_string(npu_mgmt::path(sysfs, PLATFORM_TYPE, idx))
-        .ok()
-        .filter(|c| npu_mgmt::is_furiosa_platform(c))
-        .is_some()
+    std::fs::read_to_string(npu_mgmt::path(
+        sysfs,
+        StaticMgmtFile::PlatformType.path(),
+        idx,
+    ))
+    .ok()
+    .filter(|c| npu_mgmt::is_furiosa_platform(c))
+    .is_some()
 }
 
 pub(crate) fn expand_status(devices: Vec<Device>) -> DeviceResult<Vec<DeviceWithStatus>> {
