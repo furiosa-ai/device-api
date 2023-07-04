@@ -106,11 +106,11 @@ struct MetricEntry {
     metric_item: MetricItem,
 }
 
-impl TryFrom<std::fs::DirEntry> for MetricEntry {
+impl TryFrom<PathBuf> for MetricEntry {
     type Error = error::HwmonError;
 
-    fn try_from(value: std::fs::DirEntry) -> Result<Self, Self::Error> {
-        let filename = value.file_name().to_string_lossy().to_string();
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        let filename = path.file_name().unwrap().to_string_lossy().to_string();
 
         let (metric_type_str, metric_item_str) =
             filename
@@ -122,33 +122,7 @@ impl TryFrom<std::fs::DirEntry> for MetricEntry {
         let metric_type = MetricType::try_from(metric_type_str)?;
         let metric_item = MetricItem {
             item_name: metric_item_str.to_string(),
-            path: value.path(),
-        };
-
-        Ok(MetricEntry {
-            metric_type,
-            metric_item,
-        })
-    }
-}
-
-impl TryFrom<tokio::fs::DirEntry> for MetricEntry {
-    type Error = error::HwmonError;
-
-    fn try_from(value: tokio::fs::DirEntry) -> Result<Self, Self::Error> {
-        let filename = value.file_name().to_string_lossy().to_string();
-
-        let (metric_type_str, metric_item_str) =
-            filename
-                .split_once('_')
-                .ok_or_else(|| error::HwmonError::InvalidFileName {
-                    name: filename.clone(),
-                })?;
-
-        let metric_type = MetricType::try_from(metric_type_str)?;
-        let metric_item = MetricItem {
-            item_name: metric_item_str.to_string(),
-            path: value.path(),
+            path,
         };
 
         Ok(MetricEntry {
@@ -263,7 +237,7 @@ impl SensorContainer {
             for entry in read_dir {
                 let entry = entry?;
                 // Note: Unrecognized entries are ignored
-                if let Ok(metric_entry) = MetricEntry::try_from(entry) {
+                if let Ok(metric_entry) = MetricEntry::try_from(entry.path()) {
                     vec.push(metric_entry);
                 }
             }
@@ -283,7 +257,7 @@ impl SensorContainer {
             let mut read_dir = tokio::fs::read_dir(&path).await?;
             while let Some(entry) = read_dir.next_entry().await? {
                 // Note: Unrecognized entries are ignored
-                if let Ok(metric_entry) = MetricEntry::try_from(entry) {
+                if let Ok(metric_entry) = MetricEntry::try_from(entry.path()) {
                     vec.push(metric_entry);
                 }
             }
@@ -514,7 +488,7 @@ mod tests {
 
         if let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            let res = MetricEntry::try_from(entry)?;
+            let res = MetricEntry::try_from(entry.path())?;
             assert_eq!(
                 res.metric_type,
                 MetricType {
