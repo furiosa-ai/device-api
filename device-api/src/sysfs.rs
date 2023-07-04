@@ -73,27 +73,27 @@ pub mod npu_mgmt {
     pub(crate) static VERSION: &str = "version";
 
     // filename, required, real-time value
-    pub(crate) static MGMT_FILES: &[(&str, bool, bool)] = &[
-        (ALIVE, false, false),
-        (ATR_ERROR, false, true),
-        (BUSNAME, true, false),
-        (CUR_PE_IDS, false, false),
-        (DEV, true, false),
-        (DEVICE_SN, false, false),
-        (DEVICE_STATE, false, true),
-        (DEVICE_TYPE, true, false),
-        (DEVICE_UUID, false, false),
-        (EVB_REV, false, false),
-        (FW_VERSION, false, false),
-        (HEARTBEAT, false, true),
-        (NE_CLK_FREQ_INFO, false, true),
-        (NE_DTM_POLICY, false, true),
-        (PERFORMANCE_LEVEL, false, true),
-        (PERFORMANCE_MODE, false, false),
-        (PLATFORM_TYPE, false, false),
-        (SOC_REV, true, false),
-        (SOC_UID, false, false),
-        (VERSION, false, false),
+    pub(crate) static MGMT_FILES: &[(&str, bool)] = &[
+        (ALIVE, true),
+        (ATR_ERROR, true),
+        (BUSNAME, false),
+        // (CUR_PE_IDS, false),
+        (DEV, false),
+        (DEVICE_SN, false),
+        (DEVICE_STATE, true),
+        (DEVICE_TYPE, false),
+        (DEVICE_UUID, false),
+        // (EVB_REV, false, false),
+        (FW_VERSION, true),
+        (HEARTBEAT, true),
+        (NE_CLK_FREQ_INFO, true),
+        // (NE_DTM_POLICY, false, true),
+        (PERFORMANCE_LEVEL, true),
+        // (PERFORMANCE_MODE, false),
+        (PLATFORM_TYPE, false),
+        (SOC_REV, false),
+        (SOC_UID, false),
+        (VERSION, true),
     ];
 
     pub(crate) static CTRL_FILES: &[&str] = &[
@@ -130,8 +130,8 @@ pub mod npu_mgmt {
         idx: u8,
     ) -> io::Result<HashMap<&'static str, String>> {
         let mut mgmt_files: HashMap<&'static str, String> = HashMap::new();
-        for (mgmt_file, required, is_realtime) in MGMT_FILES {
-            if !required || *is_realtime {
+        for (mgmt_file, is_realtime) in MGMT_FILES {
+            if *is_realtime {
                 continue;
             }
 

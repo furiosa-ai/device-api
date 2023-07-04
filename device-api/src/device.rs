@@ -322,7 +322,7 @@ impl DeviceInfo {
     }
 
     pub fn get(&self, key: &str) -> DeviceResult<String> {
-        let (key, _, is_realtime) = sysfs::npu_mgmt::MGMT_FILES
+        let (key, is_realtime) = sysfs::npu_mgmt::MGMT_FILES
             .iter()
             .find(|mgmt_file| mgmt_file.0 == key)
             .ok_or_else(|| DeviceError::unsupported_key(key))?;
@@ -351,7 +351,7 @@ impl DeviceInfo {
 
         sysfs::npu_mgmt::write_ctrl_file(&self.sys_root, key, self.device_index, contents)?;
 
-        if let Some((key, _, _)) = sysfs::npu_mgmt::MGMT_FILES
+        if let Some((key, _)) = sysfs::npu_mgmt::MGMT_FILES
             .iter()
             .find(|mgmt_file| mgmt_file.0 == *key)
         {
