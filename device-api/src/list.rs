@@ -6,10 +6,10 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 
 use crate::devfs::{self, is_character_device};
-use crate::device::{Device, DeviceFile, DeviceInfo, DeviceMetadata};
+use crate::device::{Device, DeviceFile, DeviceInfo};
 use crate::error::DeviceResult;
 use crate::hwmon;
-use crate::sysfs::npu_mgmt::{self, read_mgmt_files, *};
+use crate::sysfs::npu_mgmt::{self, *};
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
@@ -19,10 +19,7 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
 
     for (idx, paths) in npu_dev_files {
         if is_furiosa_device(idx, sysfs).await {
-            let mgmt_files = read_mgmt_files(sysfs, idx)?;
-            let device_meta = DeviceMetadata::try_from(mgmt_files)?;
-            let device_info =
-                DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs), device_meta);
+            let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
 
             // Since busname is a required field, it is guaranteed to exist.
             let busname = device_info.get(npu_mgmt::BUSNAME).unwrap();
@@ -143,14 +140,18 @@ mod tests {
 
     #[test]
     fn test_identify_arch() -> DeviceResult<()> {
-        assert_eq!(
-            DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 0)?)?.arch,
-            Arch::WarboyB0
+        let device_info = DeviceInfo::new(
+            0,
+            PathBuf::from("../test_data/test-0/dev"),
+            PathBuf::from("../test_data/test-0/sys"),
         );
-        assert_eq!(
-            DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 1)?)?.arch,
-            Arch::WarboyB0
+        assert_eq!(device_info.arch(), Arch::WarboyB0);
+        let device_info = DeviceInfo::new(
+            1,
+            PathBuf::from("../test_data/test-0/dev"),
+            PathBuf::from("../test_data/test-0/sys"),
         );
+        assert_eq!(device_info.arch(), Arch::WarboyB0);
         Ok(())
     }
 }

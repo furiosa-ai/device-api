@@ -86,8 +86,7 @@ impl Device {
         self.device_info.get(sysfs::npu_mgmt::ALIVE).and_then(|v| {
             sysfs::npu_mgmt::parse_zero_or_one_to_bool(&v).ok_or_else(|| {
                 DeviceError::unexpected_value(format!(
-                    "Bad alive value: {} (only 0 or 1 expected)",
-                    v
+                    "Bad alive value: {v} (only 0 or 1 expected)"
                 ))
             })
         })
@@ -136,7 +135,7 @@ impl Device {
             .get(sysfs::npu_mgmt::HEARTBEAT)
             .and_then(|str| {
                 str.parse::<u32>().map_err(|_| {
-                    DeviceError::unexpected_value(format!("Bad heartbeat value: {}", str))
+                    DeviceError::unexpected_value(format!("Bad heartbeat value: {str}"))
                 })
             })
     }
@@ -297,28 +296,40 @@ pub struct DeviceInfo {
     device_index: u8,
     dev_root: PathBuf,
     sys_root: PathBuf,
-    meta: DeviceMetadata,
+    arch: Arch,
+    meta: Mutex<HashMap<&'static str, String>>,
     numa_node: Mutex<Option<NumaNode>>,
 }
 
 impl DeviceInfo {
-    pub(crate) fn new(
-        device_index: u8,
-        dev_root: PathBuf,
-        sys_root: PathBuf,
-        meta: DeviceMetadata,
-    ) -> DeviceInfo {
+    pub(crate) fn new(device_index: u8, dev_root: PathBuf, sys_root: PathBuf) -> DeviceInfo {
+        let mut meta = HashMap::default();
+        let device_type =
+            sysfs::npu_mgmt::read_mgmt_file(&sys_root, sysfs::npu_mgmt::DEVICE_TYPE, device_index)
+                .unwrap();
+        let soc_rev =
+            sysfs::npu_mgmt::read_mgmt_file(&sys_root, sysfs::npu_mgmt::SOC_REV, device_index)
+                .unwrap();
+        let arch = Arch::from_str(format!("{device_type}{soc_rev}").as_str())
+            .map_err(|_| DeviceError::UnknownArch {
+                arch: device_type.clone(),
+                rev: soc_rev.clone(),
+            })
+            .unwrap();
+        meta.insert(sysfs::npu_mgmt::DEVICE_TYPE, device_type);
+        meta.insert(sysfs::npu_mgmt::SOC_REV, soc_rev);
         Self {
             device_index,
             dev_root,
             sys_root,
-            meta,
+            meta: Mutex::new(meta),
+            arch,
             numa_node: Mutex::new(None),
         }
     }
 
     pub fn arch(&self) -> Arch {
-        self.meta.arch
+        self.arch
     }
 
     pub fn get(&self, key: &str) -> DeviceResult<String> {
@@ -332,14 +343,14 @@ impl DeviceInfo {
             return Ok(value);
         }
 
-        let mut map = self.meta.map.lock().unwrap();
-        if let Some(value) = map.get(key) {
+        let mut meta = self.meta.lock().unwrap();
+        if let Some(value) = meta.get(key) {
             return Ok(value.clone());
         }
 
         let value = sysfs::npu_mgmt::read_mgmt_file(&self.sys_root, key, self.device_index)?;
 
-        map.insert(key, value.clone());
+        meta.insert(key, value.clone());
         Ok(value)
     }
 
@@ -355,7 +366,7 @@ impl DeviceInfo {
             .iter()
             .find(|mgmt_file| mgmt_file.0 == *key)
         {
-            self.meta.map.lock().unwrap().remove(key);
+            self.meta.lock().unwrap().remove(key);
         }
 
         Ok(())
@@ -378,8 +389,7 @@ impl DeviceInfo {
             NumaNode::UnSupported
         } else {
             return Err(DeviceError::unexpected_value(format!(
-                "Unexpected numa node id: {}",
-                id
+                "Unexpected numa node id: {id}"
             )));
         };
 
@@ -400,7 +410,8 @@ impl PartialEq for DeviceInfo {
         self.device_index == other.device_index
             && self.dev_root == other.dev_root
             && self.sys_root == other.sys_root
-            && self.meta == other.meta
+            && self.arch == other.arch
+            && *self.meta.lock().unwrap() == *other.meta.lock().unwrap()
             && *self.numa_node.lock().unwrap() == *other.numa_node.lock().unwrap()
     }
 }
@@ -411,59 +422,9 @@ impl Clone for DeviceInfo {
             device_index: self.device_index,
             dev_root: self.dev_root.clone(),
             sys_root: self.sys_root.clone(),
-            meta: self.meta.clone(),
-            numa_node: Mutex::new(*self.numa_node.lock().unwrap()),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct DeviceMetadata {
-    pub(crate) arch: Arch,
-    pub(crate) map: Mutex<HashMap<&'static str, String>>,
-}
-
-impl TryFrom<HashMap<&'static str, String>> for DeviceMetadata {
-    type Error = DeviceError;
-
-    fn try_from(map: HashMap<&'static str, String>) -> Result<Self, Self::Error> {
-        use sysfs::npu_mgmt::*;
-
-        let device_type = map
-            .get(DEVICE_TYPE)
-            .ok_or_else(|| DeviceError::file_not_found(DEVICE_TYPE))?;
-        let soc_rev = map
-            .get(SOC_REV)
-            .ok_or_else(|| DeviceError::file_not_found(SOC_REV))?;
-
-        let arch =
-            Arch::from_str(format!("{}{}", device_type, soc_rev).as_str()).map_err(|_| {
-                DeviceError::UnknownArch {
-                    arch: device_type.clone(),
-                    rev: soc_rev.clone(),
-                }
-            })?;
-
-        Ok(Self {
-            arch,
-            map: Mutex::new(map),
-        })
-    }
-}
-
-impl Eq for DeviceMetadata {}
-
-impl PartialEq for DeviceMetadata {
-    fn eq(&self, other: &Self) -> bool {
-        self.arch == other.arch && *self.map.lock().unwrap() == *other.map.lock().unwrap()
-    }
-}
-
-impl Clone for DeviceMetadata {
-    fn clone(&self) -> Self {
-        Self {
             arch: self.arch,
-            map: Mutex::new(self.map.lock().unwrap().clone()),
+            meta: Mutex::new(self.meta.lock().unwrap().clone()),
+            numa_node: Mutex::new(*self.numa_node.lock().unwrap()),
         }
     }
 }
@@ -480,7 +441,7 @@ impl Display for CoreStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             CoreStatus::Available => write!(f, "available"),
-            CoreStatus::Occupied(devfile) => write!(f, "occupied by {}", devfile),
+            CoreStatus::Occupied(devfile) => write!(f, "occupied by {devfile}"),
             CoreStatus::Unavailable => write!(f, "unavailable"),
         }
     }
@@ -601,7 +562,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
             .to_string_lossy()
             .to_string();
 
-        let (device_index, core_indices) = devfs::parse_indices(&file_name)?;
+        let (device_index, core_indices) = devfs::parse_indices(file_name)?;
 
         let (mode, core_range) = match core_indices.len() {
             0 => (DeviceMode::MultiCore, CoreRange::All),
@@ -678,7 +639,6 @@ impl ClockFrequency {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sysfs::npu_mgmt::read_mgmt_files;
 
     #[test]
     fn test_core_range_ordering() {
@@ -772,35 +732,63 @@ mod tests {
 
     #[test]
     fn test_lazy_read_sysfs() -> DeviceResult<()> {
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 0)?)?;
         let device_info = DeviceInfo::new(
             0,
             PathBuf::from("../test_data/test-0/dev"),
             PathBuf::from("../test_data/test-0/sys"),
-            device_meta,
         );
 
         assert_eq!(
             device_info
                 .meta
-                .map
                 .lock()
                 .unwrap()
-                .get(sysfs::npu_mgmt::PERFORMANCE_MODE),
+                .get(sysfs::npu_mgmt::BUSNAME),
             None
         );
         assert_eq!(
-            device_info.get(sysfs::npu_mgmt::PERFORMANCE_MODE).ok(),
-            Some(String::from("4 (FULL 1)"))
+            device_info.get(sysfs::npu_mgmt::BUSNAME).ok(),
+            Some(String::from("0000:6d:00.0"))
         );
         assert_eq!(
             device_info
                 .meta
-                .map
                 .lock()
                 .unwrap()
-                .get(sysfs::npu_mgmt::PERFORMANCE_MODE),
-            Some(&String::from("4 (FULL 1)"))
+                .get(sysfs::npu_mgmt::BUSNAME),
+            Some(&String::from("0000:6d:00.0"))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_real_time_read_sysfs() -> DeviceResult<()> {
+        let device_info = DeviceInfo::new(
+            0,
+            PathBuf::from("../test_data/test-0/dev"),
+            PathBuf::from("../test_data/test-0/sys"),
+        );
+
+        assert_eq!(
+            device_info
+                .meta
+                .lock()
+                .unwrap()
+                .get(sysfs::npu_mgmt::FW_VERSION),
+            None
+        );
+        assert_eq!(
+            device_info.get(sysfs::npu_mgmt::FW_VERSION).ok(),
+            Some(String::from("1.6.0, c1bebfd"))
+        );
+        assert_eq!(
+            device_info
+                .meta
+                .lock()
+                .unwrap()
+                .get(sysfs::npu_mgmt::FW_VERSION),
+            None
         );
 
         Ok(())
@@ -809,12 +797,10 @@ mod tests {
     #[test]
     fn test_numa_node() -> DeviceResult<()> {
         // npu0 => numa node 0
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 0)?)?;
         let device_info = DeviceInfo::new(
             0,
             PathBuf::from("../test_data/test-0/dev"),
             PathBuf::from("../test_data/test-0/sys"),
-            device_meta,
         );
 
         assert_eq!(*device_info.numa_node.lock().unwrap(), None);
@@ -825,12 +811,10 @@ mod tests {
         );
 
         // npu1 => numa node unsupported
-        let device_meta = DeviceMetadata::try_from(read_mgmt_files("../test_data/test-0/sys", 1)?)?;
         let device_info = DeviceInfo::new(
-            0,
+            1,
             PathBuf::from("../test_data/test-0/dev"),
             PathBuf::from("../test_data/test-0/sys"),
-            device_meta,
         );
 
         assert_eq!(*device_info.numa_node.lock().unwrap(), None);

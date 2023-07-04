@@ -40,7 +40,7 @@ pub(crate) fn parse_indices<S: AsRef<str>>(filename: S) -> DeviceResult<(u8, Vec
         (Some(device_id), None, None) => (device_id?, vec![]),
         (Some(device_id), Some(start_core), None) => (device_id?, vec![start_core?]),
         (Some(device_id), Some(start_core), Some(end_core)) => {
-            (device_id?, (start_core?..=end_core?).into_iter().collect())
+            (device_id?, (start_core?..=end_core?).collect())
         }
         _ => return Err(DeviceError::unrecognized_file(name)),
     };

@@ -84,7 +84,7 @@ impl PerformanceCounter {
         dev_name: &str,
     ) -> error::PerformanceCounterResult<PerformanceCounter> {
         let path = sysfs::perf_regs::path(base_dir, dev_name);
-        std::fs::read_to_string(&path)
+        std::fs::read_to_string(path)
             .map_err(|err| match err.kind() {
                 std::io::ErrorKind::PermissionDenied => {
                     error::PerformanceCounterError::DeviceNotInUse
