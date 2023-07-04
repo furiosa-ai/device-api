@@ -300,7 +300,7 @@ pub struct DeviceInfo {
     dev_root: PathBuf,
     sys_root: PathBuf,
     arch: Arch,
-    meta: Mutex<HashMap<&'static str, String>>,
+    meta: HashMap<&'static str, String>,
     numa_node: Mutex<Option<NumaNode>>,
 }
 
@@ -324,7 +324,7 @@ impl DeviceInfo {
             device_index,
             dev_root,
             sys_root,
-            meta: Mutex::new(meta),
+            meta,
             arch,
             numa_node: Mutex::new(None),
         }
@@ -336,13 +336,7 @@ impl DeviceInfo {
 
     pub fn get(&self, mgmt_file: &dyn MgmtFile) -> DeviceResult<String> {
         if mgmt_file.is_static() {
-            Ok(self
-                .meta
-                .lock()
-                .unwrap()
-                .get(mgmt_file.path())
-                .unwrap()
-                .to_string())
+            Ok(self.meta.get(mgmt_file.path()).unwrap().to_string())
         } else {
             let value =
                 npu_mgmt::read_mgmt_file(&self.sys_root, mgmt_file.path(), self.device_index)?;
@@ -400,7 +394,7 @@ impl PartialEq for DeviceInfo {
             && self.dev_root == other.dev_root
             && self.sys_root == other.sys_root
             && self.arch == other.arch
-            && *self.meta.lock().unwrap() == *other.meta.lock().unwrap()
+            && self.meta == other.meta
             && *self.numa_node.lock().unwrap() == *other.numa_node.lock().unwrap()
     }
 }
@@ -412,7 +406,7 @@ impl Clone for DeviceInfo {
             dev_root: self.dev_root.clone(),
             sys_root: self.sys_root.clone(),
             arch: self.arch,
-            meta: Mutex::new(self.meta.lock().unwrap().clone()),
+            meta: self.meta.clone(),
             numa_node: Mutex::new(*self.numa_node.lock().unwrap()),
         }
     }
@@ -728,11 +722,7 @@ mod tests {
         );
 
         assert_eq!(
-            device_info
-                .meta
-                .lock()
-                .unwrap()
-                .get(StaticMgmtFile::Busname.path()),
+            device_info.meta.get(StaticMgmtFile::Busname.path()),
             Some(&String::from("0000:6d:00.0"))
         );
         assert_eq!(
@@ -740,11 +730,7 @@ mod tests {
             Some(String::from("0000:6d:00.0"))
         );
         assert_eq!(
-            device_info
-                .meta
-                .lock()
-                .unwrap()
-                .get(StaticMgmtFile::Busname.path()),
+            device_info.meta.get(StaticMgmtFile::Busname.path()),
             Some(&String::from("0000:6d:00.0"))
         );
 
@@ -760,11 +746,7 @@ mod tests {
         );
 
         assert_eq!(
-            device_info
-                .meta
-                .lock()
-                .unwrap()
-                .get(DynamicMgmtFile::FwVersion.path()),
+            device_info.meta.get(DynamicMgmtFile::FwVersion.path()),
             None
         );
         assert_eq!(
@@ -772,11 +754,7 @@ mod tests {
             Some(String::from("1.6.0, c1bebfd"))
         );
         assert_eq!(
-            device_info
-                .meta
-                .lock()
-                .unwrap()
-                .get(DynamicMgmtFile::FwVersion.path()),
+            device_info.meta.get(DynamicMgmtFile::FwVersion.path()),
             None
         );
 
