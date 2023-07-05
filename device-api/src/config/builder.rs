@@ -1,4 +1,4 @@
-use super::inner::{Config, DeviceConfigInner};
+use super::inner::{Config, Count, DeviceConfigInner};
 use crate::arch::Arch;
 use crate::device::DeviceMode;
 use crate::{DeviceConfig, DeviceError};
@@ -31,9 +31,20 @@ impl From<NotDetermined> for DeviceMode {
     }
 }
 
-impl From<NotDetermined> for u8 {
+impl From<NotDetermined> for Count {
     fn from(_: NotDetermined) -> Self {
-        1
+        Count::Finite(1)
+    }
+}
+
+#[derive(Clone)]
+pub struct All {
+    pub(crate) _priv: (),
+}
+
+impl From<All> for Count {
+    fn from(_: All) -> Self {
+        Count::All
     }
 }
 
@@ -75,14 +86,24 @@ impl<A, M, C> DeviceConfigBuilder<A, M, C>
 where
     Arch: From<A>,
     DeviceMode: From<M>,
-    u8: From<C>,
+    Count: From<C>,
 {
     pub fn count(self, count: u8) -> DeviceConfig {
         let builder = DeviceConfigBuilder {
             arch: self.arch,
             mode: self.mode,
-            count,
+            count: Count::Finite(count),
         };
+        builder.build()
+    }
+
+    pub fn all(self) -> DeviceConfig {
+        let builder = DeviceConfigBuilder {
+            arch: self.arch,
+            mode: self.mode,
+            count: All { _priv: () },
+        };
+
         builder.build()
     }
 
@@ -100,7 +121,7 @@ where
                     arch: Arch::from(self.arch),
                     core_num,
                     mode,
-                    count: u8::from(self.count),
+                    count: Count::from(self.count),
                 }],
             },
         }

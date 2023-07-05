@@ -146,6 +146,15 @@ mod tests {
         assert_eq!(found[2].filename(), "npu1pe0");
         assert_eq!(found[3].filename(), "npu1pe1");
 
+        // try lookup all single cores
+        let config = DeviceConfig::warboy().single().all();
+        let found = find_devices_in(&config, &devices_with_statuses)?;
+        assert_eq!(found.len(), 4);
+        assert_eq!(found[0].filename(), "npu0pe0");
+        assert_eq!(found[1].filename(), "npu0pe1");
+        assert_eq!(found[2].filename(), "npu1pe0");
+        assert_eq!(found[3].filename(), "npu1pe1");
+
         // looking for 5 different cores should fail
         let config = DeviceConfig::warboy().single().count(5);
         let found = find_devices_in(&config, &devices_with_statuses);
@@ -156,6 +165,13 @@ mod tests {
 
         // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
+        let found = find_devices_in(&config, &devices_with_statuses)?;
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].filename(), "npu0pe0-1");
+        assert_eq!(found[1].filename(), "npu1pe0-1");
+
+        // try lookup all fused cores
+        let config = DeviceConfig::warboy().fused().all();
         let found = find_devices_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].filename(), "npu0pe0-1");

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
+use super::inner::Count;
 use super::DeviceConfig;
 use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile};
 use crate::error::DeviceResult;
@@ -52,7 +53,12 @@ pub(crate) fn find_devices_in(
     let mut found = Vec::new();
 
     for cfg in &config.cfgs {
-        'outer: for _ in 0..cfg.count() {
+        let count = cfg.count();
+        let limit = match count {
+            Count::Finite(c) => c,
+            Count::All => 255, // make the loop simple by choosing a large enough number
+        };
+        'outer: for _ in 0..limit {
             for device in devices {
                 'inner: for dev_file in device.dev_files() {
                     if !cfg.fit(device.arch(), dev_file) {
@@ -79,7 +85,13 @@ pub(crate) fn find_devices_in(
                 }
             }
 
-            return Err(DeviceError::device_not_found(cfg));
+            // Device not found
+            match count {
+                Count::All => break 'outer,
+                Count::Finite(_) => {
+                    return Err(DeviceError::device_not_found(cfg));
+                }
+            }
         }
     }
 
