@@ -8,6 +8,7 @@ use std::str::FromStr;
 
 pub use builder::DeviceConfigBuilder;
 pub(crate) use find::{expand_status, find_devices_in};
+use serde::{Deserialize, Serialize};
 
 pub use self::builder::NotDetermined;
 pub use self::env::EnvBuilder;
@@ -65,7 +66,8 @@ use crate::{Arch, DeviceError};
 /// // Combine multiple representations separated by commas
 /// DeviceConfig::from_str("0:0-1, 1:0-1"); // npu0pe0-1, npu1pe0-1
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(into = "String", try_from = "&str")]
 pub struct DeviceConfig {
     pub(crate) inner: DeviceConfigInner,
 }
@@ -122,6 +124,12 @@ impl<'a> TryFrom<&'a str> for DeviceConfig {
 impl Display for DeviceConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.inner.fmt(f)
+    }
+}
+
+impl From<DeviceConfig> for String {
+    fn from(config: DeviceConfig) -> Self {
+        config.to_string()
     }
 }
 
