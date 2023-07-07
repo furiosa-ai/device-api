@@ -33,7 +33,7 @@ pub fn set_metadata_env_vars() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// The hash will have a `-modified` suffix if the repository is dirty.
 fn git_short_hash() -> Result<String, Box<dyn std::error::Error>> {
-    const WORKSPACE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
+    const WORKSPACE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
     let repository = Repository::open(WORKSPACE_DIR)?;
     let git_hash = repository.revparse_single("HEAD")?.id().to_string();
