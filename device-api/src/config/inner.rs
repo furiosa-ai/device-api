@@ -13,6 +13,22 @@ use crate::arch::Arch;
 use crate::device::{CoreRange, DeviceFile, DeviceMode};
 use crate::{DeviceError, DeviceResult};
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Count {
+    Finite(u8),
+    All,
+}
+
+impl Display for Count {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Count::Finite(c) => write!(f, "{c}"),
+            // TODO: revise syntax below and bring according implementation to Config's FromStr
+            Count::All => write!(f, "all"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct DeviceConfigInner {
     pub(crate) cfgs: Vec<Config>,
@@ -48,7 +64,7 @@ pub(crate) enum Config {
         arch: Arch,
         core_num: u8,
         mode: DeviceMode,
-        count: u8,
+        count: Count,
     },
 }
 
@@ -69,9 +85,9 @@ impl Config {
         }
     }
 
-    pub(crate) fn count(&self) -> u8 {
+    pub(crate) fn count(&self) -> Count {
         match self {
-            Self::Named { .. } => 1,
+            Self::Named { .. } => Count::Finite(1),
             Self::Unnamed { count, .. } => *count,
         }
     }
@@ -154,7 +170,7 @@ impl FromStr for Config {
                 arch,
                 core_num,
                 mode,
-                count,
+                count: Count::Finite(count),
             })
         }
 
@@ -221,7 +237,7 @@ mod tests {
         let npu0pe0_1 = crate::get_device_with("../test_data/test-0/dev", "npu0pe0-1").await?;
         let npu1pe0 = crate::get_device_with("../test_data/test-0/dev", "npu0pe1").await?;
 
-        assert_eq!(config.count(), 1);
+        assert_eq!(config.count(), Count::Finite(1));
 
         assert!(config.fit(Arch::WarboyB0, &npu0pe0));
         assert!(!config.fit(Arch::WarboyB0, &npu0pe1));
@@ -235,7 +251,7 @@ mod tests {
     async fn test_unnamed_config_fit() -> DeviceResult<()> {
         let config = "warboy(1)*2".parse::<Config>().unwrap();
 
-        assert_eq!(config.count(), 2);
+        assert_eq!(config.count(), Count::Finite(2));
 
         let npu0pe0 = crate::get_device_with("../test_data/test-0/dev", "npu0pe0").await?;
         let npu0pe1 = crate::get_device_with("../test_data/test-0/dev", "npu0pe1").await?;
@@ -315,7 +331,7 @@ mod tests {
                 arch: Arch::WarboyB0,
                 core_num: 1,
                 mode: DeviceMode::Single,
-                count: 2
+                count: Count::Finite(2),
             }
         );
         assert_eq!(
@@ -324,7 +340,7 @@ mod tests {
                 arch: Arch::WarboyB0,
                 core_num: 2,
                 mode: DeviceMode::Fusion,
-                count: 4
+                count: Count::Finite(4)
             }
         );
         assert_eq!(
@@ -333,7 +349,7 @@ mod tests {
                 arch: Arch::WarboyB0,
                 core_num: 1,
                 mode: DeviceMode::Single,
-                count: 12
+                count: Count::Finite(12)
             }
         );
         // assert!("npu*10".parse::<Config>().is_ok());
