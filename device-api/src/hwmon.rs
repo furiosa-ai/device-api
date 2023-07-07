@@ -4,7 +4,6 @@
 use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use itertools::Itertools;
-use tokio::fs::DirEntry;
 
 use crate::sysfs::pci::hwmon;
 use crate::{DeviceError, DeviceResult};
@@ -107,11 +106,11 @@ struct MetricEntry {
     metric_item: MetricItem,
 }
 
-impl TryFrom<DirEntry> for MetricEntry {
+impl TryFrom<PathBuf> for MetricEntry {
     type Error = error::HwmonError;
 
-    fn try_from(value: DirEntry) -> Result<Self, Self::Error> {
-        let filename = value.file_name().to_string_lossy().to_string();
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        let filename = path.file_name().unwrap().to_string_lossy().to_string();
 
         let (metric_type_str, metric_item_str) =
             filename
@@ -123,7 +122,7 @@ impl TryFrom<DirEntry> for MetricEntry {
         let metric_type = MetricType::try_from(metric_type_str)?;
         let metric_item = MetricItem {
             item_name: metric_item_str.to_string(),
-            path: value.path(),
+            path,
         };
 
         Ok(MetricEntry {
@@ -150,6 +149,19 @@ impl Sensor {
         Self { name, items: map }
     }
 
+    fn read_blocking(&self, item_name: &str) -> error::HwmonResult<(String, String)> {
+        if let Some(path) = self.items.get(item_name) {
+            let value = std::fs::read_to_string(path)?;
+
+            Ok((self.name.clone(), value.trim().to_string()))
+        } else {
+            Err(error::HwmonError::ItemNameNotFound {
+                sensor_name: self.name.clone(),
+                item_name: item_name.to_string(),
+            })
+        }
+    }
+
     async fn read_item(&self, item_name: &str) -> error::HwmonResult<(String, String)> {
         if let Some(path) = self.items.get(item_name) {
             let value = tokio::fs::read_to_string(path).await?;
@@ -168,6 +180,26 @@ impl Sensor {
 pub(crate) struct SensorContainer(pub(crate) HashMap<HwmonType, Vec<Sensor>>);
 
 impl SensorContainer {
+    pub(crate) fn new_blocking(base_dir: &str, busname: &str) -> error::HwmonResult<Self> {
+        let path = hwmon::path(base_dir, busname);
+        let entries = Self::fetch_entries_blocking(path)?;
+        let value_map = Self::build_value_map_blocking(entries);
+
+        let sensors: HashMap<HwmonType, Vec<Sensor>> = value_map
+            .into_iter()
+            .map(|(hwmon_type, v)| {
+                let metrics: Vec<Sensor> = v
+                    .into_iter()
+                    .map(|(sensor_name, items)| Sensor::new(sensor_name, items))
+                    .collect();
+
+                (hwmon_type, metrics)
+            })
+            .collect();
+
+        Ok(SensorContainer(sensors))
+    }
+
     async fn new(base_dir: &str, busname: &str) -> error::HwmonResult<Self> {
         let path = hwmon::path(base_dir, busname);
         let entries = Self::fetch_entries(path).await?;
@@ -192,6 +224,28 @@ impl SensorContainer {
         self.0.get(t)
     }
 
+    fn fetch_entries_blocking(mut path: PathBuf) -> error::HwmonResult<Vec<MetricEntry>> {
+        let mut vec = vec![];
+
+        let mut read_dir = std::fs::read_dir(&path)?;
+        if let Some(entry) = read_dir.next() {
+            let entry = entry?;
+            // Note: Assume that there is only one 'hwmon' per device
+            path.push(entry.file_name().to_string_lossy().as_ref());
+
+            let read_dir = std::fs::read_dir(&path)?;
+            for entry in read_dir {
+                let entry = entry?;
+                // Note: Unrecognized entries are ignored
+                if let Ok(metric_entry) = MetricEntry::try_from(entry.path()) {
+                    vec.push(metric_entry);
+                }
+            }
+        }
+
+        Ok(vec)
+    }
+
     async fn fetch_entries(mut path: PathBuf) -> error::HwmonResult<Vec<MetricEntry>> {
         let mut vec = vec![];
 
@@ -203,13 +257,50 @@ impl SensorContainer {
             let mut read_dir = tokio::fs::read_dir(&path).await?;
             while let Some(entry) = read_dir.next_entry().await? {
                 // Note: Unrecognized entries are ignored
-                if let Ok(metric_entry) = MetricEntry::try_from(entry) {
+                if let Ok(metric_entry) = MetricEntry::try_from(entry.path()) {
                     vec.push(metric_entry);
                 }
             }
         }
 
         Ok(vec)
+    }
+
+    fn build_value_map_blocking(
+        entries: Vec<MetricEntry>,
+    ) -> HashMap<HwmonType, Vec<(String, Vec<MetricItem>)>> {
+        let (labels, metrics): (Vec<_>, Vec<_>) = entries
+            .into_iter()
+            .partition(|entry| entry.metric_item.item_name == "label");
+        let label_map = Self::build_label_map_blocking(labels);
+
+        let mut map_by_metric_type = HashMap::new();
+        for entry in metrics {
+            map_by_metric_type
+                .entry(entry.metric_type)
+                .or_insert_with(Vec::new)
+                .push(entry.metric_item);
+        }
+
+        let labelled_metrics: Vec<(HwmonType, String, Vec<MetricItem>)> = map_by_metric_type
+            .into_iter()
+            .sorted_by(|a, b| a.0.idx.cmp(&b.0.idx))
+            .map(|(k, items)| {
+                let label = label_map
+                    .get(&k)
+                    .cloned()
+                    .unwrap_or_else(|| k.idx.to_string());
+
+                (k.hwmon_type, label, items)
+            })
+            .collect();
+
+        let mut res = HashMap::new();
+        for (t, label, items) in labelled_metrics {
+            res.entry(t).or_insert_with(Vec::new).push((label, items));
+        }
+
+        res
     }
 
     async fn build_value_map(
@@ -249,6 +340,18 @@ impl SensorContainer {
         res
     }
 
+    fn build_label_map_blocking(label_entries: Vec<MetricEntry>) -> HashMap<MetricType, String> {
+        let mut map = HashMap::new();
+
+        for entry in label_entries {
+            if let Ok(text) = std::fs::read_to_string(&entry.metric_item.path) {
+                map.insert(entry.metric_type, text.trim().to_string());
+            }
+        }
+
+        map
+    }
+
     async fn build_label_map(label_entries: Vec<MetricEntry>) -> HashMap<MetricType, String> {
         let mut map = HashMap::new();
 
@@ -286,6 +389,22 @@ impl Fetcher {
         })
     }
 
+    pub fn read_currents_blocking(&self) -> DeviceResult<Vec<SensorValue>> {
+        self.read_values_blocking(HwmonType::Current, "input")
+    }
+
+    pub fn read_voltages_blocking(&self) -> DeviceResult<Vec<SensorValue>> {
+        self.read_values_blocking(HwmonType::Voltage, "input")
+    }
+
+    pub fn read_powers_average_blocking(&self) -> DeviceResult<Vec<SensorValue>> {
+        self.read_values_blocking(HwmonType::Power, "average")
+    }
+
+    pub fn read_temperatures_blocking(&self) -> DeviceResult<Vec<SensorValue>> {
+        self.read_values_blocking(HwmonType::Temperature, "input")
+    }
+
     pub async fn read_currents(&self) -> DeviceResult<Vec<SensorValue>> {
         self.read_values(HwmonType::Current, "input").await
     }
@@ -300,6 +419,32 @@ impl Fetcher {
 
     pub async fn read_temperatures(&self) -> DeviceResult<Vec<SensorValue>> {
         self.read_values(HwmonType::Temperature, "input").await
+    }
+
+    fn read_values_blocking(&self, t: HwmonType, name: &str) -> DeviceResult<Vec<SensorValue>> {
+        let mut res = vec![];
+
+        if let Some(sensors) = self.sensor_container.get(&t) {
+            for sensor in sensors {
+                let (label, value) = sensor
+                    .read_blocking(name)
+                    .map_err(|e| DeviceError::hwmon_error(self.device_index, e))?;
+
+                let value: i32 = value.parse().map_err(|_| {
+                    DeviceError::hwmon_error(
+                        self.device_index,
+                        error::HwmonError::UnexpectedValueFormat {
+                            sensor_name: label.clone(),
+                            value,
+                        },
+                    )
+                })?;
+
+                res.push(SensorValue { label, value });
+            }
+        }
+
+        Ok(res)
     }
 
     async fn read_values(&self, t: HwmonType, name: &str) -> DeviceResult<Vec<SensorValue>> {
@@ -343,7 +488,7 @@ mod tests {
 
         if let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            let res = MetricEntry::try_from(entry)?;
+            let res = MetricEntry::try_from(entry.path())?;
             assert_eq!(
                 res.metric_type,
                 MetricType {

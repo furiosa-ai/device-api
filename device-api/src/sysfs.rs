@@ -4,18 +4,21 @@ pub mod npu_mgmt {
     use std::path::{Path, PathBuf};
 
     #[derive(Copy, Clone, Debug)]
+    #[allow(dead_code)]
     pub enum Toggle {
         Enable = 1,
         Disable = 0,
     }
 
     #[derive(Copy, Clone, Debug)]
+    #[allow(dead_code)]
     pub enum DtmPolicy {
         OnDemand = 1,
         Conservative = 0,
     }
 
     #[derive(Copy, Clone, Debug)]
+    #[allow(dead_code)]
     pub enum PerfMode {
         Full2 = 5,
         Full1 = 4,
@@ -26,6 +29,7 @@ pub mod npu_mgmt {
     }
 
     #[derive(Copy, Clone, Debug)]
+    #[allow(dead_code)]
     pub enum PerfLevel {
         Level0 = 0,
         Level1 = 1,

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use furiosa_device::{Arch, ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode};
+use furiosa_device::{
+    Arch, ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode, NumaNode,
+};
 use pyo3::prelude::*;
 
 use crate::arch::ArchPy;
@@ -197,9 +199,15 @@ impl DevicePy {
             .map(|v| v.into_iter().map(ClockFrequencyPy::new).collect())
     }
 
-    /// Controls the device led.
-    fn ctrl_device_led(&self, led: (bool, bool, bool)) -> PyResult<()> {
-        self.inner.ctrl_device_led(led).map_err(to_py_err)
+    /// Retrieve NUMA node ID associated with the NPU's PCI lane (-1 indicates unsupported)
+    fn numa_node(&self) -> PyResult<i64> {
+        self.inner
+            .numa_node()
+            .map(|n| match n {
+                NumaNode::UnSupported => -1,
+                NumaNode::Id(id) => id as i64,
+            })
+            .map_err(to_py_err)
     }
 
     /// Counts the number of cores.

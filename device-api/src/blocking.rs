@@ -146,10 +146,19 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
     Ok(status_map)
 }
 
-fn hwmon_fetcher_new(_: &str, device_index: u8, _: &str) -> DeviceResult<hwmon::Fetcher> {
+fn hwmon_fetcher_new(
+    base_dir: &str,
+    device_index: u8,
+    busname: &str,
+) -> DeviceResult<hwmon::Fetcher> {
     Ok(hwmon::Fetcher {
         device_index,
-        sensor_container: hwmon::SensorContainer(HashMap::new()),
+        sensor_container: hwmon::SensorContainer::new_blocking(base_dir, busname).map_err(
+            |cause| DeviceError::HwmonError {
+                device_index,
+                cause,
+            },
+        )?,
     })
 }
 

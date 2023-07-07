@@ -72,7 +72,7 @@ impl Device {
     }
 
     /// Returns the `DeviceInfo` struct.
-    pub fn device_info(&self) -> &DeviceInfo {
+    fn device_info(&self) -> &DeviceInfo {
         &self.device_info
     }
 
@@ -149,7 +149,8 @@ impl Device {
     }
 
     /// Controls the device led.
-    pub fn ctrl_device_led(&self, led: (bool, bool, bool)) -> DeviceResult<()> {
+    #[allow(dead_code)]
+    fn ctrl_device_led(&self, led: (bool, bool, bool)) -> DeviceResult<()> {
         self.device_info.ctrl(
             sysfs::npu_mgmt::DEVICE_LED,
             &(led.0 as i32 + 0b10 * led.1 as i32 + 0b100 * led.2 as i32).to_string(),
@@ -157,19 +158,22 @@ impl Device {
     }
 
     /// Control NE clocks.
-    pub fn ctrl_ne_clock(&self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
+    #[allow(dead_code)]
+    fn ctrl_ne_clock(&self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_CLOCK, &(toggle as u8).to_string())
     }
 
     /// Control the Dynamic Thermal Management policy.
-    pub fn ctrl_ne_dtm_policy(&self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
+    #[allow(dead_code)]
+    fn ctrl_ne_dtm_policy(&self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::NE_DTM_POLICY, &(policy as u8).to_string())
     }
 
     /// Control NE performance level
-    pub fn ctrl_performance_level(&self, level: sysfs::npu_mgmt::PerfLevel) -> DeviceResult<()> {
+    #[allow(dead_code)]
+    fn ctrl_performance_level(&self, level: sysfs::npu_mgmt::PerfLevel) -> DeviceResult<()> {
         self.device_info.ctrl(
             sysfs::npu_mgmt::PERFORMANCE_LEVEL,
             &(level as u8).to_string(),
@@ -177,7 +181,8 @@ impl Device {
     }
 
     /// Control NE performance mode
-    pub fn ctrl_performance_mode(&self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
+    #[allow(dead_code)]
+    fn ctrl_performance_mode(&self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
         self.device_info
             .ctrl(sysfs::npu_mgmt::PERFORMANCE_MODE, &(mode as u8).to_string())
     }
@@ -280,6 +285,7 @@ impl PartialOrd for Device {
     }
 }
 
+/// Non Uniform Memory Access (NUMA) node
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum NumaNode {
     UnSupported,
