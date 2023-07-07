@@ -52,7 +52,7 @@ pub mod npu_mgmt {
     }
 
     pub trait MgmtFile {
-        fn path(&self) -> &'static str;
+        fn filename(&self) -> &'static str;
 
         fn is_static(&self) -> bool;
     }
@@ -70,7 +70,7 @@ pub mod npu_mgmt {
     }
 
     impl MgmtFile for StaticMgmtFile {
-        fn path(&self) -> &'static str {
+        fn filename(&self) -> &'static str {
             match self {
                 StaticMgmtFile::Busname => "busname",
                 StaticMgmtFile::Dev => "dev",
@@ -101,7 +101,7 @@ pub mod npu_mgmt {
     }
 
     impl MgmtFile for DynamicMgmtFile {
-        fn path(&self) -> &'static str {
+        fn filename(&self) -> &'static str {
             match self {
                 DynamicMgmtFile::Alive => "alive",
                 DynamicMgmtFile::AtrError => "atr_error",

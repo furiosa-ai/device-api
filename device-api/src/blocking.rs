@@ -92,7 +92,7 @@ fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
 fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
     std::fs::read_to_string(npu_mgmt::path(
         sysfs,
-        npu_mgmt::StaticMgmtFile::PlatformType.path(),
+        npu_mgmt::StaticMgmtFile::PlatformType.filename(),
         idx,
     ))
     .ok()

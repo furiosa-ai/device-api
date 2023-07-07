@@ -102,7 +102,7 @@ pub(crate) fn filter_dev_files(dev_files: Vec<DevFile>) -> DeviceResult<HashMap<
 async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
     fs::read_to_string(npu_mgmt::path(
         sysfs,
-        StaticMgmtFile::PlatformType.path(),
+        StaticMgmtFile::PlatformType.filename(),
         idx,
     ))
     .await

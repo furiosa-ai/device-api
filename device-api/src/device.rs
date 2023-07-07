@@ -161,30 +161,28 @@ impl Device {
 
     /// Control NE clocks.
     #[allow(dead_code)]
-    fn ctrl_ne_clock(&self, toggle: sysfs::npu_mgmt::Toggle) -> DeviceResult<()> {
+    fn ctrl_ne_clock(&self, toggle: npu_mgmt::Toggle) -> DeviceResult<()> {
         self.device_info
             .ctrl(CtrlFile::NeClock, &(toggle as u8).to_string())
     }
 
     /// Control the Dynamic Thermal Management policy.
     #[allow(dead_code)]
-    fn ctrl_ne_dtm_policy(&self, policy: sysfs::npu_mgmt::DtmPolicy) -> DeviceResult<()> {
+    fn ctrl_ne_dtm_policy(&self, policy: npu_mgmt::DtmPolicy) -> DeviceResult<()> {
         self.device_info
             .ctrl(CtrlFile::NeDtmPolicy, &(policy as u8).to_string())
     }
 
     /// Control NE performance level
     #[allow(dead_code)]
-    fn ctrl_performance_level(&self, level: sysfs::npu_mgmt::PerfLevel) -> DeviceResult<()> {
-        self.device_info.ctrl(
-            sysfs::npu_mgmt::PERFORMANCE_LEVEL,
-            &(level as u8).to_string(),
-        )
+    fn ctrl_performance_level(&self, level: npu_mgmt::PerfLevel) -> DeviceResult<()> {
+        self.device_info
+            .ctrl(CtrlFile::PerformanceLevel, &(level as u8).to_string())
     }
 
     /// Control NE performance mode
     #[allow(dead_code)]
-    fn ctrl_performance_mode(&self, mode: sysfs::npu_mgmt::PerfMode) -> DeviceResult<()> {
+    fn ctrl_performance_mode(&self, mode: npu_mgmt::PerfMode) -> DeviceResult<()> {
         self.device_info
             .ctrl(CtrlFile::PerformanceMode, &(mode as u8).to_string())
     }
@@ -308,12 +306,12 @@ impl DeviceInfo {
     pub(crate) fn new(device_index: u8, dev_root: PathBuf, sys_root: PathBuf) -> DeviceInfo {
         let mut meta = HashMap::default();
         for file in StaticMgmtFile::iter() {
-            let path = file.path();
-            let value = npu_mgmt::read_mgmt_file(&sys_root, path, device_index).unwrap();
-            meta.insert(path, value);
+            let filename = file.filename();
+            let value = npu_mgmt::read_mgmt_file(&sys_root, filename, device_index).unwrap();
+            meta.insert(filename, value);
         }
-        let device_type = meta.get(&StaticMgmtFile::DeviceType.path()).unwrap();
-        let soc_rev = meta.get(&StaticMgmtFile::SocRev.path()).unwrap();
+        let device_type = meta.get(&StaticMgmtFile::DeviceType.filename()).unwrap();
+        let soc_rev = meta.get(&StaticMgmtFile::SocRev.filename()).unwrap();
         let arch = Arch::from_str(format!("{device_type}{soc_rev}").as_str())
             .map_err(|_| DeviceError::UnknownArch {
                 arch: device_type.clone(),
@@ -324,8 +322,8 @@ impl DeviceInfo {
             device_index,
             dev_root,
             sys_root,
-            meta,
             arch,
+            meta,
             numa_node: Mutex::new(None),
         }
     }
@@ -336,10 +334,10 @@ impl DeviceInfo {
 
     pub fn get(&self, mgmt_file: &dyn MgmtFile) -> DeviceResult<String> {
         if mgmt_file.is_static() {
-            Ok(self.meta.get(mgmt_file.path()).unwrap().to_string())
+            Ok(self.meta.get(mgmt_file.filename()).unwrap().to_string())
         } else {
             let value =
-                npu_mgmt::read_mgmt_file(&self.sys_root, mgmt_file.path(), self.device_index)?;
+                npu_mgmt::read_mgmt_file(&self.sys_root, mgmt_file.filename(), self.device_index)?;
             Ok(value)
         }
     }
@@ -722,7 +720,7 @@ mod tests {
         );
 
         assert_eq!(
-            device_info.meta.get(StaticMgmtFile::Busname.path()),
+            device_info.meta.get(StaticMgmtFile::Busname.filename()),
             Some(&String::from("0000:6d:00.0"))
         );
         assert_eq!(
@@ -730,7 +728,7 @@ mod tests {
             Some(String::from("0000:6d:00.0"))
         );
         assert_eq!(
-            device_info.meta.get(StaticMgmtFile::Busname.path()),
+            device_info.meta.get(StaticMgmtFile::Busname.filename()),
             Some(&String::from("0000:6d:00.0"))
         );
 
@@ -746,7 +744,7 @@ mod tests {
         );
 
         assert_eq!(
-            device_info.meta.get(DynamicMgmtFile::FwVersion.path()),
+            device_info.meta.get(DynamicMgmtFile::FwVersion.filename()),
             None
         );
         assert_eq!(
@@ -754,7 +752,7 @@ mod tests {
             Some(String::from("1.6.0, c1bebfd"))
         );
         assert_eq!(
-            device_info.meta.get(DynamicMgmtFile::FwVersion.path()),
+            device_info.meta.get(DynamicMgmtFile::FwVersion.filename()),
             None
         );
 
