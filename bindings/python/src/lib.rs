@@ -13,6 +13,10 @@ use config::DeviceConfigPy;
 use device::{CoreRangePy, DeviceFilePy, DeviceModePy, DevicePy};
 use errors::to_py_err;
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const GIT_SHORT_HASH: &str = env!("FURIOSA_GIT_SHORT_HASH");
+pub const BUILD_TIMESTAMP: &str = env!("FURIOSA_BUILD_TIMESTAMP");
+
 /// `list_devices` enumerates all Furiosa NPU devices in the system.
 /// One can simply call as below:
 /// ```python
@@ -98,9 +102,9 @@ fn furiosa_device_python(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<CoreRangePy>()?;
     m.add_class::<ArchPy>()?;
     m.add_class::<DeviceModePy>()?;
-    m.add("__version__", furiosa_device::VERSION)?;
-    m.add("__git_short_hash__", furiosa_device::GIT_SHORT_HASH)?;
-    m.add("__build_timestamp__", furiosa_device::BUILD_TIMESTAMP)?;
+    m.add("__version__", VERSION)?;
+    m.add("__git_short_hash__", GIT_SHORT_HASH)?;
+    m.add("__build_timestamp__", BUILD_TIMESTAMP)?;
 
     let sync_module = pyo3::wrap_pymodule!(sync::furiosa_device_python_sync);
     m.add_wrapped(sync_module)?;

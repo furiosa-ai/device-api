@@ -342,12 +342,10 @@ name = "furiosa-device"
 version = "0.1.5-dev"
 dependencies = [
  "array_tool",
- "chrono",
  "cli-table",
  "enum-display-derive",
  "enum-utils",
  "eyre",
- "git2",
  "itertools",
  "lazy_static",
  "memoize",
@@ -367,7 +365,9 @@ dependencies = [
 name = "furiosa-device-python"
 version = "0.1.5-dev"
 dependencies = [
+ "chrono",
  "furiosa-device",
+ "git2",
  "pyo3",
  "pyo3-asyncio",
  "tokio",
