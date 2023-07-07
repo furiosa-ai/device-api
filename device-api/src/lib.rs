@@ -86,7 +86,6 @@ pub mod proc;
 mod status;
 mod sysfs;
 
-
 /// List all Furiosa NPU devices in the system.
 ///
 /// See the [crate-level documentation](crate).
