@@ -232,10 +232,10 @@ mod tests {
     #[tokio::test]
     async fn test_named_config_fit() -> DeviceResult<()> {
         let config = "0:0".parse::<Config>().unwrap();
-        let npu0pe0 = crate::get_device_with("../test_data/test-0/dev", "npu0pe0").await?;
-        let npu0pe1 = crate::get_device_with("../test_data/test-0/dev", "npu0pe1").await?;
-        let npu0pe0_1 = crate::get_device_with("../test_data/test-0/dev", "npu0pe0-1").await?;
-        let npu1pe0 = crate::get_device_with("../test_data/test-0/dev", "npu0pe1").await?;
+        let npu0pe0 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0").await?;
+        let npu0pe1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe1").await?;
+        let npu0pe0_1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0-1").await?;
+        let npu1pe0 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe1").await?;
 
         assert_eq!(config.count(), Count::Finite(1));
 
@@ -253,9 +253,9 @@ mod tests {
 
         assert_eq!(config.count(), Count::Finite(2));
 
-        let npu0pe0 = crate::get_device_with("../test_data/test-0/dev", "npu0pe0").await?;
-        let npu0pe1 = crate::get_device_with("../test_data/test-0/dev", "npu0pe1").await?;
-        let npu0pe0_1 = crate::get_device_with("../test_data/test-0/dev", "npu0pe0-1").await?;
+        let npu0pe0 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0").await?;
+        let npu0pe1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe1").await?;
+        let npu0pe0_1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0-1").await?;
 
         assert!(config.fit(Arch::WarboyB0, &npu0pe0));
         assert!(config.fit(Arch::WarboyB0, &npu0pe1));

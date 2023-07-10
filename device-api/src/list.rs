@@ -8,8 +8,8 @@ use tokio::fs;
 use crate::devfs::{self, is_character_device};
 use crate::device::{Device, DeviceFile, DeviceInfo};
 use crate::error::DeviceResult;
-use crate::hwmon;
 use crate::sysfs::npu_mgmt::{self, *};
+use crate::{hwmon, DeviceError};
 
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
@@ -18,20 +18,44 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
     let mut devices: Vec<Device> = Vec::with_capacity(npu_dev_files.keys().len());
 
     for (idx, paths) in npu_dev_files {
-        if is_furiosa_device(idx, sysfs).await {
-            let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
-
-            // Since busname is a required field, it is guaranteed to exist.
-            let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
-            let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, &busname).await?;
-
-            let device = collect_devices(device_info, hwmon_fetcher, paths)?;
+        if let Ok(device) = get_device_inner(idx, paths, devfs, sysfs).await {
             devices.push(device);
         }
     }
 
     devices.sort();
     Ok(devices)
+}
+
+pub(crate) async fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
+    let mut npu_dev_files = filter_dev_files(list_devfs(devfs).await?)?;
+
+    if let Some(paths) = npu_dev_files.remove(&idx) {
+        get_device_inner(idx, paths, devfs, sysfs).await
+    } else {
+        Err(DeviceError::device_not_found(format!("npu{idx}")))
+    }
+}
+
+pub(crate) async fn get_device_inner(
+    idx: u8,
+    paths: Vec<PathBuf>,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Device> {
+    if is_furiosa_device(idx, sysfs).await {
+        let device_info =
+            DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
+
+        // Since busname is a required field, it is guaranteed to exist.
+        let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
+        let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, &busname).await?;
+
+        let device = collect_devices(device_info, hwmon_fetcher, paths)?;
+        Ok(device)
+    } else {
+        Err(DeviceError::device_not_found(format!("npu{idx}")))
+    }
 }
 
 pub(crate) fn collect_devices(

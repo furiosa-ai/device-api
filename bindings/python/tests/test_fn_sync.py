@@ -1,7 +1,7 @@
 import glob
 
 from furiosa_device import Arch, DeviceConfig, DeviceMode
-from furiosa_device.sync import find_devices, get_device, list_devices
+from furiosa_device.sync import find_devices, get_device, get_device_file, list_devices
 
 
 def get_first_device_name(pattern):
@@ -13,6 +13,11 @@ def test_list_devices():
     devices = list_devices()
     assert devices[0].name() == dev_name
 
+def test_get_device():
+    dev_name = get_first_device_name("/dev/npu*")
+    dev_idx = int(dev_name.replace('npu', ''))
+    device = get_device(dev_idx)
+    assert device.name() == dev_name
 
 def test_find_devices():
     dev_name = get_first_device_name("/dev/npu*pe0-1")
@@ -21,7 +26,7 @@ def test_find_devices():
     assert devices[0].filename() == dev_name
 
 
-def test_get_device():
+def test_get_device_file():
     dev_name = get_first_device_name("/dev/npu*pe1")
-    device = get_device(dev_name)
-    assert device.filename() == dev_name
+    device_file = get_device_file(dev_name)
+    assert device_file.filename() == dev_name
