@@ -20,7 +20,7 @@
 //! ## Listing devices from the system
 //!
 //! The current implementation mainly offers two APIs, namely
-//! [`list_devices`] and [`find_devices`].
+//! [`list_devices`] and [`find_device_files`].
 //!
 //! 1. [`list_devices`] enumerates all Furiosa NPU devices in the system.
 //! One can simply call as below:
@@ -35,17 +35,17 @@
 //! [Struct `Device`][`Device`] offers methods for further information of each
 //! device.
 //!
-//! 2. If you have a desired configuration, call [`find_devices`] with your device configuration
-//! described by a [`DeviceConfig`]. [`find_devices`] will return a list of
+//! 2. If you have a desired configuration, call [`find_device_files`] with your device configuration
+//! described by a [`DeviceConfig`]. [`find_device_files`] will return a list of
 //! [`DeviceFile`]s if there are matched devices.
 //! ```rust,no_run
-//! use furiosa_device::{find_devices, DeviceConfig};
+//! use furiosa_device::{find_device_files, DeviceConfig};
 //!
 //! // Find two Warboy devices, fused.
 //! # #[tokio::main]
 //! # async fn main() -> eyre::Result<()> {
 //! let config = DeviceConfig::warboy().fused().count(2);
-//! let dev_files = find_devices(&config).await?;
+//! let dev_files = find_device_files(&config).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -65,7 +65,7 @@
 #![feature(associated_type_bounds)]
 
 pub use crate::arch::Arch;
-use crate::config::{expand_status, find_devices_in};
+use crate::config::{expand_status, find_device_files_in};
 pub use crate::config::{DeviceConfig, DeviceConfigBuilder, EnvBuilder, NotDetermined};
 pub use crate::device::{
     ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode, NumaNode,
@@ -113,9 +113,9 @@ pub async fn get_device(idx: u8) -> DeviceResult<Device> {
 /// * `config` - DeviceConfig
 ///
 /// See the [crate-level documentation](crate).
-pub async fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
+pub async fn find_device_files(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
     let devices = expand_status(list_devices().await?).await?;
-    find_devices_in(config, &devices)
+    find_device_files_in(config, &devices)
 }
 
 /// Return a specific device if it exists.

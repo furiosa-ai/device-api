@@ -5,7 +5,7 @@ from furiosa_device import (
     Arch,
     DeviceConfig,
     DeviceMode,
-    find_devices,
+    find_device_files,
     get_device,
     get_device_file,
     list_devices,
@@ -30,10 +30,10 @@ async def test_get_device():
     assert device.name() == dev_name
 
 @pytest.mark.asyncio
-async def test_find_devices():
+async def test_find_device_files():
     dev_name = get_first_device_name("/dev/npu*pe0-1")
     config = DeviceConfig(arch=Arch.Warboy, mode=DeviceMode.Fusion, count=1)
-    devices = await find_devices(config)
+    devices = await find_device_files(config)
     assert devices[0].filename() == dev_name
 
 
