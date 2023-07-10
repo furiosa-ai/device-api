@@ -30,13 +30,13 @@ pub mod error {
 }
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct PerformanceValues {
+pub struct Utilization {
     npu_utilization: f64,
     computation_ratio: f64,
     io_ratio: f64,
 }
 
-impl PerformanceValues {
+impl Utilization {
     fn new(npu_utilization: f64, computation_ratio: f64, io_ratio: f64) -> Self {
         Self {
             npu_utilization,
@@ -136,49 +136,82 @@ impl PerformanceCounter {
         Ok(counter)
     }
 
-    /// Calculate utilization using performance counters at two points in time
-    pub fn calculate_performance_values(&self, other: &Self) -> Option<PerformanceValues> {
+    /// Returns cycle count of the device file.
+    pub fn cycle_count(&self) -> usize {
+        self.cycle_count
+    }
+
+    /// Returns task execution cycle count of the device file.
+    pub fn task_execution_cycle(&self) -> u32 {
+        self.task_execution_cycle
+    }
+
+    /// Returns tensor execution cycle count of the device file.
+    pub fn tensor_execution_cycle(&self) -> u32 {
+        self.tensor_execution_cycle
+    }
+
+    /// Returns the difference between two counters.
+    pub fn calculate_increased(&self, other: &Self) -> Self {
         let (prev, next) = if self.now < other.now {
             (self, other)
         } else {
             (other, self)
         };
 
-        // when the cycle count is reversed, it is considered invalid.
+        // when the cycle count is reversed, NPU was restarted.
         if next.cycle_count < prev.cycle_count {
-            return None;
+            return *next;
         }
 
+        let elapsed_time = next.now.duration_since(prev.now);
+        if elapsed_time.is_err() {
+            return *next;
+        }
+
+        let elapsed_time = elapsed_time.unwrap().as_nanos() as usize;
         let cycle_gap = next.cycle_count - prev.cycle_count;
+
+        // Unfortunately, it's a naive implementation for now.
+        if (cycle_gap as f64 / elapsed_time as f64) < 0.45 {
+            return *next;
+        }
+
         let task_cycle_gap =
             Self::safe_u32_subtract(next.task_execution_cycle, prev.task_execution_cycle);
         let tensor_cycle_gap =
             Self::safe_u32_subtract(next.tensor_execution_cycle, prev.tensor_execution_cycle);
 
-        // If the task cycle is bigger than the total cycle, it is considered invalid.
-        if cycle_gap < task_cycle_gap {
-            return None;
+        let task_cycle_gap = std::cmp::min(cycle_gap, task_cycle_gap);
+        let tensor_cycle_gap = std::cmp::min(task_cycle_gap, tensor_cycle_gap);
+
+        Self {
+            now: next.now,
+            cycle_count: cycle_gap,
+            task_execution_cycle: std::cmp::min(task_cycle_gap, u32::MAX as usize) as u32,
+            tensor_execution_cycle: std::cmp::min(tensor_cycle_gap, u32::MAX as usize) as u32,
+        }
+    }
+
+    /// Returns NPU utilization based on the difference between two counters.
+    pub fn calculate_utilization(&self, other: &Self) -> Utilization {
+        let diff = self.calculate_increased(other);
+
+        if diff.task_execution_cycle == 0 {
+            return Utilization::default();
         }
 
-        if task_cycle_gap == 0 {
-            return Some(PerformanceValues::default());
-        }
-
-        let npu_utilization = Self::safe_usize_divide(task_cycle_gap, cycle_gap);
+        let npu_utilization =
+            Self::safe_usize_divide(diff.task_execution_cycle as usize, diff.cycle_count);
 
         // Sometimes the tensor cycle is larger than the task cycle due to observation timing issues. In this case, an upper bound is applied.
-        let computation_ratio = if task_cycle_gap < tensor_cycle_gap {
-            1.0
-        } else {
-            Self::safe_usize_divide(tensor_cycle_gap, task_cycle_gap)
-        };
+        let computation_ratio = Self::safe_usize_divide(
+            diff.tensor_execution_cycle as usize,
+            diff.task_execution_cycle as usize,
+        );
         let io_ratio = 1.0 - computation_ratio;
 
-        Some(PerformanceValues::new(
-            npu_utilization,
-            computation_ratio,
-            io_ratio,
-        ))
+        Utilization::new(npu_utilization, computation_ratio, io_ratio)
     }
 
     // Except for "cycle count", the other fields have a u32 type.
@@ -336,10 +369,7 @@ CycleCountHigh: 0x0
         assert!(res.is_ok());
         let next = res.unwrap();
 
-        let res = next.calculate_performance_values(&prev);
-        assert!(res.is_some());
-
-        let values = res.unwrap();
+        let values = next.calculate_utilization(&prev);
         assert_eq!(4880, (values.npu_utilization() * 10000.0).round() as i64);
         assert_eq!(9811, (values.computation_ratio() * 10000.0).round() as i64);
         assert_eq!(189, (values.io_ratio() * 10000.0).round() as i64);

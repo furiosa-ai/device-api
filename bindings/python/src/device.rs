@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use furiosa_device::perf_regs::{PerformanceCounter, Utilization};
 use furiosa_device::{
     Arch, ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode, NumaNode,
 };
@@ -230,6 +231,20 @@ impl DevicePy {
             .collect()
     }
 
+    /// Retrieves the pair of device files and performance counters under this device.
+    pub fn performance_counters(&self) -> Vec<(DeviceFilePy, PerformanceCounterPy)> {
+        self.inner
+            .performance_counters()
+            .into_iter()
+            .map(|(devfile, pc)| {
+                (
+                    DeviceFilePy::new(devfile.clone()),
+                    PerformanceCounterPy::new(pc),
+                )
+            })
+            .collect()
+    }
+
     /// Examine a specific core of the device, whether it is available or not.
     fn get_status_core<'py, 'a>(&'a self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
@@ -373,4 +388,86 @@ pub enum DeviceModePy {
     Single,
     Fusion,
     MultiCore,
+}
+
+/// An abstraction for a performance counter.
+#[pyclass(name = "PerformanceCounter")]
+#[derive(Clone)]
+pub struct PerformanceCounterPy {
+    inner: PerformanceCounter,
+}
+
+impl PerformanceCounterPy {
+    pub fn new(pc: PerformanceCounter) -> Self {
+        Self { inner: pc }
+    }
+}
+
+#[pymethods]
+impl PerformanceCounterPy {
+    fn __repr__(&self) -> String {
+        format!(
+            "PerformanceCounter {} {} {}",
+            self.inner.cycle_count(),
+            self.inner.task_execution_cycle(),
+            self.inner.tensor_execution_cycle()
+        )
+    }
+
+    /// Returns cycle count of the device file.
+    pub fn cycle_count(&self) -> usize {
+        self.inner.cycle_count()
+    }
+
+    /// Returns task execution cycle count of the device file.
+    pub fn task_execution_cycle(&self) -> u32 {
+        self.inner.task_execution_cycle()
+    }
+
+    /// Returns tensor execution cycle count of the device file.
+    pub fn tensor_execution_cycle(&self) -> u32 {
+        self.inner.tensor_execution_cycle()
+    }
+
+    /// Returns the difference between two counters.
+    pub fn calculate_increased(&self, other: &PerformanceCounterPy) -> PerformanceCounterPy {
+        PerformanceCounterPy::new(self.inner.calculate_increased(&other.inner))
+    }
+
+    /// Returns NPU utilization based on the difference between two counters.
+    pub fn calculate_utilization(&self, other: &PerformanceCounterPy) -> UtilizationPy {
+        UtilizationPy::new(self.inner.calculate_utilization(&other.inner))
+    }
+}
+
+/// An abstraction for a utilization.
+#[pyclass(name = "Utilization")]
+#[derive(Clone)]
+pub struct UtilizationPy {
+    inner: Utilization,
+}
+
+impl UtilizationPy {
+    pub fn new(util: Utilization) -> Self {
+        Self { inner: util }
+    }
+}
+
+#[pymethods]
+impl UtilizationPy {
+    fn __repr__(&self) -> String {
+        format!("NPU Utilization {}", self.inner.npu_utilization())
+    }
+
+    pub fn npu_utilization(&self) -> f64 {
+        self.inner.npu_utilization()
+    }
+
+    pub fn computation_ratio(&self) -> f64 {
+        self.inner.computation_ratio()
+    }
+
+    pub fn io_ratio(&self) -> f64 {
+        self.inner.io_ratio()
+    }
 }
