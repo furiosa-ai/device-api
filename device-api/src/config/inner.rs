@@ -188,13 +188,13 @@ impl Display for Config {
                 core_range,
             } => match core_range {
                 CoreRange::All => {
-                    write!(f, "{}", device_id)
+                    write!(f, "{device_id}")
                 }
                 CoreRange::Range((s, e)) => {
                     if s == e {
-                        write!(f, "{}:{}", device_id, s)
+                        write!(f, "{device_id}:{s}")
                     } else {
-                        write!(f, "{}:{}-{}", device_id, s, e)
+                        write!(f, "{device_id}:{s}-{e}")
                     }
                 }
             },
@@ -205,9 +205,9 @@ impl Display for Config {
                 count,
             } => {
                 if *core_num == 0 {
-                    write!(f, "{}*{}", arch, count)
+                    write!(f, "{arch}*{count}")
                 } else {
-                    write!(f, "{}({})*{}", arch, core_num, count)
+                    write!(f, "{arch}({core_num})*{count}")
                 }
             }
         }

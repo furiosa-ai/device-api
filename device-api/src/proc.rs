@@ -48,7 +48,7 @@ pub fn scan_processes() -> DeviceResult<Vec<NpuProcess>> {
 
     for entry in fs::read_dir("/proc")? {
         if let Ok(pid) = entry?.file_name().to_string_lossy().parse::<u32>() {
-            let path = format!("/proc/{}/fd", pid);
+            let path = format!("/proc/{pid}/fd");
             if let Ok(dirs) = fs::read_dir(&path) {
                 for entry in dirs {
                     let entry = entry?;
@@ -68,7 +68,7 @@ pub fn scan_processes() -> DeviceResult<Vec<NpuProcess>> {
     let mut results: Vec<NpuProcess> = targets
         .into_par_iter()
         .filter_map(|(pid, path)| {
-            if let Ok(link) = fs::read_link(&path) {
+            if let Ok(link) = fs::read_link(path) {
                 let link = link.as_os_str().to_string_lossy();
                 if DEVICE_PATH_PATTERN.is_match(&link) {
                     return Some((pid, link.replace("/dev/", "")));
@@ -88,7 +88,7 @@ pub fn scan_processes() -> DeviceResult<Vec<NpuProcess>> {
 
 #[memoize(TimeToLive: std::time::Duration::from_secs(1))]
 fn read_cmdline(pid: u32) -> Option<String> {
-    let path = format!("/proc/{}/cmdline", pid);
+    let path = format!("/proc/{pid}/cmdline");
     let file = std::fs::File::open(path).ok()?;
     let mut buf_reader = std::io::BufReader::new(file);
     let mut contents = String::new();

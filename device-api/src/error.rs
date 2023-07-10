@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::hwmon::error::HwmonError;
 use crate::perf_regs::error::PerformanceCounterError;
-use crate::DeviceError::{IncompatibleDriver, IoError, UnexpectedValue};
+use crate::DeviceError::{IncompatibleDriver, UnexpectedValue};
 
 /// Type alias for `Result<T, DeviceError>`.
 pub type DeviceResult<T> = Result<T, DeviceError>;
@@ -41,28 +41,15 @@ impl DeviceError {
         }
     }
 
-    pub(crate) fn file_not_found<F: Display>(file: F) -> DeviceError {
-        use io::ErrorKind;
-        IoError {
-            cause: io::Error::new(ErrorKind::NotFound, format!("{} not found", file)),
-        }
-    }
-
     pub(crate) fn unrecognized_file<F: Display>(file: F) -> DeviceError {
         IncompatibleDriver {
-            cause: format!("{} file cannot be recognized", file),
+            cause: format!("{file} file cannot be recognized"),
         }
     }
 
     pub(crate) fn invalid_device_file<F: Display>(file: F) -> DeviceError {
         IncompatibleDriver {
-            cause: format!("{} is not a valid device file", file),
-        }
-    }
-
-    pub(crate) fn unsupported_key<K: Display>(key: K) -> DeviceError {
-        IncompatibleDriver {
-            cause: format!("mgmt file {} is not supported", key),
+            cause: format!("{file} is not a valid device file"),
         }
     }
 
