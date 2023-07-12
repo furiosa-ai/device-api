@@ -6,7 +6,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.1-dev"
+version = "0.2.0"
 authors = ["FuriosaAI SW Team <pkg@furiosa.ai>"]
 edition = "2021"
 description = "APIs that offer FuriosaAI NPU devices' information and allow to control the devices"
