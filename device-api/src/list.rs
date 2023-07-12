@@ -44,8 +44,7 @@ pub(crate) async fn get_device_inner(
     sysfs: &str,
 ) -> DeviceResult<Device> {
     if is_furiosa_device(idx, sysfs).await {
-        let device_info =
-            DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
+        let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
 
         // Since busname is a required field, it is guaranteed to exist.
         let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();

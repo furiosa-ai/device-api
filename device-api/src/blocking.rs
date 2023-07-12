@@ -94,8 +94,7 @@ pub(crate) fn get_device_inner(
     sysfs: &str,
 ) -> DeviceResult<Device> {
     if is_furiosa_device(idx, sysfs) {
-        let device_info =
-            DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
+        let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
         let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
         let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
 
