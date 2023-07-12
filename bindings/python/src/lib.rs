@@ -1,4 +1,4 @@
-use furiosa_device::{find_devices, get_device, list_devices};
+use furiosa_device::{find_device_files, get_device, get_device_file, list_devices};
 use hwmon::FetcherPy;
 use pyo3::prelude::*;
 
@@ -46,23 +46,42 @@ fn list_devices_python(py: Python<'_>) -> PyResult<&PyAny> {
     })
 }
 
-/// If you have a desired configuration, call `find_devices` with your device configuration
-/// described by a `DeviceConfig`. `find_devices` will return a list of
+/// `get_device` returns a specific Furiosa NPU device in the system.
+/// One can simply call as below:
+/// ```python
+/// import asyncio
+/// from furiosa_device import get_device
+///
+/// async def main():
+///     device = await furiosa_device.get_device(0)
+/// asyncio.run(main())
+/// ```
+///
+/// `Device` offers methods for further information of each device.
+#[pyfunction(name = "get_device")]
+fn get_device_python(py: Python<'_>, idx: u8) -> PyResult<&PyAny> {
+    pyo3_asyncio::tokio::future_into_py(py, async move {
+        get_device(idx).await.map(DevicePy::new).map_err(to_py_err)
+    })
+}
+
+/// If you have a desired configuration, call `find_device_files` with your device configuration
+/// described by a `DeviceConfig`. `find_device_files` will return a list of
 /// `DeviceFile`s if there are matched devices.
 /// ```python
 /// import asyncio
-/// from furiosa_device import Arch, DeviceConfig, DeviceMode, find_devices
+/// from furiosa_device import Arch, DeviceConfig, DeviceMode, find_device_files
 ///
 /// async def main():
 ///     // Find two Warboy devices, fused.
 ///     let config = furiosa_device.DeviceConfig(arch=Arch.Warboy, mode=DeviceMode.Fusion, count=2)
-///     devices = await furiosa_device.find_devices(config)
+///     devices = await furiosa_device.find_device_files(config)
 /// asyncio.run(main())
 /// ```
-#[pyfunction(name = "find_devices")]
-fn find_devices_python(py: Python<'_>, config: DeviceConfigPy) -> PyResult<&PyAny> {
+#[pyfunction(name = "find_device_files")]
+fn find_device_files_python(py: Python<'_>, config: DeviceConfigPy) -> PyResult<&PyAny> {
     pyo3_asyncio::tokio::future_into_py(py, async move {
-        find_devices(&config.inner)
+        find_device_files(&config.inner)
             .await
             .map(|vec| {
                 vec.into_iter()
@@ -74,18 +93,18 @@ fn find_devices_python(py: Python<'_>, config: DeviceConfigPy) -> PyResult<&PyAn
 }
 
 /// In case you have prior knowledge on the system and want to pick out a
-/// device with specific name, use `get_device`.
+/// device file with specific name, use `get_device_file`.
 /// ```python
 /// import asyncio
-/// from furiosa_device import get_device
+/// from furiosa_device import get_device_file
 ///
 /// async def main():
-///     device = await get_device("npu0pe0")
+///     device_file = await get_device_file("npu0pe0")
 /// ```
-#[pyfunction(name = "get_device")]
-fn get_device_python(py: Python<'_>, device_name: String) -> PyResult<&PyAny> {
+#[pyfunction(name = "get_device_file")]
+fn get_device_file_python(py: Python<'_>, device_name: String) -> PyResult<&PyAny> {
     pyo3_asyncio::tokio::future_into_py(py, async move {
-        get_device(device_name)
+        get_device_file(device_name)
             .await
             .map(DeviceFilePy::new)
             .map_err(to_py_err)
@@ -96,8 +115,9 @@ fn get_device_python(py: Python<'_>, device_name: String) -> PyResult<&PyAny> {
 #[pyo3(name = "furiosa_device")]
 fn furiosa_device_python(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_devices_python, m)?)?;
-    m.add_function(wrap_pyfunction!(find_devices_python, m)?)?;
     m.add_function(wrap_pyfunction!(get_device_python, m)?)?;
+    m.add_function(wrap_pyfunction!(find_device_files_python, m)?)?;
+    m.add_function(wrap_pyfunction!(get_device_file_python, m)?)?;
     m.add_class::<DevicePy>()?;
     m.add_class::<DeviceFilePy>()?;
     m.add_class::<DeviceConfigPy>()?;

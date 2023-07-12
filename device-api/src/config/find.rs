@@ -31,7 +31,7 @@ pub(crate) async fn expand_status(devices: Vec<Device>) -> DeviceResult<Vec<Devi
     Ok(new_devices)
 }
 
-pub(crate) fn find_devices_in(
+pub(crate) fn find_device_files_in(
     config: &DeviceConfig,
     devices: &[DeviceWithStatus],
 ) -> DeviceResult<Vec<DeviceFile>> {

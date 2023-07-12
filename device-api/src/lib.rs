@@ -20,7 +20,7 @@
 //! ## Listing devices from the system
 //!
 //! The current implementation mainly offers two APIs, namely
-//! [`list_devices`] and [`find_devices`].
+//! [`list_devices`] and [`find_device_files`].
 //!
 //! 1. [`list_devices`] enumerates all Furiosa NPU devices in the system.
 //! One can simply call as below:
@@ -35,27 +35,27 @@
 //! [Struct `Device`][`Device`] offers methods for further information of each
 //! device.
 //!
-//! 2. If you have a desired configuration, call [`find_devices`] with your device configuration
-//! described by a [`DeviceConfig`]. [`find_devices`] will return a list of
+//! 2. If you have a desired configuration, call [`find_device_files`] with your device configuration
+//! described by a [`DeviceConfig`]. [`find_device_files`] will return a list of
 //! [`DeviceFile`]s if there are matched devices.
 //! ```rust,no_run
-//! use furiosa_device::{find_devices, DeviceConfig};
+//! use furiosa_device::{find_device_files, DeviceConfig};
 //!
 //! // Find two Warboy devices, fused.
 //! # #[tokio::main]
 //! # async fn main() -> eyre::Result<()> {
 //! let config = DeviceConfig::warboy().fused().count(2);
-//! let dev_files = find_devices(&config).await?;
+//! let dev_files = find_device_files(&config).await?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! 3. In case you have prior knowledge on the system and want to pick out a
-//! device with specific name, use [`get_device`].
+//! device with specific name, use [`get_device_file`].
 //! ```rust,no_run
 //! # #[tokio::main]
 //! # async fn main() -> eyre::Result<()> {
-//! let device = furiosa_device::get_device("npu0pe0").await?;
+//! let device_file = furiosa_device::get_device_file("npu0pe0").await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -65,13 +65,13 @@
 #![feature(associated_type_bounds)]
 
 pub use crate::arch::Arch;
-use crate::config::{expand_status, find_devices_in};
+use crate::config::{expand_status, find_device_files_in};
 pub use crate::config::{DeviceConfig, DeviceConfigBuilder, EnvBuilder, NotDetermined};
 pub use crate::device::{
     ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode, NumaNode,
 };
 pub use crate::error::{DeviceError, DeviceResult};
-use crate::list::list_devices_with;
+use crate::list::{get_device_with, list_devices_with};
 
 mod arch;
 #[cfg(feature = "blocking")]
@@ -95,6 +95,17 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys").await
 }
 
+/// Return a specific Furiosa NPU device in the system.
+///
+/// # Arguments
+///
+/// * `idx` - An index number of the device (e.g., 0, 1)
+///
+/// See the [crate-level documentation](crate).
+pub async fn get_device(idx: u8) -> DeviceResult<Device> {
+    get_device_with(idx, "/dev", "/sys").await
+}
+
 /// Find a set of devices with specific configuration.
 ///
 /// # Arguments
@@ -102,9 +113,9 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 /// * `config` - DeviceConfig
 ///
 /// See the [crate-level documentation](crate).
-pub async fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
+pub async fn find_device_files(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
     let devices = expand_status(list_devices().await?).await?;
-    find_devices_in(config, &devices)
+    find_device_files_in(config, &devices)
 }
 
 /// Return a specific device if it exists.
@@ -114,11 +125,14 @@ pub async fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>
 /// * `device_name` - A device name (e.g., npu0, npu0pe0, npu0pe0-1)
 ///
 /// See the [crate-level documentation](crate).
-pub async fn get_device<S: AsRef<str>>(device_name: S) -> DeviceResult<DeviceFile> {
-    get_device_with("/dev", device_name.as_ref()).await
+pub async fn get_device_file<S: AsRef<str>>(device_name: S) -> DeviceResult<DeviceFile> {
+    get_device_file_with("/dev", device_name.as_ref()).await
 }
 
-pub(crate) async fn get_device_with(devfs: &str, device_name: &str) -> DeviceResult<DeviceFile> {
+pub(crate) async fn get_device_file_with(
+    devfs: &str,
+    device_name: &str,
+) -> DeviceResult<DeviceFile> {
     let path = devfs::path(devfs, device_name);
     if !path.exists() {
         return Err(DeviceError::DeviceNotFound {

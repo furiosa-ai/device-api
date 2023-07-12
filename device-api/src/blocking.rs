@@ -13,17 +13,24 @@ use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
 use crate::sysfs::npu_mgmt::MgmtFile;
-use crate::{devfs, find_devices_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult};
+use crate::{
+    devfs, find_device_files_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult,
+};
 
 /// List all Furiosa NPU devices in the system.
 pub fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys")
 }
 
+/// Return a specific Furiosa NPU device in the system.
+pub fn get_device(idx: u8) -> DeviceResult<Device> {
+    get_device_with(idx, "/dev", "/sys")
+}
+
 /// Find a set of devices with specific configuration.
-pub fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
+pub fn find_device_files(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
     let devices = expand_status(list_devices()?)?;
-    find_devices_in(config, &devices)
+    find_device_files_in(config, &devices)
 }
 
 /// Return a specific device if it exists.
@@ -32,11 +39,11 @@ pub fn find_devices(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
 ///
 /// * `device_name` - A device name (e.g., npu0, npu0pe0, npu0pe0-1)
 #[inline]
-pub fn get_device<S: AsRef<str>>(device_name: S) -> DeviceResult<DeviceFile> {
-    get_with("/dev", device_name.as_ref())
+pub fn get_device_file<S: AsRef<str>>(device_name: S) -> DeviceResult<DeviceFile> {
+    get_file_with("/dev", device_name.as_ref())
 }
 
-pub(crate) fn get_with(devfs: &str, device_name: &str) -> DeviceResult<DeviceFile> {
+pub(crate) fn get_file_with(devfs: &str, device_name: &str) -> DeviceResult<DeviceFile> {
     let path = devfs::path(devfs, device_name);
     if !path.exists() {
         return Err(DeviceError::DeviceNotFound {
@@ -61,18 +68,41 @@ pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<De
     let mut devices: Vec<Device> = Vec::with_capacity(npu_dev_files.len());
 
     for (idx, paths) in npu_dev_files {
-        if is_furiosa_device(idx, sysfs) {
-            let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
-            let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
-            let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
-
-            let device = collect_devices(device_info, hwmon_fetcher, paths)?;
+        if let Ok(device) = get_device_inner(idx, paths, devfs, sysfs) {
             devices.push(device);
         }
     }
 
     devices.sort();
     Ok(devices)
+}
+
+pub(crate) fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
+    let mut npu_dev_files = filter_dev_files(list_devfs(devfs)?)?;
+
+    if let Some(paths) = npu_dev_files.remove(&idx) {
+        get_device_inner(idx, paths, devfs, sysfs)
+    } else {
+        Err(DeviceError::device_not_found(format!("npu{idx}")))
+    }
+}
+
+pub(crate) fn get_device_inner(
+    idx: u8,
+    paths: Vec<PathBuf>,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Device> {
+    if is_furiosa_device(idx, sysfs) {
+        let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
+        let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
+        let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
+
+        let device = collect_devices(device_info, hwmon_fetcher, paths)?;
+        Ok(device)
+    } else {
+        Err(DeviceError::device_not_found(format!("npu{idx}")))
+    }
 }
 
 fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
@@ -168,14 +198,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_find_devices() -> DeviceResult<()> {
+    fn test_find_device_files() -> DeviceResult<()> {
         // test directory contains 2 warboy NPUs
         let devices = list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys")?;
         let devices_with_statuses = expand_status(devices)?;
 
         // try lookup 4 different single cores
         let config = DeviceConfig::warboy().single().count(4);
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -184,7 +214,7 @@ mod tests {
 
         // looking for 5 different cores should fail
         let config = DeviceConfig::warboy().single().count(5);
-        let found = find_devices_in(&config, &devices_with_statuses);
+        let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for 5 different cores should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
@@ -192,14 +222,14 @@ mod tests {
 
         // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].filename(), "npu0pe0-1");
         assert_eq!(found[1].filename(), "npu1pe0-1");
 
         // looking for 3 different fused cores should fail
         let config = DeviceConfig::warboy().fused().count(3);
-        let found = find_devices_in(&config, &devices_with_statuses);
+        let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for 3 different fused cores should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
@@ -209,14 +239,14 @@ mod tests {
     }
 
     #[test]
-    fn test_get_device() -> DeviceResult<()> {
-        get_with("../test_data/test-0/dev", "npu0")?;
-        assert!(get_with("../test_data/test-0/dev", "npu0pe0").is_ok());
-        assert!(get_with("../test_data/test-0/dev", "npu0pe1").is_ok());
-        assert!(get_with("../test_data/test-0/dev", "npu0pe0-1").is_ok());
+    fn test_get_device_file() -> DeviceResult<()> {
+        get_file_with("../test_data/test-0/dev", "npu0")?;
+        assert!(get_file_with("../test_data/test-0/dev", "npu0pe0").is_ok());
+        assert!(get_file_with("../test_data/test-0/dev", "npu0pe1").is_ok());
+        assert!(get_file_with("../test_data/test-0/dev", "npu0pe0-1").is_ok());
 
         assert!(matches!(
-            get_with("../test_data/test-0/dev", "npu9"),
+            get_file_with("../test_data/test-0/dev", "npu9"),
             Err(DeviceError::DeviceNotFound { .. })
         ));
 

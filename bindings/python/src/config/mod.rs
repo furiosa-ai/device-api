@@ -8,7 +8,7 @@ use pyo3::types::PyType;
 use crate::errors::to_py_err;
 use crate::{arch::ArchPy, device::DeviceModePy};
 
-/// Describes a required set of devices for `find_devices`.
+/// Describes a required set of devices for `find_device_files`.
 ///
 /// # Examples
 /// ```python

@@ -102,7 +102,7 @@ impl ClockFrequencyPy {
 /// * `MultiCore`: A logical device uses multiple cores,
 ///     each of which communicates to one another through interconnect.
 ///     In this mode, partitions of a model or multiple models can be pipelined.
-/// (See `DeviceConfig` and `find_devices`).
+/// (See `DeviceConfig` and `find_device_files`).
 ///
 /// Hence a Furiosa NPU device exposes several devfs files for each purpose
 /// above. They can be listed by calling `dev_files` method, which returns a list of

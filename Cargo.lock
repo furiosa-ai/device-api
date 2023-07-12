@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "furiosa-device"
-version = "0.1.6-dev"
+version = "0.2.0-dev"
 dependencies = [
  "array_tool",
  "cli-table",
@@ -363,7 +363,7 @@ dependencies = [
 
 [[package]]
 name = "furiosa-device-python"
-version = "0.1.6-dev"
+version = "0.2.0-dev"
 dependencies = [
  "chrono",
  "furiosa-device",

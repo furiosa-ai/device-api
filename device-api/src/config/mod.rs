@@ -7,7 +7,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 pub use builder::DeviceConfigBuilder;
-pub(crate) use find::{expand_status, find_devices_in};
+pub(crate) use find::{expand_status, find_device_files_in};
 use serde::{Deserialize, Serialize};
 
 pub use self::builder::NotDetermined;
@@ -15,7 +15,7 @@ pub use self::env::EnvBuilder;
 use self::inner::DeviceConfigInner;
 use crate::{Arch, DeviceError};
 
-/// Describes a required set of devices for [`find_devices`][crate::find_devices].
+/// Describes a required set of devices for [`find_device_files`][crate::find_device_files].
 ///
 /// # Examples
 /// ```rust
@@ -139,7 +139,7 @@ mod tests {
     use crate::list::list_devices_with;
 
     #[tokio::test]
-    async fn test_find_devices() -> eyre::Result<()> {
+    async fn test_find_device_files() -> eyre::Result<()> {
         // test directory contains 2 warboy NPUs
         let devices =
             list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys").await?;
@@ -147,7 +147,7 @@ mod tests {
 
         // try lookup 4 different single cores
         let config = DeviceConfig::warboy().single().count(4);
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -156,7 +156,7 @@ mod tests {
 
         // try lookup all single cores
         let config = DeviceConfig::warboy().single().all();
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -165,7 +165,7 @@ mod tests {
 
         // looking for 5 different cores should fail
         let config = DeviceConfig::warboy().single().count(5);
-        let found = find_devices_in(&config, &devices_with_statuses);
+        let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for 5 different cores should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
@@ -173,21 +173,21 @@ mod tests {
 
         // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].filename(), "npu0pe0-1");
         assert_eq!(found[1].filename(), "npu1pe0-1");
 
         // try lookup all fused cores
         let config = DeviceConfig::warboy().fused().all();
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].filename(), "npu0pe0-1");
         assert_eq!(found[1].filename(), "npu1pe0-1");
 
         // looking for 3 different fused cores should fail
         let config = DeviceConfig::warboy().fused().count(3);
-        let found = find_devices_in(&config, &devices_with_statuses);
+        let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for 3 different fused cores should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_find_devices_with_comma_separated() -> eyre::Result<()> {
+    async fn test_find_device_files_with_comma_separated() -> eyre::Result<()> {
         // test directory contains 2 warboy NPUs
         let devices =
             list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys").await?;
@@ -264,7 +264,7 @@ mod tests {
 
         // try lookup with various valid configs
         let config = "0:0,0:1,1:0,1:1".parse::<DeviceConfig>()?;
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(found[3].filename(), "npu1pe1");
 
         let config = "0:0,npu0pe1,1:0,npu1pe1".parse::<DeviceConfig>()?;
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -280,7 +280,7 @@ mod tests {
         assert_eq!(found[3].filename(), "npu1pe1");
 
         let config = "warboy(1)*1,warboy(1)*1,warboy(1)*1,warboy(1)*1".parse::<DeviceConfig>()?;
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -288,7 +288,7 @@ mod tests {
         assert_eq!(found[3].filename(), "npu1pe1");
 
         let config = "0:0,0:1,warboy(1)*2".parse::<DeviceConfig>()?;
-        let found = find_devices_in(&config, &devices_with_statuses)?;
+        let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
         assert_eq!(found[1].filename(), "npu0pe1");
@@ -299,7 +299,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_find_devices_with_comma_separated_failing_cases() -> eyre::Result<()> {
+    async fn test_find_device_files_with_comma_separated_failing_cases() -> eyre::Result<()> {
         // test directory contains 2 warboy NPUs
         let devices =
             list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys").await?;
@@ -307,14 +307,14 @@ mod tests {
 
         // test trivial failing cases
         let config = "0:0,0:0".parse::<DeviceConfig>()?;
-        let found = find_devices_in(&config, &devices_with_statuses);
+        let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for duplicate devices should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
         }
 
         let config = "0:0-1,npu0pe0-1".parse::<DeviceConfig>()?;
-        let found = find_devices_in(&config, &devices_with_statuses);
+        let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for duplicate devices should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),

@@ -35,7 +35,7 @@ use crate::{devfs, DeviceError, DeviceResult};
 ///     each of which communicates to one another through interconnect.
 ///     In this mode, partitions of a model or multiple models can be pipelined.
 /// (See [`DeviceConfig`][crate::DeviceConfig] and
-/// [`find_devices`][crate::find_devices]).
+/// [`find_device_files`][crate::find_device_files]).
 ///
 /// Hence a Furiosa NPU device exposes several devfs files for each purpose
 /// above. They can be listed by calling [`dev_files`][Device::dev_files]
