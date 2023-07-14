@@ -44,7 +44,7 @@ use crate::{Arch, DeviceError};
 /// use furiosa_device::DeviceConfig;
 ///
 /// let config = DeviceConfig::from_env("SOME_OTHER_ENV_KEY").build();
-/// let config = DeviceConfig::from_str("0:0,0:1").unwrap(); // get config directly from a string literal
+/// let config = DeviceConfig::from_str("npu:0:0,npu:0:1").unwrap(); // get config directly from a string literal
 /// ```
 ///
 /// The rules for textual representation are as follows:
@@ -55,8 +55,8 @@ use crate::{Arch, DeviceError};
 /// use furiosa_device::DeviceConfig;
 ///
 /// // Using specific device names
-/// DeviceConfig::from_str("0:0").unwrap(); // npu0pe0
-/// DeviceConfig::from_str("0:0-1").unwrap(); // npu0pe0-1
+/// DeviceConfig::from_str("npu:0:0").unwrap(); // npu0pe0
+/// DeviceConfig::from_str("npu:0:0-1").unwrap(); // npu0pe0-1
 ///
 /// // Using device configs
 /// DeviceConfig::from_str("warboy*2").unwrap(); // single pe x 2 (equivalent to "warboy(1)*2")
@@ -64,7 +64,7 @@ use crate::{Arch, DeviceError};
 /// DeviceConfig::from_str("warboy(2)*2").unwrap(); // 2-pe fusioned x 2
 ///
 /// // Combine multiple representations separated by commas
-/// DeviceConfig::from_str("0:0-1,1:0-1").unwrap(); // npu0pe0-1, npu1pe0-1
+/// DeviceConfig::from_str("npu:0:0-1,npu:1:0-1").unwrap(); // npu0pe0-1, npu1pe0-1
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "&str")]
@@ -198,12 +198,15 @@ mod tests {
 
     #[test]
     fn test_config_symmetric_display() -> eyre::Result<()> {
-        assert_eq!("0".parse::<DeviceConfig>()?.to_string(), "0");
-        assert_eq!("1".parse::<DeviceConfig>()?.to_string(), "1");
-        assert_eq!("0:0".parse::<DeviceConfig>()?.to_string(), "0:0");
-        assert_eq!("0:1".parse::<DeviceConfig>()?.to_string(), "0:1");
-        assert_eq!("1:0".parse::<DeviceConfig>()?.to_string(), "1:0");
-        assert_eq!("0:0-1".parse::<DeviceConfig>()?.to_string(), "0:0-1");
+        assert_eq!("npu:0".parse::<DeviceConfig>()?.to_string(), "npu:0");
+        assert_eq!("npu:1".parse::<DeviceConfig>()?.to_string(), "npu:1");
+        assert_eq!("npu:0:0".parse::<DeviceConfig>()?.to_string(), "npu:0:0");
+        assert_eq!("npu:0:1".parse::<DeviceConfig>()?.to_string(), "npu:0:1");
+        assert_eq!("npu:1:0".parse::<DeviceConfig>()?.to_string(), "npu:1:0");
+        assert_eq!(
+            "npu:0:0-1".parse::<DeviceConfig>()?.to_string(),
+            "npu:0:0-1"
+        );
 
         assert_eq!(
             "warboy(1)*2".parse::<DeviceConfig>()?.to_string(),
@@ -219,14 +222,15 @@ mod tests {
 
     #[test]
     fn test_config_comma_separated() -> eyre::Result<()> {
-        let config = "0:0,0:1,0:0-1,warboy(1)*1,warboy(2)*2,npu0pe0".parse::<DeviceConfig>()?;
+        let config =
+            "npu:0:0,npu:0:1,npu:0:0-1,warboy(1)*1,warboy(2)*2,npu0pe0".parse::<DeviceConfig>()?;
 
         assert_eq!(
             config.inner.cfgs,
             vec![
-                "0:0".parse::<crate::config::inner::Config>()?,
-                "0:1".parse::<crate::config::inner::Config>()?,
-                "0:0-1".parse::<crate::config::inner::Config>()?,
+                "npu:0:0".parse::<crate::config::inner::Config>()?,
+                "npu:0:1".parse::<crate::config::inner::Config>()?,
+                "npu:0:0-1".parse::<crate::config::inner::Config>()?,
                 "warboy(1)*1".parse::<crate::config::inner::Config>()?,
                 "warboy(2)*2".parse::<crate::config::inner::Config>()?,
                 "npu0pe0".parse::<crate::config::inner::Config>()?,
@@ -238,15 +242,18 @@ mod tests {
     #[test]
     fn test_config_from_env() -> eyre::Result<()> {
         let key = "ENV_KEY";
-        std::env::set_var(key, "0:0,0:1,0:0-1,warboy(1)*1,warboy(2)*2,npu0pe0");
+        std::env::set_var(
+            key,
+            "npu:0:0,npu:0:1,npu:0:0-1,warboy(1)*1,warboy(2)*2,npu0pe0",
+        );
         let config = DeviceConfig::from_env(key).build()?;
 
         assert_eq!(
             config.inner.cfgs,
             vec![
-                "0:0".parse::<crate::config::inner::Config>()?,
-                "0:1".parse::<crate::config::inner::Config>()?,
-                "0:0-1".parse::<crate::config::inner::Config>()?,
+                "npu:0:0".parse::<crate::config::inner::Config>()?,
+                "npu:0:1".parse::<crate::config::inner::Config>()?,
+                "npu:0:0-1".parse::<crate::config::inner::Config>()?,
                 "warboy(1)*1".parse::<crate::config::inner::Config>()?,
                 "warboy(2)*2".parse::<crate::config::inner::Config>()?,
                 "npu0pe0".parse::<crate::config::inner::Config>()?,
@@ -263,7 +270,7 @@ mod tests {
         let devices_with_statuses = expand_status(devices).await?;
 
         // try lookup with various valid configs
-        let config = "0:0,0:1,1:0,1:1".parse::<DeviceConfig>()?;
+        let config = "npu:0:0,npu:0:1,npu:1:0,npu:1:1".parse::<DeviceConfig>()?;
         let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
@@ -271,7 +278,7 @@ mod tests {
         assert_eq!(found[2].filename(), "npu1pe0");
         assert_eq!(found[3].filename(), "npu1pe1");
 
-        let config = "0:0,npu0pe1,1:0,npu1pe1".parse::<DeviceConfig>()?;
+        let config = "npu:0:0,npu0pe1,npu:1:0,npu1pe1".parse::<DeviceConfig>()?;
         let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
@@ -287,7 +294,7 @@ mod tests {
         assert_eq!(found[2].filename(), "npu1pe0");
         assert_eq!(found[3].filename(), "npu1pe1");
 
-        let config = "0:0,0:1,warboy(1)*2".parse::<DeviceConfig>()?;
+        let config = "npu:0:0,npu:0:1,warboy(1)*2".parse::<DeviceConfig>()?;
         let found = find_device_files_in(&config, &devices_with_statuses)?;
         assert_eq!(found.len(), 4);
         assert_eq!(found[0].filename(), "npu0pe0");
@@ -306,14 +313,14 @@ mod tests {
         let devices_with_statuses = expand_status(devices).await?;
 
         // test trivial failing cases
-        let config = "0:0,0:0".parse::<DeviceConfig>()?;
+        let config = "npu:0:0,npu:0:0".parse::<DeviceConfig>()?;
         let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for duplicate devices should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
         }
 
-        let config = "0:0-1,npu0pe0-1".parse::<DeviceConfig>()?;
+        let config = "npu:0:0-1,npu0pe0-1".parse::<DeviceConfig>()?;
         let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for duplicate devices should fail"),
