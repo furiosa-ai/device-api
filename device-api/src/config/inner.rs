@@ -132,11 +132,12 @@ impl FromStr for Config {
 
         // Try parsing a "0:0" or "0:0-1" pattern. Note that "0" is also valid, which represents npu0 as MultiCore mode.
         fn named_cfg_parser(s: &str) -> DeviceResult<Config> {
+            let parser_id = preceded(tag("npu:"), digit_to_u8());
             let parser_cores = map(opt(preceded(tag(":"), parse_cores())), |c| {
                 c.unwrap_or(CoreRange::All)
             });
 
-            let (_, (device_id, core_range)) = all_consuming(digit_to_u8().and(parser_cores))(s)
+            let (_, (device_id, core_range)) = all_consuming(parser_id.and(parser_cores))(s)
                 .map_err(|e| DeviceError::parse_error(s, e.to_string()))?;
 
             Ok(Config::Named {
@@ -188,13 +189,13 @@ impl Display for Config {
                 core_range,
             } => match core_range {
                 CoreRange::All => {
-                    write!(f, "{device_id}")
+                    write!(f, "npu:{device_id}")
                 }
                 CoreRange::Range((s, e)) => {
                     if s == e {
-                        write!(f, "{device_id}:{s}")
+                        write!(f, "npu:{device_id}:{s}")
                     } else {
-                        write!(f, "{device_id}:{s}-{e}")
+                        write!(f, "npu:{device_id}:{s}-{e}")
                     }
                 }
             },
@@ -221,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_multiple_configs_repr() -> eyre::Result<()> {
-        let repr = "0:0,0:1";
+        let repr = "npu:0:0,npu:0:1";
         let config = repr.parse::<DeviceConfigInner>()?;
 
         assert_eq!(repr, config.to_string().as_str());
@@ -231,7 +232,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_named_config_fit() -> DeviceResult<()> {
-        let config = "0:0".parse::<Config>().unwrap();
+        let config = "npu:0:0".parse::<Config>().unwrap();
         let npu0pe0 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0").await?;
         let npu0pe1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe1").await?;
         let npu0pe0_1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0-1").await?;
@@ -267,48 +268,48 @@ mod tests {
 
     #[test]
     fn test_config_from_named_text_repr() -> eyre::Result<()> {
-        assert!("0:".parse::<Config>().is_err());
-        assert!(":0".parse::<Config>().is_err());
-        assert!("0:0-1-".parse::<Config>().is_err());
-        assert!("0:1-0".parse::<Config>().is_err());
+        assert!("0".parse::<Config>().is_err());
+        assert!("npu0:".parse::<Config>().is_err());
+        assert!("npu:0:0-1-".parse::<Config>().is_err());
+        assert!("npu:0:1-0".parse::<Config>().is_err());
 
         assert_eq!(
-            "0".parse::<Config>()?,
+            "npu:0".parse::<Config>()?,
             Config::Named {
                 device_id: 0,
                 core_range: CoreRange::All
             }
         );
         assert_eq!(
-            "1".parse::<Config>()?,
+            "npu:1".parse::<Config>()?,
             Config::Named {
                 device_id: 1,
                 core_range: CoreRange::All
             }
         );
         assert_eq!(
-            "0:0".parse::<Config>()?,
+            "npu:0:0".parse::<Config>()?,
             Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((0, 0))
             }
         );
         assert_eq!(
-            "0:1".parse::<Config>()?,
+            "npu:0:1".parse::<Config>()?,
             Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((1, 1))
             }
         );
         assert_eq!(
-            "1:1".parse::<Config>()?,
+            "npu:1:1".parse::<Config>()?,
             Config::Named {
                 device_id: 1,
                 core_range: CoreRange::Range((1, 1))
             }
         );
         assert_eq!(
-            "0:0-1".parse::<Config>()?,
+            "npu:0:0-1".parse::<Config>()?,
             Config::Named {
                 device_id: 0,
                 core_range: CoreRange::Range((0, 1))
