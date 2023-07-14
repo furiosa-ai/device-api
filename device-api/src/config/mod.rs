@@ -44,7 +44,7 @@ use crate::{Arch, DeviceError};
 /// use furiosa_device::DeviceConfig;
 ///
 /// let config = DeviceConfig::from_env("SOME_OTHER_ENV_KEY").build();
-/// let config = DeviceConfig::from_str("0:0,0:1"); // get config directly from a string literal
+/// let config = DeviceConfig::from_str("0:0,0:1").unwrap(); // get config directly from a string literal
 /// ```
 ///
 /// The rules for textual representation are as follows:
@@ -55,16 +55,16 @@ use crate::{Arch, DeviceError};
 /// use furiosa_device::DeviceConfig;
 ///
 /// // Using specific device names
-/// DeviceConfig::from_str("0:0"); // npu0pe0
-/// DeviceConfig::from_str("0:0-1"); // npu0pe0-1
+/// DeviceConfig::from_str("0:0").unwrap(); // npu0pe0
+/// DeviceConfig::from_str("0:0-1").unwrap(); // npu0pe0-1
 ///
 /// // Using device configs
-/// DeviceConfig::from_str("warboy*2"); // single pe x 2 (equivalent to "warboy(1)*2")
-/// DeviceConfig::from_str("warboy(1)*2"); // single pe x 2
-/// DeviceConfig::from_str("warboy(2)*2"); // 2-pe fusioned x 2
+/// DeviceConfig::from_str("warboy*2").unwrap(); // single pe x 2 (equivalent to "warboy(1)*2")
+/// DeviceConfig::from_str("warboy(1)*2").unwrap(); // single pe x 2
+/// DeviceConfig::from_str("warboy(2)*2").unwrap(); // 2-pe fusioned x 2
 ///
 /// // Combine multiple representations separated by commas
-/// DeviceConfig::from_str("0:0-1, 1:0-1"); // npu0pe0-1, npu1pe0-1
+/// DeviceConfig::from_str("0:0-1,1:0-1").unwrap(); // npu0pe0-1, npu1pe0-1
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "&str")]
