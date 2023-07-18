@@ -112,7 +112,7 @@ fn get_device_file_python(py: Python<'_>, device_name: String) -> PyResult<&PyAn
 }
 
 #[pymodule]
-#[pyo3(name = "furiosa_device")]
+#[pyo3(name = "furiosa_native_device")]
 fn furiosa_device_python(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_devices_python, m)?)?;
     m.add_function(wrap_pyfunction!(get_device_python, m)?)?;
@@ -134,8 +134,9 @@ fn furiosa_device_python(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     let sync_module = pyo3::wrap_pymodule!(sync::furiosa_device_python_sync);
     m.add_wrapped(sync_module)?;
-    py.import("sys")?
-        .getattr("modules")?
-        .set_item("furiosa_device.sync", m.getattr("furiosa_device_sync")?)?;
+    py.import("sys")?.getattr("modules")?.set_item(
+        "furiosa_native_device.sync",
+        m.getattr("furiosa_native_device_sync")?,
+    )?;
     Ok(())
 }

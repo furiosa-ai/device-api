@@ -1,7 +1,7 @@
 import os
 import time
 
-from furiosa_device.sync import list_devices
+from furiosa_native_device.sync import list_devices
 
 
 def print_sensor_value(category, sensor_values):

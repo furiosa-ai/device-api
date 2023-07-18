@@ -3,7 +3,7 @@ requires = ["maturin>=0.14,<0.15"]
 build-backend = "maturin"
 
 [project]
-name = "furiosa_device"
+name = "furiosa-native-device"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",

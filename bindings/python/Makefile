@@ -1,7 +1,7 @@
 .PHONY: develop
 develop:
-	maturin develop
+	maturin develop --locked -r -E test
 
 .PHONY: test
 test: develop
-	pytest
+	python -m pytest
