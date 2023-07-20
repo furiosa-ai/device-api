@@ -72,9 +72,9 @@ pub(crate) fn find_device_files_in(
     }
 
     let available_device_files = fit_device_files
-        .iter()
-        .filter(|(_, status)| **status == CoreStatus::Available)
-        .map(|(dev_file, _)| dev_file.clone())
+        .into_iter()
+        .filter(|(_, status)| *status == CoreStatus::Available)
+        .map(|(dev_file, _)| dev_file)
         .collect::<Vec<DeviceFile>>();
     if available_device_files.is_empty() {
         return Err(DeviceError::device_busy(config));

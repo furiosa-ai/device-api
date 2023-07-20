@@ -46,9 +46,8 @@ async def test_find_device_files_err():
     config = DeviceConfig.from_str(dev_name)
     fd = os.open(f"/dev/{dev_name}", os.O_RDWR)
     try:
-        _ = await find_device_files(config)
-    except Exception as e:
-        assert str(e).endswith("found but still in use")
+        with pytest.raises(Exception, match=r"found but still in use$"):
+            _ = await find_device_files(config)
     finally:
         os.close(fd)
 
