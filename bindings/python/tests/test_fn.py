@@ -1,7 +1,7 @@
 import glob
 
 import pytest
-from furiosa_device import (
+from furiosa_native_device import (
     Arch,
     DeviceConfig,
     DeviceMode,

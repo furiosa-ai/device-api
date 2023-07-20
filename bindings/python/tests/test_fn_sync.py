@@ -1,7 +1,7 @@
 import glob
 
-from furiosa_device import Arch, DeviceConfig, DeviceMode
-from furiosa_device.sync import find_device_files, get_device, get_device_file, list_devices
+from furiosa_native_device import Arch, DeviceConfig, DeviceMode
+from furiosa_native_device.sync import find_device_files, get_device, get_device_file, list_devices
 
 
 def get_first_device_name(pattern):

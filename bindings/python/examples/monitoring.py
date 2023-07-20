@@ -2,7 +2,7 @@ import asyncio
 import os
 import time
 
-from furiosa_device import list_devices
+from furiosa_native_device import list_devices
 
 
 def print_sensor_value(category, sensor_values):

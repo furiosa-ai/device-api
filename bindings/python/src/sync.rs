@@ -155,7 +155,7 @@ fn get_device_file_python_sync(device_name: String) -> PyResult<DeviceFilePy> {
 }
 
 #[pymodule]
-#[pyo3(name = "furiosa_device_sync")]
+#[pyo3(name = "furiosa_native_device_sync")]
 pub fn furiosa_device_python_sync(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_devices_python_sync, m)?)?;
     m.add_function(wrap_pyfunction!(get_device_python_sync, m)?)?;
