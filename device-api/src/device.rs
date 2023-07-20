@@ -487,7 +487,7 @@ impl TryFrom<(u8, u8)> for CoreRange {
 }
 
 /// An abstraction for a device file and its mode.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct DeviceFile {
     pub(crate) device_index: u8,
     pub(crate) core_range: CoreRange,
@@ -565,7 +565,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
 }
 
 /// Enum for NPU's operating mode.
-#[derive(Debug, Eq, PartialEq, Copy, Clone, enum_utils::FromStr)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, enum_utils::FromStr)]
 #[enumeration(case_insensitive)]
 pub enum DeviceMode {
     Single,

@@ -205,12 +205,14 @@ mod tests {
 
         // try lookup 4 different single cores
         let config = DeviceConfig::warboy().single().count(4);
-        let found = find_device_files_in(&config, &devices_with_statuses)?;
-        assert_eq!(found.len(), 4);
-        assert_eq!(found[0].filename(), "npu0pe0");
-        assert_eq!(found[1].filename(), "npu0pe1");
-        assert_eq!(found[2].filename(), "npu1pe0");
-        assert_eq!(found[3].filename(), "npu1pe1");
+        let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
+        let found_device_file_names: Vec<&str> =
+            found_device_files.iter().map(|f| f.filename()).collect();
+        assert_eq!(found_device_files.len(), 4);
+        assert!(found_device_file_names.contains(&"npu0pe0"));
+        assert!(found_device_file_names.contains(&"npu0pe1"));
+        assert!(found_device_file_names.contains(&"npu1pe0"));
+        assert!(found_device_file_names.contains(&"npu1pe1"));
 
         // looking for 5 different cores should fail
         let config = DeviceConfig::warboy().single().count(5);
@@ -220,14 +222,16 @@ mod tests {
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
         }
 
-        // try lookup 2 different fused cores
+        // // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
-        let found = find_device_files_in(&config, &devices_with_statuses)?;
-        assert_eq!(found.len(), 2);
-        assert_eq!(found[0].filename(), "npu0pe0-1");
-        assert_eq!(found[1].filename(), "npu1pe0-1");
+        let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
+        let found_device_file_names: Vec<&str> =
+            found_device_files.iter().map(|f| f.filename()).collect();
+        assert_eq!(found_device_files.len(), 2);
+        assert!(found_device_file_names.contains(&"npu0pe0-1"));
+        assert!(found_device_file_names.contains(&"npu1pe0-1"));
 
-        // looking for 3 different fused cores should fail
+        // // looking for 3 different fused cores should fail
         let config = DeviceConfig::warboy().fused().count(3);
         let found = find_device_files_in(&config, &devices_with_statuses);
         match found {

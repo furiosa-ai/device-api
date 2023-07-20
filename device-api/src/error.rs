@@ -16,6 +16,8 @@ pub type DeviceResult<T> = Result<T, DeviceError>;
 pub enum DeviceError {
     #[error("Device {name} not found")]
     DeviceNotFound { name: String },
+    #[error("Device {name} found but still in use")]
+    DeviceBusy { name: String },
     #[error("IoError: {cause}")]
     IoError { cause: io::Error },
     #[error("PermissionDenied: {cause}")]
@@ -37,6 +39,12 @@ pub enum DeviceError {
 impl DeviceError {
     pub(crate) fn device_not_found<D: Display>(name: D) -> DeviceError {
         DeviceError::DeviceNotFound {
+            name: name.to_string(),
+        }
+    }
+
+    pub(crate) fn device_busy<D: Display>(name: D) -> DeviceError {
+        DeviceError::DeviceBusy {
             name: name.to_string(),
         }
     }
