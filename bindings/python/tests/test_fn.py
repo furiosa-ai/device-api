@@ -41,6 +41,19 @@ async def test_find_device_files():
 
 
 @pytest.mark.asyncio
+async def test_find_device_files_single_pe():
+    dev_name = get_first_device_name("/dev/npu*")
+    pe0 = dev_name + "pe0"
+    pe1 = dev_name + "pe1"
+    config = DeviceConfig.from_str(f"{pe0},{pe1}")
+    fd = os.open(f"/dev/{pe0}", os.O_RDWR)
+    devices = await find_device_files(config)
+    os.close(fd)
+    assert len(devices) == 1
+    assert devices[0].filename() == pe1
+
+
+@pytest.mark.asyncio
 async def test_find_device_files_err():
     dev_name = get_first_device_name("/dev/npu*pe0")
     config = DeviceConfig.from_str(dev_name)
