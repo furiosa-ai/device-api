@@ -40,8 +40,12 @@ def test_find_device_files_single_pe():
     pe0 = dev_name + "pe0"
     pe1 = dev_name + "pe1"
     config = DeviceConfig.from_str(f"{pe0},{pe1}")
-    fd = os.open(f"/dev/{pe0}", os.O_RDWR)
     devices = find_device_files(config)
+    assert len(devices) == 2
+    fd = os.open(f"/dev/{pe0}", os.O_RDWR)
+    # Make sure if another pe is still available
+    # Please refer to https://github.com/furiosa-ai/device-api/issues/95.
+    devices = find_device_files(DeviceConfig.from_str(f"{pe1}"))
     os.close(fd)
     assert len(devices) == 1
     assert devices[0].filename() == pe1
