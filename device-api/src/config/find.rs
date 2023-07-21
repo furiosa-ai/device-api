@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ops::Deref;
 
 use super::inner::Count;
@@ -36,64 +36,49 @@ pub(crate) fn find_device_files_in(
     devices: &[DeviceWithStatus],
 ) -> DeviceResult<Vec<DeviceFile>> {
     let config = &config.inner;
-    let mut allocated: HashMap<u8, HashSet<u8>> = HashMap::with_capacity(devices.len());
-
-    for device in devices {
-        allocated.insert(
-            device.device_index(),
-            device
-                .statuses
-                .iter()
-                .filter(|(_, status)| **status != CoreStatus::Available)
-                .map(|(core, _)| *core)
-                .collect(),
-        );
-    }
-
-    let mut found = Vec::new();
-
+    let mut fit_device_files: HashMap<DeviceFile, CoreStatus> = HashMap::new();
     for cfg in &config.cfgs {
-        let count = cfg.count();
-        let limit = match count {
-            Count::Finite(c) => c,
-            Count::All => 255, // make the loop simple by choosing a large enough number
-        };
-        'outer: for _ in 0..limit {
-            for device in devices {
-                'inner: for dev_file in device.dev_files() {
-                    if !cfg.fit(device.arch(), dev_file) {
-                        continue 'inner;
-                    }
-
-                    let used = allocated.get_mut(&device.device_index()).unwrap();
-
-                    for core in used.iter() {
-                        if dev_file.core_range().contains(core) {
-                            continue 'inner;
-                        }
-                    }
-
-                    // this dev_file is suitable
-                    found.push(dev_file.clone());
-                    used.extend(
-                        device
-                            .cores()
-                            .iter()
-                            .filter(|idx| dev_file.core_range().contains(idx)),
-                    );
-                    continue 'outer;
+        let mut found = 0;
+        for device in devices {
+            for dev_file in device.dev_files() {
+                if !cfg.fit(device.arch(), dev_file) {
+                    continue;
                 }
+                let core_idxes: Vec<&CoreIdx> = device
+                    .cores()
+                    .iter()
+                    .filter(|c| dev_file.core_range.contains(c))
+                    .collect();
+                let status = if core_idxes
+                    .iter()
+                    .all(|c| *device.statuses.get(c).unwrap() == CoreStatus::Available)
+                {
+                    CoreStatus::Available
+                } else {
+                    CoreStatus::Unavailable
+                };
+                fit_device_files.insert(dev_file.clone(), status);
+                found += 1;
             }
-
-            // Device not found
-            match count {
-                Count::All => break 'outer,
-                Count::Finite(_) => {
+        }
+        match cfg.count() {
+            Count::Finite(n) => {
+                if n > found {
                     return Err(DeviceError::device_not_found(cfg));
                 }
             }
-        }
+            Count::All => (),
+        };
     }
 
-    Ok(found)
+    let available_device_files = fit_device_files
+        .into_iter()
+        .filter(|(_, status)| *status == CoreStatus::Available)
+        .map(|(dev_file, _)| dev_file)
+        .collect::<Vec<DeviceFile>>();
+    if available_device_files.is_empty() {
+        return Err(DeviceError::device_busy(config));
+    }
+
+    Ok(available_device_files)
 }

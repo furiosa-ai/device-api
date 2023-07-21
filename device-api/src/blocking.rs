@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use crate::config::find::DeviceWithStatus;
 use crate::devfs::is_character_device;
 use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
-use crate::hwmon;
 use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
@@ -16,6 +15,7 @@ use crate::sysfs::npu_mgmt::MgmtFile;
 use crate::{
     devfs, find_device_files_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult,
 };
+use crate::{hwmon, DeviceMode};
 
 /// List all Furiosa NPU devices in the system.
 pub fn list_devices() -> DeviceResult<Vec<Device>> {
@@ -164,6 +164,9 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
     let mut status_map = device.new_status_map();
 
     for file in &device.dev_files {
+        if file.mode() != DeviceMode::Single {
+            continue;
+        }
         if get_device_status(&file.path)? == DeviceStatus::Occupied {
             for core in device
                 .cores()
@@ -205,12 +208,14 @@ mod tests {
 
         // try lookup 4 different single cores
         let config = DeviceConfig::warboy().single().count(4);
-        let found = find_device_files_in(&config, &devices_with_statuses)?;
-        assert_eq!(found.len(), 4);
-        assert_eq!(found[0].filename(), "npu0pe0");
-        assert_eq!(found[1].filename(), "npu0pe1");
-        assert_eq!(found[2].filename(), "npu1pe0");
-        assert_eq!(found[3].filename(), "npu1pe1");
+        let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
+        let mut found_device_file_names: Vec<&str> =
+            found_device_files.iter().map(|f| f.filename()).collect();
+        found_device_file_names.sort();
+        assert_eq!(
+            found_device_file_names,
+            &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
+        );
 
         // looking for 5 different cores should fail
         let config = DeviceConfig::warboy().single().count(5);
@@ -220,14 +225,15 @@ mod tests {
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
         }
 
-        // try lookup 2 different fused cores
+        // // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
-        let found = find_device_files_in(&config, &devices_with_statuses)?;
-        assert_eq!(found.len(), 2);
-        assert_eq!(found[0].filename(), "npu0pe0-1");
-        assert_eq!(found[1].filename(), "npu1pe0-1");
+        let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
+        let mut found_device_file_names: Vec<&str> =
+            found_device_files.iter().map(|f| f.filename()).collect();
+        found_device_file_names.sort();
+        assert_eq!(found_device_file_names, &["npu0pe0-1", "npu1pe0-1"],);
 
-        // looking for 3 different fused cores should fail
+        // // looking for 3 different fused cores should fail
         let config = DeviceConfig::warboy().fused().count(3);
         let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
