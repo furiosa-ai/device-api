@@ -223,6 +223,10 @@ impl Device {
     /// Examine a specific core of the device, whether it is available or not.
     pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
         for file in &self.dev_files {
+            // get status of the exact core
+            if file.mode() != DeviceMode::Single {
+                continue;
+            }
             if (file.core_range().contains(&core))
                 && get_device_status(&file.path).await? == DeviceStatus::Occupied
             {
