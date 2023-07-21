@@ -328,14 +328,18 @@ mod tests {
 
         // test duplicate configs
         let config = "npu:0:0,npu:0:0".parse::<DeviceConfig>()?;
-        let found = find_device_files_in(&config, &devices_with_statuses)?;
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].filename(), "npu0pe0");
+        let found = find_device_files_in(&config, &devices_with_statuses);
+        match found {
+            Ok(_) => panic!("looking for duplicate devices should fail"),
+            Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
+        }
 
         let config = "npu:0:0-1,npu0pe0-1".parse::<DeviceConfig>()?;
-        let found = find_device_files_in(&config, &devices_with_statuses)?;
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].filename(), "npu0pe0-1");
+        let found = find_device_files_in(&config, &devices_with_statuses);
+        match found {
+            Ok(_) => panic!("looking for duplicate devices should fail"),
+            Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
+        }
 
         Ok(())
     }
