@@ -35,13 +35,14 @@ pub(crate) fn find_device_files_in(
     config: &DeviceConfig,
     devices: &[DeviceWithStatus],
 ) -> DeviceResult<Vec<DeviceFile>> {
-    let config = &config.inner;
-    let mut fit_device_files: HashMap<DeviceFile, CoreStatus> = HashMap::new();
-    for cfg in &config.cfgs {
-        let mut found = 0;
+    let mut found: Vec<DeviceFile> = Vec::new();
+
+    for config in &config.inner.cfgs {
+        // find all device files whether available or not
+        let mut fit_device_files: HashMap<DeviceFile, CoreStatus> = HashMap::new();
         for device in devices {
             for dev_file in device.dev_files() {
-                if !cfg.fit(device.arch(), dev_file) {
+                if !config.fit(device.arch(), dev_file) || found.contains(dev_file) {
                     continue;
                 }
                 let core_idxes: Vec<&CoreIdx> = device
@@ -58,27 +59,34 @@ pub(crate) fn find_device_files_in(
                     CoreStatus::Unavailable
                 };
                 fit_device_files.insert(dev_file.clone(), status);
-                found += 1;
             }
         }
-        match cfg.count() {
+        match config.count() {
             Count::Finite(n) => {
-                if n > found {
-                    return Err(DeviceError::device_not_found(cfg));
+                if (n as usize) > fit_device_files.len() {
+                    return Err(DeviceError::device_not_found(config));
                 }
             }
             Count::All => (),
-        };
+        }
+
+        // filter only available device files
+        let available_device_files: Vec<DeviceFile> = fit_device_files
+            .into_iter()
+            .filter(|(_, s)| *s == CoreStatus::Available)
+            .map(|(d, _)| d)
+            .collect();
+        match config.count() {
+            Count::Finite(n) => match (n as usize).cmp(&available_device_files.len()) {
+                std::cmp::Ordering::Less => {
+                    found.extend(available_device_files.iter().take(n.into()).cloned())
+                }
+                std::cmp::Ordering::Equal => found.extend(available_device_files),
+                std::cmp::Ordering::Greater => return Err(DeviceError::device_busy(config)),
+            },
+            Count::All => found.extend(available_device_files),
+        }
     }
 
-    let available_device_files = fit_device_files
-        .into_iter()
-        .filter(|(_, status)| *status == CoreStatus::Available)
-        .map(|(dev_file, _)| dev_file)
-        .collect::<Vec<DeviceFile>>();
-    if available_device_files.is_empty() {
-        return Err(DeviceError::device_busy(config));
-    }
-
-    Ok(available_device_files)
+    Ok(found)
 }
