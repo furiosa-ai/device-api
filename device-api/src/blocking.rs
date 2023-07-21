@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use crate::config::find::DeviceWithStatus;
 use crate::devfs::is_character_device;
 use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
-use crate::hwmon;
 use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
@@ -16,6 +15,7 @@ use crate::sysfs::npu_mgmt::MgmtFile;
 use crate::{
     devfs, find_device_files_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult,
 };
+use crate::{hwmon, DeviceMode};
 
 /// List all Furiosa NPU devices in the system.
 pub fn list_devices() -> DeviceResult<Vec<Device>> {
@@ -164,6 +164,9 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
     let mut status_map = device.new_status_map();
 
     for file in &device.dev_files {
+        if file.mode() != DeviceMode::Single {
+            continue;
+        }
         if get_device_status(&file.path)? == DeviceStatus::Occupied {
             for core in device
                 .cores()
