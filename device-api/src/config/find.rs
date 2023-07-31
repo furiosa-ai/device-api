@@ -37,13 +37,14 @@ pub(crate) fn find_device_files_in(
 ) -> DeviceResult<Vec<DeviceFile>> {
     let mut found: Vec<DeviceFile> = Vec::new();
 
-    // sort to find named config first
     for config in &config.inner.cfgs {
         // find all device files whether available or not
         let mut fit_device_files: HashMap<DeviceFile, CoreStatus> = HashMap::new();
         for device in devices {
             for dev_file in device.dev_files() {
-                if !config.fit(device.arch(), dev_file) || found.contains(dev_file) {
+                if !config.fit(device.arch(), dev_file)
+                    || found.iter().any(|d| d.has_intersection(dev_file))
+                {
                     continue;
                 }
                 let core_idxes: Vec<&CoreIdx> = device
@@ -72,11 +73,13 @@ pub(crate) fn find_device_files_in(
         }
 
         // filter only available device files
-        let available_device_files: Vec<DeviceFile> = fit_device_files
+        let mut available_device_files: Vec<DeviceFile> = fit_device_files
             .into_iter()
             .filter(|(_, s)| *s == CoreStatus::Available)
             .map(|(d, _)| d)
             .collect();
+        available_device_files.sort();
+
         match config.count() {
             Count::Finite(n) => match (n as usize).cmp(&available_device_files.len()) {
                 std::cmp::Ordering::Less => {

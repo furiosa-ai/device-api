@@ -447,6 +447,13 @@ impl CoreRange {
             CoreRange::Range((s, e)) => (*s..=*e).contains(idx),
         }
     }
+
+    pub fn has_intersection(&self, other: &Self) -> bool {
+        match (self, other) {
+            (CoreRange::All, _) | (_, CoreRange::All) => true,
+            (CoreRange::Range(a), CoreRange::Range(b)) => !(a.0 > b.1 || a.1 < b.0),
+        }
+    }
 }
 
 impl Ord for CoreRange {
@@ -505,6 +512,18 @@ impl Display for DeviceFile {
     }
 }
 
+impl Ord for DeviceFile {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (self.device_index, self.core_range).cmp(&(other.device_index(), other.core_range()))
+    }
+}
+
+impl PartialOrd for DeviceFile {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl DeviceFile {
     /// Returns `PathBuf` to the device file.
     pub fn path(&self) -> &PathBuf {
@@ -534,6 +553,11 @@ impl DeviceFile {
     /// Return the mode of this device file.
     pub fn mode(&self) -> DeviceMode {
         self.mode
+    }
+
+    pub fn has_intersection(&self, other: &Self) -> bool {
+        self.device_index() == other.device_index()
+            && self.core_range().has_intersection(&other.core_range())
     }
 }
 

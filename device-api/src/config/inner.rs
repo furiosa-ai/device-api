@@ -43,6 +43,7 @@ impl FromStr for DeviceConfigInner {
             .split(',')
             .map(Config::from_str)
             .collect::<Result<Vec<_>, Self::Err>>()?;
+        // sort to find named config first
         cfgs.sort();
         Ok(Self { cfgs })
     }
