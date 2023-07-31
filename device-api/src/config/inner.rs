@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::Display;
 use std::str::FromStr;
 
@@ -13,7 +14,7 @@ use crate::arch::Arch;
 use crate::device::{CoreRange, DeviceFile, DeviceMode};
 use crate::{DeviceError, DeviceResult};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub enum Count {
     Finite(u8),
     All,
@@ -38,12 +39,12 @@ impl FromStr for DeviceConfigInner {
     type Err = DeviceError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            cfgs: s
-                .split(',')
-                .map(Config::from_str)
-                .collect::<Result<Vec<_>, Self::Err>>()?,
-        })
+        let mut cfgs = s
+            .split(',')
+            .map(Config::from_str)
+            .collect::<Result<Vec<_>, Self::Err>>()?;
+        cfgs.sort();
+        Ok(Self { cfgs })
     }
 }
 
@@ -89,6 +90,22 @@ impl Config {
         match self {
             Self::Named { .. } => Count::Finite(1),
             Self::Unnamed { count, .. } => *count,
+        }
+    }
+}
+
+impl PartialOrd for Config {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Config {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Config::Named { .. }, Config::Unnamed { .. }) => Ordering::Less,
+            (Config::Unnamed { .. }, Config::Named { .. }) => Ordering::Greater,
+            _ => Ordering::Equal,
         }
     }
 }

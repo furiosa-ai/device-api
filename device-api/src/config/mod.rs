@@ -237,9 +237,9 @@ mod tests {
                 "npu:0:0".parse::<crate::config::inner::Config>()?,
                 "npu:0:1".parse::<crate::config::inner::Config>()?,
                 "npu:0:0-1".parse::<crate::config::inner::Config>()?,
+                "npu0pe0".parse::<crate::config::inner::Config>()?,
                 "warboy(1)*1".parse::<crate::config::inner::Config>()?,
                 "warboy(2)*2".parse::<crate::config::inner::Config>()?,
-                "npu0pe0".parse::<crate::config::inner::Config>()?,
             ]
         );
         Ok(())
@@ -260,9 +260,9 @@ mod tests {
                 "npu:0:0".parse::<crate::config::inner::Config>()?,
                 "npu:0:1".parse::<crate::config::inner::Config>()?,
                 "npu:0:0-1".parse::<crate::config::inner::Config>()?,
+                "npu0pe0".parse::<crate::config::inner::Config>()?,
                 "warboy(1)*1".parse::<crate::config::inner::Config>()?,
                 "warboy(2)*2".parse::<crate::config::inner::Config>()?,
-                "npu0pe0".parse::<crate::config::inner::Config>()?,
             ]
         );
         Ok(())
@@ -315,6 +315,20 @@ mod tests {
             found_device_file_names,
             &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
         );
+
+        let config = "warboy(1)*1,npu:0:0".parse::<DeviceConfig>()?;
+        let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
+        let mut found_device_file_names: Vec<&str> =
+            found_device_files.iter().map(|f| f.filename()).collect();
+        found_device_file_names.sort();
+        assert_eq!(found_device_file_names, &["npu0pe0", "npu0pe1"]);
+
+        let config = "warboy(2)*1,npu:0:0".parse::<DeviceConfig>()?;
+        let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
+        let mut found_device_file_names: Vec<&str> =
+            found_device_files.iter().map(|f| f.filename()).collect();
+        found_device_file_names.sort();
+        assert_eq!(found_device_file_names, &["npu0pe0", "npu1pe0-1"]);
 
         Ok(())
     }

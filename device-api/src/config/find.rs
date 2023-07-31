@@ -37,6 +37,7 @@ pub(crate) fn find_device_files_in(
 ) -> DeviceResult<Vec<DeviceFile>> {
     let mut found: Vec<DeviceFile> = Vec::new();
 
+    // sort to find named config first
     for config in &config.inner.cfgs {
         // find all device files whether available or not
         let mut fit_device_files: HashMap<DeviceFile, CoreStatus> = HashMap::new();

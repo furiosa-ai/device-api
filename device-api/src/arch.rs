@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use strum_macros::AsRefStr;
 
 /// Enum for the NPU architecture.
-#[derive(AsRefStr, Clone, Copy, Debug, enum_utils::FromStr, Eq, PartialEq)]
+#[derive(AsRefStr, Clone, Copy, Debug, enum_utils::FromStr, Eq, PartialEq, PartialOrd)]
 #[enumeration(case_insensitive)]
 pub enum Arch {
     WarboyA0,

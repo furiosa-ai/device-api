@@ -569,7 +569,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
 }
 
 /// Enum for NPU's operating mode.
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, enum_utils::FromStr)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, enum_utils::FromStr, PartialOrd)]
 #[enumeration(case_insensitive)]
 pub enum DeviceMode {
     Single,
