@@ -452,7 +452,7 @@ impl CoreRange {
     pub fn has_intersection(&self, other: &Self) -> bool {
         match (self, other) {
             (CoreRange::All, _) | (_, CoreRange::All) => true,
-            (CoreRange::Range(a), CoreRange::Range(b)) => !(a.1 < b.0 || a.0 > b.1),
+            (CoreRange::Range(a), CoreRange::Range(b)) => !(a.1 < b.0 || b.1 < a.0),
         }
     }
 }
