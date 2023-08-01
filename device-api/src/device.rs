@@ -437,6 +437,7 @@ pub(crate) type CoreIdx = u8;
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub enum CoreRange {
     All, // TODO: rename this to MultiCore
+    // This range is inclusive [s, e]
     Range((u8, u8)),
 }
 
@@ -451,7 +452,7 @@ impl CoreRange {
     pub fn has_intersection(&self, other: &Self) -> bool {
         match (self, other) {
             (CoreRange::All, _) | (_, CoreRange::All) => true,
-            (CoreRange::Range(a), CoreRange::Range(b)) => !(a.0 > b.1 || a.1 < b.0),
+            (CoreRange::Range(a), CoreRange::Range(b)) => !(a.1 < b.0 || a.0 > b.1),
         }
     }
 }
