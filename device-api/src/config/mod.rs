@@ -148,9 +148,9 @@ mod tests {
         // try lookup 4 different single cores
         let config = DeviceConfig::warboy().single().count(4);
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(
             found_device_file_names,
             &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
@@ -159,9 +159,9 @@ mod tests {
         // try lookup all single cores
         let config = DeviceConfig::warboy().single().all();
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(
             found_device_file_names,
             &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
@@ -178,17 +178,17 @@ mod tests {
         // // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().fused().count(2);
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(found_device_file_names, &["npu0pe0-1", "npu1pe0-1"],);
 
         // // try lookup all fused cores
         let config = DeviceConfig::warboy().fused().all();
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(found_device_file_names, &["npu0pe0-1", "npu1pe0-1"],);
 
         // // looking for 3 different fused cores should fail
@@ -278,9 +278,9 @@ mod tests {
         // try lookup with various valid configs
         let config = "npu:0:0,npu:0:1,npu:1:0,npu:1:1".parse::<DeviceConfig>()?;
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(
             found_device_file_names,
             &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
@@ -288,9 +288,9 @@ mod tests {
 
         let config = "npu:0:0,npu0pe1,npu:1:0,npu1pe1".parse::<DeviceConfig>()?;
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(
             found_device_file_names,
             &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
@@ -298,9 +298,9 @@ mod tests {
 
         let config = "warboy(1)*1,warboy(1)*1,warboy(1)*1,warboy(1)*1".parse::<DeviceConfig>()?;
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(
             found_device_file_names,
             &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
@@ -308,9 +308,9 @@ mod tests {
 
         let config = "npu:0:0,npu:0:1,warboy(1)*2".parse::<DeviceConfig>()?;
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(
             found_device_file_names,
             &["npu0pe0", "npu0pe1", "npu1pe0", "npu1pe1"],
@@ -318,23 +318,23 @@ mod tests {
 
         let config = "warboy(1)*1,npu:0:0".parse::<DeviceConfig>()?;
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(found_device_file_names, &["npu0pe0", "npu0pe1"]);
 
         let config = "warboy(2)*1,npu:0:0".parse::<DeviceConfig>()?;
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(found_device_file_names, &["npu0pe0", "npu1pe0-1"]);
 
         let config = "warboy(1)*1,npu:0:0-1".parse::<DeviceConfig>()?;
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
-        let mut found_device_file_names: Vec<&str> =
+        let found_device_file_names: Vec<&str> =
             found_device_files.iter().map(|f| f.filename()).collect();
-        found_device_file_names.sort();
+
         assert_eq!(found_device_file_names, &["npu0pe0-1", "npu1pe0"]);
 
         Ok(())

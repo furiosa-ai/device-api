@@ -83,7 +83,7 @@ pub(crate) fn find_device_files_in(
         match config.count() {
             Count::Finite(n) => match (n as usize).cmp(&available_device_files.len()) {
                 std::cmp::Ordering::Less => {
-                    found.extend(available_device_files.iter().take(n.into()).cloned())
+                    found.extend(available_device_files.into_iter().take(n.into()))
                 }
                 std::cmp::Ordering::Equal => found.extend(available_device_files),
                 std::cmp::Ordering::Greater => return Err(DeviceError::device_busy(config)),
