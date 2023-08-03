@@ -437,6 +437,7 @@ pub(crate) type CoreIdx = u8;
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub enum CoreRange {
     All, // TODO: rename this to MultiCore
+    // This range is inclusive [s, e]
     Range((u8, u8)),
 }
 
@@ -445,6 +446,13 @@ impl CoreRange {
         match self {
             CoreRange::All => true,
             CoreRange::Range((s, e)) => (*s..=*e).contains(idx),
+        }
+    }
+
+    pub fn has_intersection(&self, other: &Self) -> bool {
+        match (self, other) {
+            (CoreRange::All, _) | (_, CoreRange::All) => true,
+            (CoreRange::Range(a), CoreRange::Range(b)) => !(a.1 < b.0 || b.1 < a.0),
         }
     }
 }
@@ -505,6 +513,18 @@ impl Display for DeviceFile {
     }
 }
 
+impl Ord for DeviceFile {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (self.device_index, self.core_range).cmp(&(other.device_index(), other.core_range()))
+    }
+}
+
+impl PartialOrd for DeviceFile {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl DeviceFile {
     /// Returns `PathBuf` to the device file.
     pub fn path(&self) -> &PathBuf {
@@ -534,6 +554,11 @@ impl DeviceFile {
     /// Return the mode of this device file.
     pub fn mode(&self) -> DeviceMode {
         self.mode
+    }
+
+    pub fn has_intersection(&self, other: &Self) -> bool {
+        self.device_index() == other.device_index()
+            && self.core_range().has_intersection(&other.core_range())
     }
 }
 
@@ -569,7 +594,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
 }
 
 /// Enum for NPU's operating mode.
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, enum_utils::FromStr)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, enum_utils::FromStr, PartialOrd)]
 #[enumeration(case_insensitive)]
 pub enum DeviceMode {
     Single,
