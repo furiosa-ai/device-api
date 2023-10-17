@@ -13,18 +13,18 @@ use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
 use crate::sysfs::npu_mgmt::MgmtFile;
 use crate::{
-    devfs, find_device_files_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult,
+    devfs, env, find_device_files_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult,
 };
 use crate::{hwmon, DeviceMode};
 
 /// List all Furiosa NPU devices in the system.
 pub fn list_devices() -> DeviceResult<Vec<Device>> {
-    list_devices_with("/dev", "/sys")
+    list_devices_with(&env::get_dev_fs("/dev"), &env::get_sys_fs("/sys"))
 }
 
 /// Return a specific Furiosa NPU device in the system.
 pub fn get_device(idx: u8) -> DeviceResult<Device> {
-    get_device_with(idx, "/dev", "/sys")
+    get_device_with(idx, &env::get_dev_fs("/dev"), &env::get_sys_fs("/sys"))
 }
 
 /// Find a set of devices with specific configuration.
@@ -40,7 +40,7 @@ pub fn find_device_files(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>>
 /// * `device_name` - A device name (e.g., npu0, npu0pe0, npu0pe0-1)
 #[inline]
 pub fn get_device_file<S: AsRef<str>>(device_name: S) -> DeviceResult<DeviceFile> {
-    get_file_with("/dev", device_name.as_ref())
+    get_file_with(&env::get_dev_fs("/dev"), device_name.as_ref())
 }
 
 pub(crate) fn get_file_with(devfs: &str, device_name: &str) -> DeviceResult<DeviceFile> {
