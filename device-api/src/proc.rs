@@ -97,6 +97,7 @@ fn read_cmdline(pid: u32) -> Option<String> {
     Some(contents.replace('\0', " ").trim().to_string())
 }
 
+#[cfg(target_os = "linux")]
 #[cfg(test)]
 mod tests {
     use super::*;

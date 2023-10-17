@@ -73,13 +73,16 @@ pub use crate::device::{
 pub use crate::error::{DeviceError, DeviceResult};
 use crate::list::{get_device_with, list_devices_with};
 
-mod arch;
+pub mod arch;
 #[cfg(feature = "blocking")]
 #[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 pub mod blocking;
+#[cfg(feature = "cbinding")]
+pub mod cbinding;
 mod config;
 mod devfs;
-mod device;
+pub mod device;
+pub mod env;
 mod error;
 pub mod hwmon;
 mod list;
@@ -92,7 +95,7 @@ mod sysfs;
 ///
 /// See the [crate-level documentation](crate).
 pub async fn list_devices() -> DeviceResult<Vec<Device>> {
-    list_devices_with("/dev", "/sys").await
+    list_devices_with(&env::get_dev_fs("/dev"), &env::get_sys_fs("/sys")).await
 }
 
 /// Return a specific Furiosa NPU device in the system.
@@ -103,7 +106,7 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 ///
 /// See the [crate-level documentation](crate).
 pub async fn get_device(idx: u8) -> DeviceResult<Device> {
-    get_device_with(idx, "/dev", "/sys").await
+    get_device_with(idx, &env::get_dev_fs("/dev"), &env::get_sys_fs("/sys")).await
 }
 
 /// Find a set of devices with specific configuration.
@@ -126,7 +129,7 @@ pub async fn find_device_files(config: &DeviceConfig) -> DeviceResult<Vec<Device
 ///
 /// See the [crate-level documentation](crate).
 pub async fn get_device_file<S: AsRef<str>>(device_name: S) -> DeviceResult<DeviceFile> {
-    get_device_file_with("/dev", device_name.as_ref()).await
+    get_device_file_with(&env::get_dev_fs("/dev"), device_name.as_ref()).await
 }
 
 pub(crate) async fn get_device_file_with(

@@ -8,11 +8,17 @@ license = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
 readme = { workspace = true }
+build = "build.rs"
 
 [features]
 blocking = [] # Enable blocking APIs
+cbinding = [] # Enable C FFI APIs
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+required-features = ["blocking", "cbinding"]
+
 [[bin]]
 name = "list_npu"
 path = "bin/list_npu.rs"
@@ -52,9 +58,14 @@ thiserror = "1"
 tokio = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter", "json"] }
+libc = "0.2.2"
+ffi_helpers = "0.3.0"
 
 [dev-dependencies]
 eyre = "0.6"
+
+[build-dependencies]
+cbindgen = "0.26.0"
 
 [package.metadata.docs.rs]
 all-features = true
