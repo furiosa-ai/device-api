@@ -77,6 +77,8 @@ pub mod arch;
 #[cfg(feature = "blocking")]
 #[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 pub mod blocking;
+#[cfg(feature = "cbinding")]
+pub mod cbinding;
 mod config;
 mod devfs;
 mod device;
