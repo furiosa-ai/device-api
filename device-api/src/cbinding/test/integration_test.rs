@@ -153,10 +153,10 @@ mod tests {
                 assert!(matches!(ret, cbinding::error_code::ok));
                 assert_eq!(device_index_output, device_handle_idx);
 
-                let mut arch_output = cbinding::arch::Arch::WarboyA0;
+                let mut arch_output = cbinding::arch::Arch::warboy_a0;
                 ret = cbinding::device::get_device_arch(*device_handle, &mut arch_output);
                 assert!(matches!(ret, cbinding::error_code::ok));
-                assert!(matches!(arch_output, cbinding::arch::Arch::Warboy));
+                assert!(matches!(arch_output, cbinding::arch::Arch::warboy));
 
                 let mut liveness_output = false;
                 ret = cbinding::device::get_device_liveness(*device_handle, &mut liveness_output);
@@ -297,7 +297,7 @@ mod tests {
                     let id = *(core_ids_output.offset(idx as isize));
                     assert_eq!(id, idx);
                     let mut core_status_output: cbinding::device::CoreStatus =
-                        cbinding::device::CoreStatus::Unavailable;
+                        cbinding::device::CoreStatus::unavailable;
                     ret = cbinding::device::get_device_core_status(
                         *device_handle,
                         id,
@@ -306,7 +306,7 @@ mod tests {
                     assert!(matches!(ret, cbinding::error_code::ok));
                     assert!(matches!(
                         core_status_output,
-                        cbinding::device::CoreStatus::Available
+                        cbinding::device::CoreStatus::available
                     ));
                     //@bg: no way to test "get_device_core_occupied_fd" since mock fd can be opened multiple times.
                 }

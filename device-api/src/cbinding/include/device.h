@@ -7,36 +7,36 @@
  * Enum for the NPU architecture.
  */
 typedef enum Arch {
-  WarboyA0,
-  Warboy,
-  Renegade,
-  U250,
+  warboy_a0,
+  warboy,
+  renegade,
+  u250,
 } Arch;
 
 /**
  * \brief Represent a core range type
  */
 typedef enum CoreRangeType {
-  All,
-  Range,
+  all,
+  range,
 } CoreRangeType;
 
 /**
  * \brief Represent a core status
  */
 typedef enum CoreStatus {
-  Available,
-  Occupied,
-  Unavailable,
+  available,
+  occupied,
+  unavailable,
 } CoreStatus;
 
 /**
  * \brief Represent a device mode
  */
 typedef enum DeviceMode {
-  Single,
-  Fusion,
-  MultiCore,
+  single,
+  fusion,
+  multi_core,
 } DeviceMode;
 
 /**
@@ -111,27 +111,6 @@ typedef enum error_code {
 
 /**
  * Abstraction for a single Furiosa NPU device.
- *
- * # About Furiosa NPU
- *
- * A Furiosa NPU device contains a number of cores and offers several ways called
- * [`DeviceMode`][crate::DeviceMode] to combine multiple cores to a single logical device,
- * as following:
- * * [`Single`][crate::DeviceMode::Single]: A logical device is composed of a single core.
- * * [`Fusion`][crate::DeviceMode::Fusion]: Multiple cores work together as if
- *     they were one device. This mode is useful when a DNN model requires
- *      much computation power and large memory capacity.
- * * [`MultiCore`][crate::DeviceMode::MultiCore]: A logical device uses multiple cores,
- *     each of which communicates to one another through interconnect.
- *     In this mode, partitions of a model or multiple models can be pipelined.
- * (See [`DeviceConfig`][crate::DeviceConfig] and
- * [`find_device_files`][crate::find_device_files]).
- *
- * Hence a Furiosa NPU device exposes several devfs files for each purpose
- * above. They can be listed by calling [`dev_files`][Device::dev_files]
- * method, which returns a list of [`DeviceFile`]s.
- * Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
- * identify its [`DeviceMode`].
  */
 typedef struct Device Device;
 

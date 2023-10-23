@@ -71,10 +71,10 @@ pub unsafe extern "C" fn get_device_arch(
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
     let device = device_mut(handle);
     match device.arch() {
-        arch::Arch::WarboyA0 => *output = cbinding::arch::Arch::WarboyA0,
-        arch::Arch::WarboyB0 => *output = cbinding::arch::Arch::Warboy,
-        arch::Arch::Renegade => *output = cbinding::arch::Arch::Renegade,
-        arch::Arch::U250 => *output = cbinding::arch::Arch::U250,
+        arch::Arch::WarboyA0 => *output = cbinding::arch::Arch::warboy_a0,
+        arch::Arch::WarboyB0 => *output = cbinding::arch::Arch::warboy,
+        arch::Arch::Renegade => *output = cbinding::arch::Arch::renegade,
+        arch::Arch::U250 => *output = cbinding::arch::Arch::u250,
     }
     cbinding::error_code::ok
 }
@@ -440,10 +440,11 @@ pub unsafe extern "C" fn destroy_device_core_ids(raw: *mut u8, len: u8) {
 
 /// \brief Represent a device mode
 #[repr(C)]
+#[allow(non_camel_case_types)]
 pub enum DeviceMode {
-    Single,
-    Fusion,
-    MultiCore,
+    single,
+    fusion,
+    multi_core,
 }
 
 /// \brief Output of `get_device_files`
@@ -461,14 +462,14 @@ pub(crate) fn transform_device_file(origin: &device::DeviceFile) -> cbinding::de
         core_range: match origin.core_range() {
             device::CoreRange::All => {
                 CoreRange {
-                    range_type: CoreRangeType::All,
+                    range_type: CoreRangeType::all,
                     // It would be nice, I we could fill real values here...
                     start: 0,
                     end: 0,
                 }
             }
             device::CoreRange::Range(r) => CoreRange {
-                range_type: CoreRangeType::Range,
+                range_type: CoreRangeType::range,
                 start: r.0,
                 end: r.1,
             },
@@ -477,9 +478,9 @@ pub(crate) fn transform_device_file(origin: &device::DeviceFile) -> cbinding::de
             .unwrap()
             .into_raw(),
         mode: match origin.mode() {
-            device::DeviceMode::Single => DeviceMode::Single,
-            device::DeviceMode::Fusion => DeviceMode::Fusion,
-            device::DeviceMode::MultiCore => DeviceMode::MultiCore,
+            device::DeviceMode::Single => DeviceMode::single,
+            device::DeviceMode::Fusion => DeviceMode::fusion,
+            device::DeviceMode::MultiCore => DeviceMode::multi_core,
         },
     }
 }
@@ -531,9 +532,9 @@ pub unsafe extern "C" fn destroy_device_files(raw: *mut DeviceFile, len: u8) {
 
 fn transform_core_status(origin: device::CoreStatus) -> CoreStatus {
     match origin {
-        device::CoreStatus::Available => CoreStatus::Available,
-        device::CoreStatus::Occupied(_) => CoreStatus::Occupied,
-        device::CoreStatus::Unavailable => CoreStatus::Unavailable,
+        device::CoreStatus::Available => CoreStatus::available,
+        device::CoreStatus::Occupied(_) => CoreStatus::occupied,
+        device::CoreStatus::Unavailable => CoreStatus::unavailable,
     }
 }
 
@@ -660,9 +661,10 @@ pub unsafe extern "C" fn destroy_core_status_pair(raw: *mut CoreStatusPair, len:
 
 /// \brief Represent a core range type
 #[repr(C)]
+#[allow(non_camel_case_types)]
 pub enum CoreRangeType {
-    All,
-    Range,
+    all,
+    range,
 }
 
 /// \brief Represent a core range
@@ -675,10 +677,11 @@ pub struct CoreRange {
 
 /// \brief Represent a core status
 #[repr(C)]
+#[allow(non_camel_case_types)]
 pub enum CoreStatus {
-    Available,
-    Occupied,
-    Unavailable,
+    available,
+    occupied,
+    unavailable,
 }
 
 /// \brief Safely free rust string that is represented in C string.

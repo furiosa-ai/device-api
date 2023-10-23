@@ -1,3 +1,24 @@
+//! # About Furiosa NPU
+//!
+//! A Furiosa NPU device contains a number of cores and offers several ways called
+//! [`DeviceMode`][crate::DeviceMode] to combine multiple cores to a single logical device,
+//! as following:
+//! * [`Single`][crate::DeviceMode::Single]: A logical device is composed of a single core.
+//! * [`Fusion`][crate::DeviceMode::Fusion]: Multiple cores work together as if
+//!     they were one device. This mode is useful when a DNN model requires
+//!      much computation power and large memory capacity.
+//! * [`MultiCore`][crate::DeviceMode::MultiCore]: A logical device uses multiple cores,
+//!     each of which communicates to one another through interconnect.
+//!     In this mode, partitions of a model or multiple models can be pipelined.
+//! (See [`DeviceConfig`][crate::DeviceConfig] and
+//! [`find_device_files`][crate::find_device_files]).
+//!
+//! Hence a Furiosa NPU device exposes several devfs files for each purpose
+//! above. They can be listed by calling [`dev_files`][Device::dev_files]
+//! method, which returns a list of [`DeviceFile`]s.
+//! Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
+//! identify its [`DeviceMode`].
+
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -21,27 +42,6 @@ use crate::{devfs, DeviceError, DeviceResult};
 #[derive(Debug, Clone)]
 
 /// Abstraction for a single Furiosa NPU device.
-///
-/// # About Furiosa NPU
-///
-/// A Furiosa NPU device contains a number of cores and offers several ways called
-/// [`DeviceMode`][crate::DeviceMode] to combine multiple cores to a single logical device,
-/// as following:
-/// * [`Single`][crate::DeviceMode::Single]: A logical device is composed of a single core.
-/// * [`Fusion`][crate::DeviceMode::Fusion]: Multiple cores work together as if
-///     they were one device. This mode is useful when a DNN model requires
-///      much computation power and large memory capacity.
-/// * [`MultiCore`][crate::DeviceMode::MultiCore]: A logical device uses multiple cores,
-///     each of which communicates to one another through interconnect.
-///     In this mode, partitions of a model or multiple models can be pipelined.
-/// (See [`DeviceConfig`][crate::DeviceConfig] and
-/// [`find_device_files`][crate::find_device_files]).
-///
-/// Hence a Furiosa NPU device exposes several devfs files for each purpose
-/// above. They can be listed by calling [`dev_files`][Device::dev_files]
-/// method, which returns a list of [`DeviceFile`]s.
-/// Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
-/// identify its [`DeviceMode`].
 pub struct Device {
     device_info: DeviceInfo,
     hwmon_fetcher: hwmon::Fetcher,

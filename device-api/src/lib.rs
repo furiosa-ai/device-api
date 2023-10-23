@@ -81,7 +81,7 @@ pub mod blocking;
 pub mod cbinding;
 mod config;
 mod devfs;
-mod device;
+pub mod device;
 pub mod env;
 mod error;
 pub mod hwmon;
