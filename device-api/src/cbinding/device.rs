@@ -9,7 +9,7 @@ use crate::blocking;
 use crate::{arch, cbinding, cbinding::device_handle, cbinding::err_code, device};
 
 unsafe fn device_mut(handle: device_handle) -> &'static mut device::Device {
-    handle.as_mut().expect("invalid device_handle pointer")
+    (handle as *mut device::Device).as_mut().expect("invalid device_handle pointer")
 }
 
 /// \brief Retrieve the name of the device (e.g., npu0).

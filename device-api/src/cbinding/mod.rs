@@ -7,7 +7,7 @@ use ffi_helpers;
 use libc::c_char;
 
 use crate::blocking::{get_device, get_device_file, list_devices};
-use crate::{cbinding, Device, DeviceError};
+use crate::{cbinding, DeviceError};
 
 mod arch;
 pub(crate) mod device;
@@ -23,9 +23,9 @@ macro_rules! catch_unwind {
     };
 }
 pub(crate) use catch_unwind;
-
+pub struct DeviceHandle;
 #[allow(non_camel_case_types)]
-pub type device_handle = *mut Device;
+pub type device_handle = *mut DeviceHandle;
 
 /// \brief Represent a return status
 #[repr(C)]
@@ -102,7 +102,7 @@ pub unsafe extern "C" fn list_all_devices(
             Ok(vec) => {
                 let mut output_vec: Vec<device_handle> = vec
                     .iter()
-                    .map(|d| Box::into_raw(Box::new(d.clone())))
+                    .map(|d| Box::into_raw(Box::new(d.clone())) as *mut DeviceHandle)
                     .collect();
                 output_vec.shrink_to_fit();
                 *output = output_vec.as_mut_ptr();
@@ -141,7 +141,7 @@ pub unsafe extern "C" fn get_device_by_index(idx: u8, output: *mut device_handle
         let result = get_device(idx);
         match result {
             Ok(device) => {
-                *output = Box::into_raw(Box::new(device));
+                *output = Box::into_raw(Box::new(device)) as *mut DeviceHandle;
                 error_code::ok
             }
             Err(err) => err_code(err),
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn get_device_file_by_name(
         match result {
             Ok(file) => {
                 let output_file = device::transform_device_file(&file);
-                *output = Box::into_raw(Box::new(output_file));
+                *output = Box::into_raw(Box::new(output_file)) ;
                 error_code::ok
             }
             Err(err) => err_code(err),

@@ -109,12 +109,9 @@ typedef enum error_code {
   unknown_error,
 } error_code;
 
-/**
- * Abstraction for a single Furiosa NPU device.
- */
-typedef struct Device Device;
+typedef struct DeviceHandle DeviceHandle;
 
-typedef struct Device *device_handle;
+typedef struct DeviceHandle *device_handle;
 
 /**
  * \brief Represent a core range
