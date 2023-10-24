@@ -1,6 +1,7 @@
 #![allow(clippy::missing_safety_doc)]
 use std::ffi::CString;
 use std::mem;
+use std::panic::AssertUnwindSafe;
 
 use libc::c_char;
 
@@ -26,14 +27,17 @@ pub unsafe extern "C" fn get_device_name(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match CString::new(device.name()) {
-        Ok(cstring) => {
-            *output = cstring.into_raw();
-            cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match CString::new(device.name()) {
+            Ok(cstring) => {
+                *output = cstring.into_raw();
+                cbinding::error_code::ok
+            }
+            Err(_) => cbinding::error_code::null_error,
         }
-        Err(_) => cbinding::error_code::null_error,
-    }
+    })
 }
 
 /// \brief Retrieve the device index (e.g., 0 for npu0).
@@ -50,9 +54,12 @@ pub unsafe extern "C" fn get_device_index(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    *output = device.device_index();
-    cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        *output = device.device_index();
+        cbinding::error_code::ok
+    })
 }
 
 /// \brief Retrieve `Arch` of the device(e.g., `Warboy`).
@@ -69,14 +76,17 @@ pub unsafe extern "C" fn get_device_arch(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.arch() {
-        arch::Arch::WarboyA0 => *output = cbinding::arch::Arch::warboy_a0,
-        arch::Arch::WarboyB0 => *output = cbinding::arch::Arch::warboy,
-        arch::Arch::Renegade => *output = cbinding::arch::Arch::renegade,
-        arch::Arch::U250 => *output = cbinding::arch::Arch::u250,
-    }
-    cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.arch() {
+            arch::Arch::WarboyA0 => *output = cbinding::arch::Arch::warboy_a0,
+            arch::Arch::WarboyB0 => *output = cbinding::arch::Arch::warboy,
+            arch::Arch::Renegade => *output = cbinding::arch::Arch::renegade,
+            arch::Arch::U250 => *output = cbinding::arch::Arch::u250,
+        }
+        cbinding::error_code::ok
+    })
 }
 
 /// \brief Retrieve a liveness state of the device.
@@ -93,14 +103,17 @@ pub unsafe extern "C" fn get_device_liveness(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.alive() {
-        Ok(alive) => {
-            *output = alive;
-            cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.alive() {
+            Ok(alive) => {
+                *output = alive;
+                cbinding::error_code::ok
+            }
+            Err(err) => err_code(err),
         }
-        Err(err) => err_code(err),
-    }
+    })
 }
 
 /// \brief Output of `get_device_error_states`
@@ -128,25 +141,28 @@ pub unsafe extern "C" fn get_device_error_states(
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output_len, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.atr_error() {
-        Ok(hashmap) => {
-            let mut output_vec = Vec::new();
-            for (k, v) in hashmap.iter() {
-                output_vec.push(ErrorStatesKeyValuePair {
-                    key: CString::new(k.clone()).unwrap().into_raw(),
-                    value: *v,
-                })
-            }
 
-            output_vec.shrink_to_fit();
-            *output = output_vec.as_mut_ptr();
-            *output_len = output_vec.len() as u8;
-            mem::forget(output_vec);
-            cbinding::error_code::ok
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.atr_error() {
+            Ok(hashmap) => {
+                let mut output_vec = Vec::new();
+                for (k, v) in hashmap.iter() {
+                    output_vec.push(ErrorStatesKeyValuePair {
+                        key: CString::new(k.clone()).unwrap().into_raw(),
+                        value: *v,
+                    })
+                }
+
+                output_vec.shrink_to_fit();
+                *output = output_vec.as_mut_ptr();
+                *output_len = output_vec.len() as u8;
+                mem::forget(output_vec);
+                cbinding::error_code::ok
+            }
+            Err(err) => err_code(err),
         }
-        Err(err) => err_code(err),
-    }
+    })
 }
 
 /// \brief Safely free device error states array of `ErrorStatesKeyValuePair` allocated by `get_device_error_states`.
@@ -177,17 +193,20 @@ pub unsafe extern "C" fn get_device_pci_bus_number(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.busname() {
-        Ok(busname) => match CString::new(busname) {
-            Ok(cstring) => {
-                *output = cstring.into_raw();
-                cbinding::error_code::ok
-            }
-            Err(_) => cbinding::error_code::null_error,
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.busname() {
+            Ok(busname) => match CString::new(busname) {
+                Ok(cstring) => {
+                    *output = cstring.into_raw();
+                    cbinding::error_code::ok
+                }
+                Err(_) => cbinding::error_code::null_error,
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieve PCI device ID of the device.
@@ -205,17 +224,20 @@ pub unsafe extern "C" fn get_device_pci_dev_id(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.pci_dev() {
-        Ok(pci_dev_id) => match CString::new(pci_dev_id) {
-            Ok(cstring) => {
-                *output = cstring.into_raw();
-                cbinding::error_code::ok
-            }
-            Err(_) => cbinding::error_code::null_error,
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.pci_dev() {
+            Ok(pci_dev_id) => match CString::new(pci_dev_id) {
+                Ok(cstring) => {
+                    *output = cstring.into_raw();
+                    cbinding::error_code::ok
+                }
+                Err(_) => cbinding::error_code::null_error,
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieve serial number of the device.
@@ -233,17 +255,20 @@ pub unsafe extern "C" fn get_device_serial_number(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.device_sn() {
-        Ok(serial_number) => match CString::new(serial_number) {
-            Ok(cstring) => {
-                *output = cstring.into_raw();
-                cbinding::error_code::ok
-            }
-            Err(_) => cbinding::error_code::null_error,
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.device_sn() {
+            Ok(serial_number) => match CString::new(serial_number) {
+                Ok(cstring) => {
+                    *output = cstring.into_raw();
+                    cbinding::error_code::ok
+                }
+                Err(_) => cbinding::error_code::null_error,
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieve UUID of the device.
@@ -261,17 +286,20 @@ pub unsafe extern "C" fn get_device_uuid(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.device_uuid() {
-        Ok(uuid) => match CString::new(uuid) {
-            Ok(cstring) => {
-                *output = cstring.into_raw();
-                cbinding::error_code::ok
-            }
-            Err(_) => cbinding::error_code::null_error,
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.device_uuid() {
+            Ok(uuid) => match CString::new(uuid) {
+                Ok(cstring) => {
+                    *output = cstring.into_raw();
+                    cbinding::error_code::ok
+                }
+                Err(_) => cbinding::error_code::null_error,
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieves firmware revision from the device.
@@ -289,17 +317,20 @@ pub unsafe extern "C" fn get_device_firmware_version(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.firmware_version() {
-        Ok(firmware_version) => match CString::new(firmware_version) {
-            Ok(cstring) => {
-                *output = cstring.into_raw();
-                cbinding::error_code::ok
-            }
-            Err(_) => cbinding::error_code::null_error,
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.firmware_version() {
+            Ok(firmware_version) => match CString::new(firmware_version) {
+                Ok(cstring) => {
+                    *output = cstring.into_raw();
+                    cbinding::error_code::ok
+                }
+                Err(_) => cbinding::error_code::null_error,
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieves driver version for the device.
@@ -317,17 +348,20 @@ pub unsafe extern "C" fn get_device_driver_version(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.driver_version() {
-        Ok(driver_version) => match CString::new(driver_version) {
-            Ok(cstring) => {
-                *output = cstring.into_raw();
-                cbinding::error_code::ok
-            }
-            Err(_) => cbinding::error_code::null_error,
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.driver_version() {
+            Ok(driver_version) => match CString::new(driver_version) {
+                Ok(cstring) => {
+                    *output = cstring.into_raw();
+                    cbinding::error_code::ok
+                }
+                Err(_) => cbinding::error_code::null_error,
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieves uptime of the device.
@@ -344,14 +378,17 @@ pub unsafe extern "C" fn get_device_heartbeat(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.heartbeat() {
-        Ok(heartbeat) => {
-            *output = heartbeat;
-            cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.heartbeat() {
+            Ok(heartbeat) => {
+                *output = heartbeat;
+                cbinding::error_code::ok
+            }
+            Err(err) => err_code(err),
         }
-        Err(err) => err_code(err),
-    }
+    })
 }
 
 /// \brief Retrieve NUMA node ID associated with the NPU's PCI lane
@@ -368,17 +405,20 @@ pub unsafe extern "C" fn get_device_numa_node(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match device.numa_node() {
-        Ok(numa_node) => match numa_node {
-            device::NumaNode::UnSupported => cbinding::error_code::unsupported_error,
-            device::NumaNode::Id(idx) => {
-                *output = idx as u8;
-                cbinding::error_code::ok
-            }
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match device.numa_node() {
+            Ok(numa_node) => match numa_node {
+                device::NumaNode::UnSupported => cbinding::error_code::unsupported_error,
+                device::NumaNode::Id(idx) => {
+                    *output = idx as u8;
+                    cbinding::error_code::ok
+                }
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieve the number of cores
@@ -395,9 +435,12 @@ pub unsafe extern "C" fn get_device_core_num(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    *output = device.core_num();
-    cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        *output = device.core_num();
+        cbinding::error_code::ok
+    })
 }
 
 /// \brief Retrieve the core indices
@@ -418,13 +461,16 @@ pub unsafe extern "C" fn get_device_core_ids(
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output_len, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    let mut cores = device.cores().clone();
-    cores.shrink_to_fit();
-    *output = cores.as_mut_ptr();
-    *output_len = cores.len() as u8;
-    mem::forget(cores);
-    cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        let mut cores = device.cores().clone();
+        cores.shrink_to_fit();
+        *output = cores.as_mut_ptr();
+        *output_len = cores.len() as u8;
+        mem::forget(cores);
+        cbinding::error_code::ok
+    })
 }
 
 /// \brief Safely free the array of device core id that is allocated by `get_device_core_ids`.
@@ -503,17 +549,20 @@ pub unsafe extern "C" fn get_device_files(
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output_len, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    let mut device_files_vec: Vec<DeviceFile> = device
-        .dev_files()
-        .iter()
-        .map(transform_device_file)
-        .collect();
-    device_files_vec.shrink_to_fit();
-    *output = device_files_vec.as_mut_ptr();
-    *output_len = device_files_vec.len() as u8;
-    mem::forget(device_files_vec);
-    cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        let mut device_files_vec: Vec<DeviceFile> = device
+            .dev_files()
+            .iter()
+            .map(transform_device_file)
+            .collect();
+        device_files_vec.shrink_to_fit();
+        *output = device_files_vec.as_mut_ptr();
+        *output_len = device_files_vec.len() as u8;
+        mem::forget(device_files_vec);
+        cbinding::error_code::ok
+    })
 }
 
 /// \brief Safely free the array of DeviceFile that is allocated by `get_device_files`.
@@ -554,17 +603,20 @@ pub unsafe extern "C" fn get_device_core_status(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match blocking::get_status_all(device) {
-        Ok(hash_map) => match hash_map.get(&core_idx) {
-            None => cbinding::error_code::invalid_input,
-            Some(core_status) => {
-                *output = transform_core_status(core_status.clone());
-                cbinding::error_code::ok
-            }
-        },
-        Err(err) => err_code(err),
-    }
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match blocking::get_status_all(device) {
+            Ok(hash_map) => match hash_map.get(&core_idx) {
+                None => cbinding::error_code::invalid_input,
+                Some(core_status) => {
+                    *output = transform_core_status(core_status.clone());
+                    cbinding::error_code::ok
+                }
+            },
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Retrieve the file descriptor occupied a specific core.
@@ -584,23 +636,26 @@ pub unsafe extern "C" fn get_device_core_occupied_fd(
 ) -> cbinding::error_code {
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match blocking::get_status_all(device) {
-        Ok(hash_map) => match hash_map.get(&core_idx) {
-            None => cbinding::error_code::invalid_input,
-            Some(core_status) => match core_status.clone() {
-                device::CoreStatus::Occupied(fd) => match CString::new(fd) {
-                    Ok(cstring) => {
-                        *output = cstring.into_raw();
-                        cbinding::error_code::ok
-                    }
-                    Err(_) => cbinding::error_code::null_error,
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match blocking::get_status_all(device) {
+            Ok(hash_map) => match hash_map.get(&core_idx) {
+                None => cbinding::error_code::invalid_input,
+                Some(core_status) => match core_status.clone() {
+                    device::CoreStatus::Occupied(fd) => match CString::new(fd) {
+                        Ok(cstring) => {
+                            *output = cstring.into_raw();
+                            cbinding::error_code::ok
+                        }
+                        Err(_) => cbinding::error_code::null_error,
+                    },
+                    _ => cbinding::error_code::unavailable_error,
                 },
-                _ => cbinding::error_code::unavailable_error,
             },
-        },
-        Err(err) => err_code(err),
-    }
+            Err(err) => err_code(err),
+        }
+    })
 }
 
 /// \brief Output of `get_device_all_core_status`
@@ -628,24 +683,27 @@ pub unsafe extern "C" fn get_device_all_core_status(
     ffi_helpers::null_pointer_check!(handle, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output, cbinding::error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output_len, cbinding::error_code::invalid_input);
-    let device = device_mut(handle);
-    match blocking::get_status_all(device) {
-        Ok(hashmap) => {
-            let mut output_vec: Vec<CoreStatusPair> = hashmap
-                .iter()
-                .map(|(idx, status)| CoreStatusPair {
-                    core_index: *idx,
-                    status: transform_core_status(status.clone()),
-                })
-                .collect();
-            output_vec.shrink_to_fit();
-            *output = output_vec.as_mut_ptr();
-            *output_len = output_vec.len() as u8;
-            mem::forget(output_vec);
-            cbinding::error_code::ok
+
+    cbinding::catch_unwind!(|| {
+        let device = device_mut(handle);
+        match blocking::get_status_all(device) {
+            Ok(hashmap) => {
+                let mut output_vec: Vec<CoreStatusPair> = hashmap
+                    .iter()
+                    .map(|(idx, status)| CoreStatusPair {
+                        core_index: *idx,
+                        status: transform_core_status(status.clone()),
+                    })
+                    .collect();
+                output_vec.shrink_to_fit();
+                *output = output_vec.as_mut_ptr();
+                *output_len = output_vec.len() as u8;
+                mem::forget(output_vec);
+                cbinding::error_code::ok
+            }
+            Err(err) => err_code(err),
         }
-        Err(err) => err_code(err),
-    }
+    })
 }
 
 /// \brief Safely free array of `CoreStatusPair` that is allocated by `get_device_all_core_status`.

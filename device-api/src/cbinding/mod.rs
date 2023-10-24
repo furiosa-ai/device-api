@@ -1,16 +1,28 @@
 #![allow(clippy::missing_safety_doc)]
 use std::ffi::CStr;
 use std::mem;
+use std::panic::AssertUnwindSafe;
 
 use ffi_helpers;
 use libc::c_char;
 
 use crate::blocking::{get_device, get_device_file, list_devices};
-use crate::{Device, DeviceError};
+use crate::{cbinding, Device, DeviceError};
 
 mod arch;
 pub(crate) mod device;
 mod test;
+
+#[macro_export]
+macro_rules! catch_unwind {
+    ($closure:expr) => {
+        match std::panic::catch_unwind(AssertUnwindSafe($closure)) {
+            Ok(res) => res,
+            Err(_) => cbinding::error_code::unknown_error,
+        }
+    };
+}
+pub(crate) use catch_unwind;
 
 #[allow(non_camel_case_types)]
 pub type device_handle = *mut Device;
@@ -83,21 +95,24 @@ pub unsafe extern "C" fn list_all_devices(
 ) -> error_code {
     ffi_helpers::null_pointer_check!(output, error_code::invalid_input);
     ffi_helpers::null_pointer_check!(output_len, error_code::invalid_input);
-    let result = list_devices();
-    match result {
-        Ok(vec) => {
-            let mut output_vec: Vec<device_handle> = vec
-                .iter()
-                .map(|d| Box::into_raw(Box::new(d.clone())))
-                .collect();
-            output_vec.shrink_to_fit();
-            *output = output_vec.as_mut_ptr();
-            *output_len = output_vec.len() as u8;
-            mem::forget(output_vec);
-            error_code::ok
+
+    catch_unwind!(|| {
+        let result = list_devices();
+        match result {
+            Ok(vec) => {
+                let mut output_vec: Vec<device_handle> = vec
+                    .iter()
+                    .map(|d| Box::into_raw(Box::new(d.clone())))
+                    .collect();
+                output_vec.shrink_to_fit();
+                *output = output_vec.as_mut_ptr();
+                *output_len = output_vec.len() as u8;
+                mem::forget(output_vec);
+                error_code::ok
+            }
+            Err(err) => err_code(err),
         }
-        Err(err) => err_code(err),
-    }
+    })
 }
 
 /// \brief Destroy array of device_handle returned by `list_all_devices`.
@@ -122,14 +137,16 @@ pub unsafe extern "C" fn destroy_device_handles(raw: *mut device_handle, len: u8
 #[no_mangle]
 pub unsafe extern "C" fn get_device_by_index(idx: u8, output: *mut device_handle) -> error_code {
     ffi_helpers::null_pointer_check!(output, error_code::invalid_input);
-    let result = get_device(idx);
-    match result {
-        Ok(device) => {
-            *output = Box::into_raw(Box::new(device));
-            error_code::ok
+    catch_unwind!(|| {
+        let result = get_device(idx);
+        match result {
+            Ok(device) => {
+                *output = Box::into_raw(Box::new(device));
+                error_code::ok
+            }
+            Err(err) => err_code(err),
         }
-        Err(err) => err_code(err),
-    }
+    })
 }
 
 /// \brief Destroy device_handle returned by `get_device_by_index`.
@@ -157,19 +174,20 @@ pub unsafe extern "C" fn get_device_file_by_name(
     output: *mut *mut device::DeviceFile,
 ) -> error_code {
     ffi_helpers::null_pointer_check!(device_name, error_code::invalid_input);
+    catch_unwind!(|| {
+        let cstr = CStr::from_ptr(device_name);
+        let str = String::from_utf8_lossy(cstr.to_bytes()).to_string();
 
-    let cstr = CStr::from_ptr(device_name);
-    let str = String::from_utf8_lossy(cstr.to_bytes()).to_string();
-
-    let result = get_device_file(str);
-    match result {
-        Ok(file) => {
-            let output_file = device::transform_device_file(&file);
-            *output = Box::into_raw(Box::new(output_file));
-            error_code::ok
+        let result = get_device_file(str);
+        match result {
+            Ok(file) => {
+                let output_file = device::transform_device_file(&file);
+                *output = Box::into_raw(Box::new(output_file));
+                error_code::ok
+            }
+            Err(err) => err_code(err),
         }
-        Err(err) => err_code(err),
-    }
+    })
 }
 
 /// \brief Destroy DeviceFile returned by `get_device_file_by_name`.
