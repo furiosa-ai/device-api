@@ -83,13 +83,13 @@ pub(crate) fn err_code(err: DeviceError) -> error_code {
 /// \brief Retrieve device_handle of all Furiosa NPU devices in the system.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved device_handles must be destroyed by `destroy_device_handles`.
+/// and retrieved device_handles must be destroyed by `furiosa_device_handle_list_destroy`.
 ///
 /// @param[out] output output buffer for array of device_handle.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn list_all_devices(
+pub unsafe extern "C" fn furiosa_device_list(
     output: *mut *mut device_handle,
     output_len: *mut u8,
 ) -> error_code {
@@ -115,12 +115,12 @@ pub unsafe extern "C" fn list_all_devices(
     })
 }
 
-/// \brief Destroy array of device_handle returned by `list_all_devices`.
+/// \brief Destroy array of device_handle returned by `furiosa_device_list`.
 ///
 /// @param raw pointer to array of device_handles.
 /// @param len length of array.
 #[no_mangle]
-pub unsafe extern "C" fn destroy_device_handles(raw: *mut device_handle, len: u8) {
+pub unsafe extern "C" fn furiosa_device_handle_list_destroy(raw: *mut device_handle, len: u8) {
     ffi_helpers::null_pointer_check!(raw);
     let vec = Vec::from_raw_parts(raw, len as usize, len as usize);
     drop(vec)
@@ -129,13 +129,16 @@ pub unsafe extern "C" fn destroy_device_handles(raw: *mut device_handle, len: u8
 /// \brief Retrieve device_handle with a specific index of Furiosa NPU device in the system.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved device_handle must be destroyed by `destroy_device_handle`.
+/// and retrieved device_handle must be destroyed by `furiosa_device_handle_destroy`.
 ///
 /// @param idx index of Furiosa NPU device.
 /// @param[out] output output buffer for device_handle.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_by_index(idx: u8, output: *mut device_handle) -> error_code {
+pub unsafe extern "C" fn furiosa_device_get_by_index(
+    idx: u8,
+    output: *mut device_handle,
+) -> error_code {
     ffi_helpers::null_pointer_check!(output, error_code::invalid_input);
     catch_unwind!(|| {
         let result = get_device(idx);
@@ -149,11 +152,11 @@ pub unsafe extern "C" fn get_device_by_index(idx: u8, output: *mut device_handle
     })
 }
 
-/// \brief Destroy device_handle returned by `get_device_by_index`.
+/// \brief Destroy device_handle returned by `furiosa_device_get_by_index`.
 ///
 /// @param device device_handle to destroy.
 #[no_mangle]
-pub unsafe extern "C" fn destroy_device_handle(device: device_handle) {
+pub unsafe extern "C" fn furiosa_device_handle_destroy(device: device_handle) {
     ffi_helpers::null_pointer_check!(device);
     let boxed = Box::from_raw(device);
     drop(boxed)
@@ -162,14 +165,14 @@ pub unsafe extern "C" fn destroy_device_handle(device: device_handle) {
 /// \brief Retrieve DeviceFile with a specific name of Furiosa NPU device in the system.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved DeviceFile must be destroyed by `destroy_device_file`.
+/// and retrieved DeviceFile must be destroyed by `furiosa_device_file_destroy`.
 ///
 /// @parm device_name pointer to C string for a device name (e.g., npu0, npu0pe0, npu0pe0-1),
 /// the name should be terminated by null character.
 /// @param[out] output output buffer for DeviceFile.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_file_by_name(
+pub unsafe extern "C" fn furiosa_device_get_by_filename(
     device_name: *const c_char,
     output: *mut *mut device::DeviceFile,
 ) -> error_code {
@@ -182,7 +185,7 @@ pub unsafe extern "C" fn get_device_file_by_name(
         match result {
             Ok(file) => {
                 let output_file = device::transform_device_file(&file);
-                *output = Box::into_raw(Box::new(output_file)) ;
+                *output = Box::into_raw(Box::new(output_file));
                 error_code::ok
             }
             Err(err) => err_code(err),
@@ -190,11 +193,11 @@ pub unsafe extern "C" fn get_device_file_by_name(
     })
 }
 
-/// \brief Destroy DeviceFile returned by `get_device_file_by_name`.
+/// \brief Destroy DeviceFile returned by `furiosa_device_get_by_filename`.
 ///
 /// @param raw pointer to `DeviceFile` to destroy.
 #[no_mangle]
-pub unsafe extern "C" fn destroy_device_file(raw: *mut device::DeviceFile) {
+pub unsafe extern "C" fn furiosa_device_file_destroy(raw: *mut device::DeviceFile) {
     ffi_helpers::null_pointer_check!(raw);
     let boxed = Box::from_raw(raw);
     drop(boxed)

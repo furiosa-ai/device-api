@@ -9,19 +9,21 @@ use crate::blocking;
 use crate::{arch, cbinding, cbinding::device_handle, cbinding::err_code, device};
 
 unsafe fn device_mut(handle: device_handle) -> &'static mut device::Device {
-    (handle as *mut device::Device).as_mut().expect("invalid device_handle pointer")
+    (handle as *mut device::Device)
+        .as_mut()
+        .expect("invalid device_handle pointer")
 }
 
 /// \brief Retrieve the name of the device (e.g., npu0).
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved C string must be destroyed by `free_string`.
+/// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for pointer to C string.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_name(
+pub unsafe extern "C" fn furiosa_device_name_get(
     handle: device_handle,
     output: *mut *mut c_char,
 ) -> cbinding::error_code {
@@ -48,7 +50,7 @@ pub unsafe extern "C" fn get_device_name(
 /// @param[out] output output buffer for index of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_index(
+pub unsafe extern "C" fn furiosa_device_index_get(
     handle: device_handle,
     output: *mut u8,
 ) -> cbinding::error_code {
@@ -62,7 +64,7 @@ pub unsafe extern "C" fn get_device_index(
     })
 }
 
-/// \brief Retrieve `Arch` of the device(e.g., `Warboy`).
+/// \brief Retrieve `Arch` of the device(e.g., `warboy`).
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary.
 ///
@@ -70,7 +72,7 @@ pub unsafe extern "C" fn get_device_index(
 /// @param[out] output output buffer for arch of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_arch(
+pub unsafe extern "C" fn furiosa_device_arch_get(
     handle: device_handle,
     output: *mut cbinding::arch::Arch,
 ) -> cbinding::error_code {
@@ -97,7 +99,7 @@ pub unsafe extern "C" fn get_device_arch(
 /// @param[out] output output buffer for liveness of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_liveness(
+pub unsafe extern "C" fn furiosa_device_liveness_get(
     handle: device_handle,
     output: *mut bool,
 ) -> cbinding::error_code {
@@ -116,7 +118,7 @@ pub unsafe extern "C" fn get_device_liveness(
     })
 }
 
-/// \brief Output of `get_device_error_states`
+/// \brief Output of `furiosa_device_error_states_get`
 #[repr(C)]
 pub struct ErrorStatesKeyValuePair {
     pub key: *const c_char,
@@ -126,14 +128,14 @@ pub struct ErrorStatesKeyValuePair {
 /// \brief Retrieve error states of the device.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved array of ErrorStatesKeyValuePair must be destroyed by `destroy_error_states`.
+/// and retrieved array of ErrorStatesKeyValuePair must be destroyed by `furiosa_error_states_destroy`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for array of `ErrorStatesKeyValuePair`.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_error_states(
+pub unsafe extern "C" fn furiosa_device_error_states_get(
     handle: device_handle,
     output: *mut *mut ErrorStatesKeyValuePair,
     output_len: *mut u8,
@@ -165,16 +167,16 @@ pub unsafe extern "C" fn get_device_error_states(
     })
 }
 
-/// \brief Safely free device error states array of `ErrorStatesKeyValuePair` allocated by `get_device_error_states`.
+/// \brief Safely free device error states array of `ErrorStatesKeyValuePair` allocated by `furiosa_device_error_states_get`.
 ///
 /// @param raw pointer to array of `ErrorStatesKeyValuePair`.
 /// @param len length of array.
 #[no_mangle]
-pub unsafe extern "C" fn destroy_error_states(raw: *mut ErrorStatesKeyValuePair, len: u8) {
+pub unsafe extern "C" fn furiosa_error_states_destroy(raw: *mut ErrorStatesKeyValuePair, len: u8) {
     ffi_helpers::null_pointer_check!(raw);
     let vec = Vec::from_raw_parts(raw, len as usize, len as usize);
     for v in vec.iter() {
-        free_string(v.key);
+        furiosa_string_free(v.key);
     }
     drop(vec);
 }
@@ -187,7 +189,7 @@ pub unsafe extern "C" fn destroy_error_states(raw: *mut ErrorStatesKeyValuePair,
 /// @param[out] output output buffer for PCI bus number of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_pci_bus_number(
+pub unsafe extern "C" fn furiosa_device_pci_bus_number_get(
     handle: device_handle,
     output: *mut *mut c_char,
 ) -> cbinding::error_code {
@@ -212,13 +214,13 @@ pub unsafe extern "C" fn get_device_pci_bus_number(
 /// \brief Retrieve PCI device ID of the device.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved C string must be destroyed by `free_string`.
+/// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for PCI bus number of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_pci_dev_id(
+pub unsafe extern "C" fn furiosa_device_pci_dev_id_get(
     handle: device_handle,
     output: *mut *mut c_char,
 ) -> cbinding::error_code {
@@ -243,13 +245,13 @@ pub unsafe extern "C" fn get_device_pci_dev_id(
 /// \brief Retrieve serial number of the device.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved C string must be destroyed by `free_string`.
+/// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for serial number of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_serial_number(
+pub unsafe extern "C" fn furiosa_device_serial_number_get(
     handle: device_handle,
     output: *mut *mut c_char,
 ) -> cbinding::error_code {
@@ -274,13 +276,13 @@ pub unsafe extern "C" fn get_device_serial_number(
 /// \brief Retrieve UUID of the device.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved C string must be destroyed by `free_string`.
+/// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for UUID of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_uuid(
+pub unsafe extern "C" fn furiosa_device_uuid_get(
     handle: device_handle,
     output: *mut *mut c_char,
 ) -> cbinding::error_code {
@@ -305,13 +307,13 @@ pub unsafe extern "C" fn get_device_uuid(
 /// \brief Retrieves firmware revision from the device.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved C string must be destroyed by `free_string`.
+/// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for firmware revision of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_firmware_version(
+pub unsafe extern "C" fn furiosa_device_firmware_version_get(
     handle: device_handle,
     output: *mut *mut c_char,
 ) -> cbinding::error_code {
@@ -336,13 +338,13 @@ pub unsafe extern "C" fn get_device_firmware_version(
 /// \brief Retrieves driver version for the device.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved C string must be destroyed by `free_string`.
+/// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for driver revision of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_driver_version(
+pub unsafe extern "C" fn furiosa_device_driver_version_get(
     handle: device_handle,
     output: *mut *mut c_char,
 ) -> cbinding::error_code {
@@ -372,7 +374,7 @@ pub unsafe extern "C" fn get_device_driver_version(
 /// @param[out] output output buffer for driver revision of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_heartbeat(
+pub unsafe extern "C" fn furiosa_device_heartbeat_get(
     handle: device_handle,
     output: *mut u32,
 ) -> cbinding::error_code {
@@ -399,7 +401,7 @@ pub unsafe extern "C" fn get_device_heartbeat(
 /// @param[out] output output buffer for NUMA node ID of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_numa_node(
+pub unsafe extern "C" fn furiosa_device_numa_node_get(
     handle: device_handle,
     output: *mut u8,
 ) -> cbinding::error_code {
@@ -429,7 +431,7 @@ pub unsafe extern "C" fn get_device_numa_node(
 /// @param[out] output output buffer for the number of cores of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_core_num(
+pub unsafe extern "C" fn furiosa_device_core_num_get(
     handle: device_handle,
     output: *mut u8,
 ) -> cbinding::error_code {
@@ -446,14 +448,14 @@ pub unsafe extern "C" fn get_device_core_num(
 /// \brief Retrieve the core indices
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved array of core id must be destroyed by `destroy_device_core_ids`.
+/// and retrieved array of core id must be destroyed by `furiosa_device_core_ids_destroy`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for array of core id.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_core_ids(
+pub unsafe extern "C" fn furiosa_device_core_ids_get(
     handle: device_handle,
     output: *mut *mut u8,
     output_len: *mut u8,
@@ -473,12 +475,12 @@ pub unsafe extern "C" fn get_device_core_ids(
     })
 }
 
-/// \brief Safely free the array of device core id that is allocated by `get_device_core_ids`.
+/// \brief Safely free the array of device core id that is allocated by `furiosa_device_core_ids_get`.
 ///
 /// @param raw pointer to array of device core id.
 /// @param len length of array.
 #[no_mangle]
-pub unsafe extern "C" fn destroy_device_core_ids(raw: *mut u8, len: u8) {
+pub unsafe extern "C" fn furiosa_device_core_ids_destroy(raw: *mut u8, len: u8) {
     ffi_helpers::null_pointer_check!(raw);
     let vec = Vec::from_raw_parts(raw, len as usize, len as usize);
     drop(vec);
@@ -493,7 +495,7 @@ pub enum DeviceMode {
     multi_core,
 }
 
-/// \brief Output of `get_device_files`
+/// \brief Output of `furiosa_device_file_list`
 #[repr(C)]
 pub struct DeviceFile {
     pub device_index: u8,
@@ -534,14 +536,14 @@ pub(crate) fn transform_device_file(origin: &device::DeviceFile) -> cbinding::de
 /// \brief Retrieve the list device files under the given device.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved array of DeviceFile must be destroyed by `destroy_device_files`.
+/// and retrieved array of DeviceFile must be destroyed by `furiosa_device_file_list_destroy`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for array of DeviceFile.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_files(
+pub unsafe extern "C" fn furiosa_device_file_list(
     handle: device_handle,
     output: *mut *mut DeviceFile,
     output_len: *mut u8,
@@ -565,16 +567,16 @@ pub unsafe extern "C" fn get_device_files(
     })
 }
 
-/// \brief Safely free the array of DeviceFile that is allocated by `get_device_files`.
+/// \brief Safely free the array of DeviceFile that is allocated by `furiosa_device_file_list`.
 ///
 /// @param raw pointer to array of DeviceFile.
 /// @param len length of array.
 #[no_mangle]
-pub unsafe extern "C" fn destroy_device_files(raw: *mut DeviceFile, len: u8) {
+pub unsafe extern "C" fn furiosa_device_file_list_destroy(raw: *mut DeviceFile, len: u8) {
     ffi_helpers::null_pointer_check!(raw);
     let vec = Vec::from_raw_parts(raw, len as usize, len as usize);
     for v in vec.iter() {
-        free_string(v.path);
+        furiosa_string_free(v.path);
     }
     drop(vec)
 }
@@ -596,7 +598,7 @@ fn transform_core_status(origin: device::CoreStatus) -> CoreStatus {
 /// @param[out] output output buffer for core status.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_core_status(
+pub unsafe extern "C" fn furiosa_device_core_status_get(
     handle: device_handle,
     core_idx: u8,
     output: *mut CoreStatus,
@@ -622,14 +624,14 @@ pub unsafe extern "C" fn get_device_core_status(
 /// \brief Retrieve the file descriptor occupied a specific core.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved C string must be destroyed by `free_string`
+/// and retrieved C string must be destroyed by `furiosa_string_free`
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param core_idx index of a specific core.
 /// @param[out] output output buffer for file descriptor.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_core_occupied_fd(
+pub unsafe extern "C" fn furiosa_device_core_occupied_fd_get(
     handle: device_handle,
     core_idx: u8,
     output: *mut *mut c_char,
@@ -658,7 +660,7 @@ pub unsafe extern "C" fn get_device_core_occupied_fd(
     })
 }
 
-/// \brief Output of `get_device_all_core_status`
+/// \brief Output of `furiosa_device_all_core_status_get`
 #[repr(C)]
 pub struct CoreStatusPair {
     pub core_index: u8,
@@ -668,14 +670,14 @@ pub struct CoreStatusPair {
 /// \brief Examine each core of the device, whether it is available or not.
 ///
 /// \remark output buffer must be allocated from outside of FFI boundary,
-/// and retrieved array of `CoreStatusPair` must be destroyed by `destroy_core_status_pair`
+/// and retrieved array of `CoreStatusPair` must be destroyed by `furiosa_core_status_pair_destroy`
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for the array of `CoreStatusPair`.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
-pub unsafe extern "C" fn get_device_all_core_status(
+pub unsafe extern "C" fn furiosa_device_all_core_status_get(
     handle: device_handle,
     output: *mut *mut CoreStatusPair,
     output_len: *mut u8,
@@ -706,12 +708,12 @@ pub unsafe extern "C" fn get_device_all_core_status(
     })
 }
 
-/// \brief Safely free array of `CoreStatusPair` that is allocated by `get_device_all_core_status`.
+/// \brief Safely free array of `CoreStatusPair` that is allocated by `furiosa_device_all_core_status_get`.
 ///
 /// @param raw pointer to array of `CoreStatusPair`.
 /// @param len length of array.
 #[no_mangle]
-pub unsafe extern "C" fn destroy_core_status_pair(raw: *mut CoreStatusPair, len: u8) {
+pub unsafe extern "C" fn furiosa_core_status_pair_destroy(raw: *mut CoreStatusPair, len: u8) {
     ffi_helpers::null_pointer_check!(raw);
     let vec = Vec::from_raw_parts(raw, len as usize, len as usize);
     drop(vec)
@@ -746,7 +748,7 @@ pub enum CoreStatus {
 ///
 /// @param ptr pointer to rust string.
 #[no_mangle]
-pub unsafe extern "C" fn free_string(ptr: *const c_char) {
+pub unsafe extern "C" fn furiosa_string_free(ptr: *const c_char) {
     let c_str = CString::from_raw(ptr as *mut _);
     drop(c_str)
 }
