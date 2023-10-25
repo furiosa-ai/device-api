@@ -23,7 +23,11 @@ macro_rules! catch_unwind {
     };
 }
 pub(crate) use catch_unwind;
+
+/// \brief Opaque type for Device
 pub struct DeviceHandle;
+
+/// \brief Handle of Device
 #[allow(non_camel_case_types)]
 pub type device_handle = *mut DeviceHandle;
 

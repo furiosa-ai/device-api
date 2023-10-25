@@ -109,8 +109,14 @@ typedef enum error_code {
   unknown_error,
 } error_code;
 
+/**
+ * \brief Opaque type for Device
+ */
 typedef struct DeviceHandle DeviceHandle;
 
+/**
+ * \brief Handle of Device
+ */
 typedef struct DeviceHandle *device_handle;
 
 /**
