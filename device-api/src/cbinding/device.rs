@@ -16,11 +16,11 @@ unsafe fn device_mut(handle: device_handle) -> &'static mut device::Device {
 
 /// \brief Retrieve the name of the device (e.g., npu0).
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
 /// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for pointer to C string.
+/// @param[out] output output buffer for pointer to C string representing the name of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_name_get(
@@ -44,7 +44,7 @@ pub unsafe extern "C" fn furiosa_device_name_get(
 
 /// \brief Retrieve the device index (e.g., 0 for npu0).
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary.
+/// \remark output buffer for index of device must be allocated from outside of FFI boundary.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for index of device.
@@ -66,7 +66,7 @@ pub unsafe extern "C" fn furiosa_device_index_get(
 
 /// \brief Retrieve `Arch` of the device(e.g., `warboy`).
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary.
+/// \remark output buffer for arch of device must be allocated from outside of FFI boundary.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for arch of device.
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn furiosa_device_arch_get(
 
 /// \brief Retrieve a liveness state of the device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary.
+/// \remark output buffer for liveness of device must be allocated from outside of FFI boundary.
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param[out] output output buffer for liveness of device.
@@ -127,11 +127,11 @@ pub struct ErrorStatesKeyValuePair {
 
 /// \brief Retrieve error states of the device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
 /// and retrieved array of ErrorStatesKeyValuePair must be destroyed by `furiosa_error_states_destroy`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for array of `ErrorStatesKeyValuePair`.
+/// @param[out] output output buffer for pointer to array of `ErrorStatesKeyValuePair`.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
@@ -183,10 +183,10 @@ pub unsafe extern "C" fn furiosa_error_states_destroy(raw: *mut ErrorStatesKeyVa
 
 /// \brief Retrieve PCI bus number of the device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary.
+/// \remark output buffer for pointer to C string must be allocated from outside of FFI boundary.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for PCI bus number of device.
+/// @param[out] output output buffer for pointer to C string representing the PCI bus number of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_pci_bus_number_get(
@@ -217,7 +217,7 @@ pub unsafe extern "C" fn furiosa_device_pci_bus_number_get(
 /// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for PCI bus number of device.
+/// @param[out] output output buffer for pointer to C string representing the PCI device ID of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_pci_dev_id_get(
@@ -244,11 +244,11 @@ pub unsafe extern "C" fn furiosa_device_pci_dev_id_get(
 
 /// \brief Retrieve serial number of the device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
 /// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for serial number of device.
+/// @param[out] output output buffer for pointer to C string representing serial number of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_serial_number_get(
@@ -275,11 +275,11 @@ pub unsafe extern "C" fn furiosa_device_serial_number_get(
 
 /// \brief Retrieve UUID of the device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
 /// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for UUID of device.
+/// @param[out] output output buffer for pointer to C string representing UUID of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_uuid_get(
@@ -306,11 +306,11 @@ pub unsafe extern "C" fn furiosa_device_uuid_get(
 
 /// \brief Retrieves firmware revision from the device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
 /// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for firmware revision of device.
+/// @param[out] output output buffer for pointer to C string representing firmware revision of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_firmware_version_get(
@@ -337,11 +337,11 @@ pub unsafe extern "C" fn furiosa_device_firmware_version_get(
 
 /// \brief Retrieves driver version for the device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
 /// and retrieved C string must be destroyed by `furiosa_string_free`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for driver revision of device.
+/// @param[out] output output buffer for pointer to C string representing driver revision of device.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_driver_version_get(
@@ -447,11 +447,11 @@ pub unsafe extern "C" fn furiosa_device_core_num_get(
 
 /// \brief Retrieve the core indices
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
 /// and retrieved array of core id must be destroyed by `furiosa_device_core_ids_destroy`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for array of core id.
+/// @param[out] output output buffer for pointer to array of core id.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
@@ -535,11 +535,11 @@ pub(crate) fn transform_device_file(origin: &device::DeviceFile) -> cbinding::de
 
 /// \brief Retrieve the list device files under the given device.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
 /// and retrieved array of DeviceFile must be destroyed by `furiosa_device_file_list_destroy`.
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for array of DeviceFile.
+/// @param[out] output output buffer for pointer to array of DeviceFile.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
@@ -623,12 +623,12 @@ pub unsafe extern "C" fn furiosa_device_core_status_get(
 
 /// \brief Retrieve the file descriptor occupied a specific core.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
 /// and retrieved C string must be destroyed by `furiosa_string_free`
 ///
 /// @param handle device_handle of Furiosa NPU device.
 /// @param core_idx index of a specific core.
-/// @param[out] output output buffer for file descriptor.
+/// @param[out] output output buffer for pointer to C string representing file descriptor.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_core_occupied_fd_get(
@@ -669,11 +669,11 @@ pub struct CoreStatusPair {
 
 /// \brief Examine each core of the device, whether it is available or not.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
 /// and retrieved array of `CoreStatusPair` must be destroyed by `furiosa_core_status_pair_destroy`
 ///
 /// @param handle device_handle of Furiosa NPU device.
-/// @param[out] output output buffer for the array of `CoreStatusPair`.
+/// @param[out] output output buffer for pointer to the array of `CoreStatusPair`.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]

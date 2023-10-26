@@ -86,10 +86,10 @@ pub(crate) fn err_code(err: DeviceError) -> error_code {
 
 /// \brief Retrieve device_handle of all Furiosa NPU devices in the system.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
 /// and retrieved device_handles must be destroyed by `furiosa_device_handle_list_destroy`.
 ///
-/// @param[out] output output buffer for array of device_handle.
+/// @param[out] output output buffer for pointer to array of device_handle.
 /// @param[out] output_len output buffer for length of array.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
@@ -132,7 +132,7 @@ pub unsafe extern "C" fn furiosa_device_handle_list_destroy(raw: *mut device_han
 
 /// \brief Retrieve device_handle with a specific index of Furiosa NPU device in the system.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for device_handle must be allocated from outside of FFI boundary,
 /// and retrieved device_handle must be destroyed by `furiosa_device_handle_destroy`.
 ///
 /// @param idx index of Furiosa NPU device.
@@ -168,12 +168,12 @@ pub unsafe extern "C" fn furiosa_device_handle_destroy(device: device_handle) {
 
 /// \brief Retrieve DeviceFile with a specific name of Furiosa NPU device in the system.
 ///
-/// \remark output buffer must be allocated from outside of FFI boundary,
+/// \remark output buffer for pointer to array of DeviceFile must be allocated from outside of FFI boundary,
 /// and retrieved DeviceFile must be destroyed by `furiosa_device_file_destroy`.
 ///
 /// @parm device_name pointer to C string for a device name (e.g., npu0, npu0pe0, npu0pe0-1),
 /// the name should be terminated by null character.
-/// @param[out] output output buffer for DeviceFile.
+/// @param[out] output output buffer for pointer to array of DeviceFile.
 /// @return error_code::ok if successful, see `error_code` for error cases.
 #[no_mangle]
 pub unsafe extern "C" fn furiosa_device_get_by_filename(
