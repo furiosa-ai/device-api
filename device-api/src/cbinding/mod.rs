@@ -11,7 +11,7 @@ use crate::{cbinding, DeviceError};
 
 mod arch;
 pub(crate) mod device;
-mod test;
+mod integration_test;
 
 #[macro_export]
 macro_rules! catch_unwind {
