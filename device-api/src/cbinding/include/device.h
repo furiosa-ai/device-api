@@ -157,10 +157,10 @@ typedef struct CoreStatusPair {
 /**
  * \brief Retrieve device_handle of all Furiosa NPU devices in the system.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
  * and retrieved device_handles must be destroyed by `furiosa_device_handle_list_destroy`.
  *
- * @param[out] output output buffer for array of device_handle.
+ * @param[out] output output buffer for pointer to array of device_handle.
  * @param[out] output_len output buffer for length of array.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
@@ -177,7 +177,7 @@ void furiosa_device_handle_list_destroy(device_handle *raw, uint8_t len);
 /**
  * \brief Retrieve device_handle with a specific index of Furiosa NPU device in the system.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for device_handle must be allocated from outside of FFI boundary,
  * and retrieved device_handle must be destroyed by `furiosa_device_handle_destroy`.
  *
  * @param idx index of Furiosa NPU device.
@@ -196,15 +196,16 @@ void furiosa_device_handle_destroy(device_handle device);
 /**
  * \brief Retrieve DeviceFile with a specific name of Furiosa NPU device in the system.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to array of DeviceFile must be allocated from outside of FFI boundary,
  * and retrieved DeviceFile must be destroyed by `furiosa_device_file_destroy`.
  *
  * @parm device_name pointer to C string for a device name (e.g., npu0, npu0pe0, npu0pe0-1),
  * the name should be terminated by null character.
- * @param[out] output output buffer for DeviceFile.
+ * @param[out] output output buffer for pointer to array of DeviceFile.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
-enum error_code furiosa_device_get_by_filename(const char *device_name, struct DeviceFile **output);
+enum error_code furiosa_device_get_by_filename(const char *device_name,
+                                               struct DeviceFile **output);
 
 /**
  * \brief Destroy DeviceFile returned by `furiosa_device_get_by_filename`.
@@ -216,11 +217,11 @@ void furiosa_device_file_destroy(struct DeviceFile *raw);
 /**
  * \brief Retrieve the name of the device (e.g., npu0).
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
  * and retrieved C string must be destroyed by `furiosa_string_free`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for pointer to C string.
+ * @param[out] output output buffer for pointer to C string representing the name of device.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
 enum error_code furiosa_device_name_get(device_handle handle, char **output);
@@ -228,7 +229,7 @@ enum error_code furiosa_device_name_get(device_handle handle, char **output);
 /**
  * \brief Retrieve the device index (e.g., 0 for npu0).
  *
- * \remark output buffer must be allocated from outside of FFI boundary.
+ * \remark output buffer for index of device must be allocated from outside of FFI boundary.
  *
  * @param handle device_handle of Furiosa NPU device.
  * @param[out] output output buffer for index of device.
@@ -239,7 +240,7 @@ enum error_code furiosa_device_index_get(device_handle handle, uint8_t *output);
 /**
  * \brief Retrieve `Arch` of the device(e.g., `warboy`).
  *
- * \remark output buffer must be allocated from outside of FFI boundary.
+ * \remark output buffer for arch of device must be allocated from outside of FFI boundary.
  *
  * @param handle device_handle of Furiosa NPU device.
  * @param[out] output output buffer for arch of device.
@@ -250,7 +251,7 @@ enum error_code furiosa_device_arch_get(device_handle handle, enum Arch *output)
 /**
  * \brief Retrieve a liveness state of the device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary.
+ * \remark output buffer for liveness of device must be allocated from outside of FFI boundary.
  *
  * @param handle device_handle of Furiosa NPU device.
  * @param[out] output output buffer for liveness of device.
@@ -261,11 +262,11 @@ enum error_code furiosa_device_liveness_get(device_handle handle, bool *output);
 /**
  * \brief Retrieve error states of the device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
  * and retrieved array of ErrorStatesKeyValuePair must be destroyed by `furiosa_error_states_destroy`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for array of `ErrorStatesKeyValuePair`.
+ * @param[out] output output buffer for pointer to array of `ErrorStatesKeyValuePair`.
  * @param[out] output_len output buffer for length of array.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
@@ -285,13 +286,14 @@ void furiosa_error_states_destroy(struct ErrorStatesKeyValuePair *raw,
 /**
  * \brief Retrieve PCI bus number of the device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary.
+ * \remark output buffer for pointer to C string must be allocated from outside of FFI boundary.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for PCI bus number of device.
+ * @param[out] output output buffer for pointer to C string representing the PCI bus number of device.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
-enum error_code furiosa_device_pci_bus_number_get(device_handle handle, char **output);
+enum error_code furiosa_device_pci_bus_number_get(device_handle handle,
+                                                  char **output);
 
 /**
  * \brief Retrieve PCI device ID of the device.
@@ -300,19 +302,20 @@ enum error_code furiosa_device_pci_bus_number_get(device_handle handle, char **o
  * and retrieved C string must be destroyed by `furiosa_string_free`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for PCI bus number of device.
+ * @param[out] output output buffer for pointer to C string representing the PCI device ID of device.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
-enum error_code furiosa_device_pci_dev_id_get(device_handle handle, char **output);
+enum error_code furiosa_device_pci_dev_id_get(device_handle handle,
+                                              char **output);
 
 /**
  * \brief Retrieve serial number of the device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
  * and retrieved C string must be destroyed by `furiosa_string_free`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for serial number of device.
+ * @param[out] output output buffer for pointer to C string representing serial number of device.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
 enum error_code furiosa_device_serial_number_get(device_handle handle, char **output);
@@ -320,11 +323,11 @@ enum error_code furiosa_device_serial_number_get(device_handle handle, char **ou
 /**
  * \brief Retrieve UUID of the device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
  * and retrieved C string must be destroyed by `furiosa_string_free`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for UUID of device.
+ * @param[out] output output buffer for pointer to C string representing UUID of device.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
 enum error_code furiosa_device_uuid_get(device_handle handle, char **output);
@@ -332,23 +335,24 @@ enum error_code furiosa_device_uuid_get(device_handle handle, char **output);
 /**
  * \brief Retrieves firmware revision from the device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
  * and retrieved C string must be destroyed by `furiosa_string_free`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for firmware revision of device.
+ * @param[out] output output buffer for pointer to C string representing firmware revision of device.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
-enum error_code furiosa_device_firmware_version_get(device_handle handle, char **output);
+enum error_code furiosa_device_firmware_version_get(device_handle handle,
+                                                    char **output);
 
 /**
  * \brief Retrieves driver version for the device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
  * and retrieved C string must be destroyed by `furiosa_string_free`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for driver revision of device.
+ * @param[out] output output buffer for pointer to C string representing driver revision of device.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
 enum error_code furiosa_device_driver_version_get(device_handle handle, char **output);
@@ -389,11 +393,11 @@ enum error_code furiosa_device_core_num_get(device_handle handle, uint8_t *outpu
 /**
  * \brief Retrieve the core indices
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
  * and retrieved array of core id must be destroyed by `furiosa_device_core_ids_destroy`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for array of core id.
+ * @param[out] output output buffer for pointer to array of core id.
  * @param[out] output_len output buffer for length of array.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
@@ -413,11 +417,11 @@ void furiosa_device_core_ids_destroy(uint8_t *raw,
 /**
  * \brief Retrieve the list device files under the given device.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
  * and retrieved array of DeviceFile must be destroyed by `furiosa_device_file_list_destroy`.
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for array of DeviceFile.
+ * @param[out] output output buffer for pointer to array of DeviceFile.
  * @param[out] output_len output buffer for length of array.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
@@ -450,12 +454,12 @@ enum error_code furiosa_device_core_status_get(device_handle handle,
 /**
  * \brief Retrieve the file descriptor occupied a specific core.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to C string must be allocated from outside of FFI boundary,
  * and retrieved C string must be destroyed by `furiosa_string_free`
  *
  * @param handle device_handle of Furiosa NPU device.
  * @param core_idx index of a specific core.
- * @param[out] output output buffer for file descriptor.
+ * @param[out] output output buffer for pointer to C string representing file descriptor.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
 enum error_code furiosa_device_core_occupied_fd_get(device_handle handle,
@@ -465,11 +469,11 @@ enum error_code furiosa_device_core_occupied_fd_get(device_handle handle,
 /**
  * \brief Examine each core of the device, whether it is available or not.
  *
- * \remark output buffer must be allocated from outside of FFI boundary,
+ * \remark output buffer for pointer to array must be allocated from outside of FFI boundary,
  * and retrieved array of `CoreStatusPair` must be destroyed by `furiosa_core_status_pair_destroy`
  *
  * @param handle device_handle of Furiosa NPU device.
- * @param[out] output output buffer for the array of `CoreStatusPair`.
+ * @param[out] output output buffer for pointer to the array of `CoreStatusPair`.
  * @param[out] output_len output buffer for length of array.
  * @return error_code::ok if successful, see `error_code` for error cases.
  */
