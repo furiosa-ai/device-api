@@ -64,7 +64,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![feature(associated_type_bounds)]
 
-pub use crate::arch::Arch;
+pub use crate::arch::{Arch, ArchFamily};
 use crate::config::{expand_status, find_device_files_in};
 pub use crate::config::{DeviceConfig, DeviceConfigBuilder, EnvBuilder, NotDetermined};
 pub use crate::device::{
@@ -92,6 +92,7 @@ mod sysfs;
 ///
 /// See the [crate-level documentation](crate).
 pub async fn list_devices() -> DeviceResult<Vec<Device>> {
+    // TODO(n0gu): better join
     list_devices_with("/dev", "/sys").await
 }
 
@@ -103,7 +104,8 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 ///
 /// See the [crate-level documentation](crate).
 pub async fn get_device(idx: u8) -> DeviceResult<Device> {
-    get_device_with(idx, "/dev", "/sys").await
+    // TODO(n0gu): deprecate this function
+    get_device_with(ArchFamily::Warboy, idx, "/dev", "/sys").await
 }
 
 /// Find a set of devices with specific configuration.

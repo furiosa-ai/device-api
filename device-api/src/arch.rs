@@ -14,6 +14,22 @@ pub enum Arch {
            * and NPU family. */
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum ArchFamily {
+    Warboy,
+    Renegade,
+}
+
+impl From<Arch> for ArchFamily {
+    fn from(arch: Arch) -> Self {
+        match arch {
+            Arch::WarboyA0 | Arch::WarboyB0 => ArchFamily::Warboy,
+            Arch::Renegade => ArchFamily::Renegade,
+            Arch::U250 => ArchFamily::Warboy,
+        }
+    }
+}
+
 impl Display for Arch {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use Arch::*;

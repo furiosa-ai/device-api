@@ -5,20 +5,35 @@ use std::path::{Path, PathBuf};
 
 use tokio::fs;
 
+use crate::arch::{Arch, ArchFamily};
 use crate::devfs::{self, is_character_device};
 use crate::device::{Device, DeviceFile, DeviceInfo};
 use crate::error::DeviceResult;
 use crate::sysfs::npu_mgmt::{self, *};
 use crate::{hwmon, DeviceError};
 
+pub const DEVFS_RNGD_DIR: &str = "rngd";
+
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
-    let npu_dev_files = filter_dev_files(list_devfs(devfs).await?)?;
+    let mut devices = Vec::new();
+    for family in [ArchFamily::Warboy, ArchFamily::Renegade].iter() {
+        let d = list_devices_with_family(*family, devfs, sysfs).await?;
+        devices.extend(d);
+    }
+    Ok(devices)
+}
 
-    let mut devices: Vec<Device> = Vec::with_capacity(npu_dev_files.keys().len());
+pub async fn list_devices_with_family(
+    family: ArchFamily,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Vec<Device>> {
+    let dev_files = filter_dev_files(list_devfs(family, devfs).await?)?;
+    let mut devices: Vec<Device> = Vec::with_capacity(dev_files.keys().len());
 
-    for (idx, paths) in npu_dev_files {
-        if let Ok(device) = get_device_inner(idx, paths, devfs, sysfs).await {
+    for (idx, paths) in dev_files {
+        if let Ok(device) = get_device_inner(family, idx, paths, devfs, sysfs).await {
             devices.push(device);
         }
     }
@@ -27,23 +42,32 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
     Ok(devices)
 }
 
-pub(crate) async fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
-    let mut npu_dev_files = filter_dev_files(list_devfs(devfs).await?)?;
+/// Deprecated: idx no longer unique
+pub(crate) async fn get_device_with(
+    family: ArchFamily,
+    idx: u8,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Device> {
+    let mut npu_dev_files = filter_dev_files(list_devfs(family, devfs).await?)?;
 
     if let Some(paths) = npu_dev_files.remove(&idx) {
-        get_device_inner(idx, paths, devfs, sysfs).await
+        get_device_inner(family, idx, paths, devfs, sysfs).await
     } else {
         Err(DeviceError::device_not_found(format!("npu{idx}")))
     }
 }
 
+// TODO: pass family downwards
 pub(crate) async fn get_device_inner(
+    _family: ArchFamily,
     idx: u8,
     paths: Vec<PathBuf>,
     devfs: &str,
     sysfs: &str,
 ) -> DeviceResult<Device> {
     if is_furiosa_device(idx, sysfs).await {
+        // TODO(n0gu): replace DeviceInfo
         let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
 
         // Since busname is a required field, it is guaranteed to exist.
@@ -84,10 +108,20 @@ pub(crate) struct DevFile {
     pub file_type: FileType,
 }
 
-async fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
+/// List all files in the devfs directory, including /dev/renegade/.
+async fn list_devfs<P: AsRef<Path>>(family: ArchFamily, devfs: P) -> io::Result<Vec<DevFile>> {
     let mut dev_files = Vec::new();
 
-    let mut read_dir = tokio::fs::read_dir(devfs).await?;
+    let path = match family {
+        ArchFamily::Warboy => devfs.as_ref().to_path_buf(),
+        ArchFamily::Renegade => devfs.as_ref().join(DEVFS_RNGD_DIR),
+    };
+
+    let mut read_dir = match tokio::fs::read_dir(path).await {
+        Ok(rd) => rd,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(dev_files),
+        Err(e) => return Err(e),
+    };
     while let Some(entry) = read_dir.next_entry().await? {
         dev_files.push(DevFile {
             path: entry.path(),
@@ -141,13 +175,31 @@ mod tests {
     use super::*;
     use crate::arch::Arch;
 
+    fn sorted_keys<K, V>(map: &HashMap<K, V>) -> Vec<K>
+    where
+        K: Ord + Copy,
+    {
+        map.keys().copied().sorted().collect()
+    }
+
     #[tokio::test]
     async fn test_find_dev_files() -> DeviceResult<()> {
-        let dev_files = filter_dev_files(list_devfs("../test_data/test-0/dev").await?)?;
-        assert_eq!(
-            dev_files.keys().copied().sorted().collect::<Vec<u8>>(),
-            vec![0, 1]
-        );
+        let dev_files =
+            filter_dev_files(list_devfs(ArchFamily::Warboy, "../test_data/test-0/dev").await?)?;
+        assert_eq!(sorted_keys(&dev_files), vec![0, 1]);
+
+        let dev_files =
+            filter_dev_files(list_devfs(ArchFamily::Renegade, "../test_data/test-0/dev").await?)?;
+        assert_eq!(sorted_keys(&dev_files), vec![]);
+
+        let dev_files =
+            filter_dev_files(list_devfs(ArchFamily::Warboy, "../test_data/test-1/dev/").await?)?;
+        assert_eq!(sorted_keys(&dev_files), vec![0]);
+
+        let dev_files =
+            filter_dev_files(list_devfs(ArchFamily::Renegade, "../test_data/test-1/dev/").await?)?;
+        assert_eq!(sorted_keys(&dev_files), vec![0]);
+
         Ok(())
     }
 
