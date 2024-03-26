@@ -3,7 +3,29 @@ pub mod npu_mgmt {
     use std::io;
     use std::path::{Path, PathBuf};
 
-    use strum_macros::EnumIter;
+    pub mod file {
+        pub const ALIVE: &str = "alive";
+        pub const ATR_ERROR: &str = "atr_error";
+        pub const BUS_NAME: &str = "busname";
+        pub const DEV: &str = "dev";
+        pub const DEVICE_LED: &str = "device_led";
+        pub const DEVICE_LEDS: &str = "device_leds";
+        pub const DEVICE_SN: &str = "device_sn";
+        pub const DEVICE_TYPE: &str = "device_type";
+        pub const DEVICE_UUID: &str = "device_uuid";
+        pub const FW_VERSION: &str = "fw_version";
+        pub const HEARTBEAT: &str = "heartbeat";
+        pub const NE_CLK_FREQ_INFO: &str = "ne_clk_freq_info";
+        pub const NE_DTM_POLICY: &str = "ne_dtm_policy";
+        pub const NPU_CLOCKS: &str = "npu_clocks";
+        pub const PERFORMANCE_LEVEL: &str = "performance_level";
+        pub const PERFORMANCE_MODE: &str = "performance_mode";
+        pub const PLATFORM_TYPE: &str = "platform_type";
+        pub const SOC_ID: &str = "soc_id";
+        pub const SOC_REV: &str = "soc_rev";
+        pub const SOC_UID: &str = "soc_uid";
+        pub const VERSION: &str = "version";
+    }
 
     #[derive(Copy, Clone, Debug)]
     #[allow(dead_code)]
@@ -51,125 +73,10 @@ pub mod npu_mgmt {
         Level15 = 15,
     }
 
-    pub trait MgmtFile {
-        fn filename(&self) -> &'static str;
-
-        fn is_static(&self) -> bool;
-    }
-
-    #[derive(EnumIter)]
-    pub enum StaticMgmtFile {
-        Busname,
-        Dev,
-        DeviceSn,
-        DeviceType,
-        DeviceUuid,
-        PlatformType,
-        SocRev,
-        SocUid,
-    }
-
-    impl MgmtFile for StaticMgmtFile {
-        fn filename(&self) -> &'static str {
-            match self {
-                StaticMgmtFile::Busname => "busname",
-                StaticMgmtFile::Dev => "dev",
-                StaticMgmtFile::DeviceSn => "device_sn",
-                StaticMgmtFile::DeviceType => "device_type",
-                StaticMgmtFile::DeviceUuid => "device_uuid",
-                StaticMgmtFile::PlatformType => "platform_type",
-                StaticMgmtFile::SocRev => "soc_rev",
-                StaticMgmtFile::SocUid => "soc_uid",
-            }
-        }
-
-        fn is_static(&self) -> bool {
-            true
-        }
-    }
-
-    pub enum DynamicMgmtFile {
-        Alive,
-        AtrError,
-        FwVersion,
-        Heartbeat,
-        NeClkFreqInfo,
-        Version,
-        // not used
-        // DeviceState,
-        // PerformanceLevel,
-    }
-
-    impl MgmtFile for DynamicMgmtFile {
-        fn filename(&self) -> &'static str {
-            match self {
-                DynamicMgmtFile::Alive => "alive",
-                DynamicMgmtFile::AtrError => "atr_error",
-                DynamicMgmtFile::FwVersion => "fw_version",
-                DynamicMgmtFile::Heartbeat => "heartbeat",
-                DynamicMgmtFile::NeClkFreqInfo => "ne_clk_freq_info",
-                DynamicMgmtFile::Version => "version",
-                // not used
-                // DynamicMgmtFile::DeviceState => "device_state",
-                // DynamicMgmtFile::PerformanceLevel => "performance_level",
-            }
-        }
-
-        fn is_static(&self) -> bool {
-            false
-        }
-    }
-
-    pub enum CtrlFile {
-        DeviceLed,
-        NeClock,
-        NeDtmPolicy,
-        PerformanceLevel,
-        PerformanceMode,
-    }
-
-    impl ToString for CtrlFile {
-        fn to_string(&self) -> String {
-            match self {
-                CtrlFile::DeviceLed => "device_led",
-                CtrlFile::NeClock => "ne_clock",
-                CtrlFile::NeDtmPolicy => "ne_dtm_policy",
-                CtrlFile::PerformanceLevel => "performance_level",
-                CtrlFile::PerformanceMode => "performance_mode",
-            }
-            .to_string()
-        }
-    }
-
-    pub(crate) fn path<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
-        base_dir
-            .as_ref()
-            .join(format!("class/npu_mgmt/npu{idx}_mgmt/{file}"))
-    }
-
     /// It can be used to check `platform_type`.
     pub(crate) fn is_furiosa_platform(contents: &str) -> bool {
         let contents = contents.trim();
         contents == "FuriosaAI" || contents == "VITIS"
-    }
-
-    pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
-        sysfs: P,
-        mgmt_file: &str,
-        idx: u8,
-    ) -> io::Result<String> {
-        let path = path(sysfs, mgmt_file, idx);
-        std::fs::read_to_string(path).map(|s| s.trim().to_string())
-    }
-
-    pub(crate) fn write_ctrl_file<P: AsRef<Path>, C: AsRef<[u8]>>(
-        sysfs: P,
-        ctrl_file: &str,
-        idx: u8,
-        contents: C,
-    ) -> io::Result<()> {
-        let path = path(sysfs, ctrl_file, idx);
-        std::fs::write(path, contents)
     }
 
     pub(crate) fn build_atr_error_map<S: AsRef<str>>(contents: S) -> HashMap<String, u32> {
@@ -198,6 +105,32 @@ pub mod npu_mgmt {
             "1" => Some(true),
             _ => None,
         }
+    }
+
+    // TODO(n0gu): get ArchFamily as an argument
+    pub(crate) fn path_warboy<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
+        base_dir
+            .as_ref()
+            .join(format!("class/npu_mgmt/npu{idx}_mgmt/{file}"))
+    }
+
+    pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
+        sysfs: P,
+        mgmt_file: &str,
+        idx: u8,
+    ) -> io::Result<String> {
+        let path = path_warboy(sysfs, mgmt_file, idx);
+        std::fs::read_to_string(path).map(|s| s.trim().to_string())
+    }
+
+    pub(crate) fn write_ctrl_file<P: AsRef<Path>, C: AsRef<[u8]>>(
+        sysfs: P,
+        ctrl_file: &str,
+        idx: u8,
+        contents: C,
+    ) -> io::Result<()> {
+        let path = path_warboy(sysfs, ctrl_file, idx);
+        std::fs::write(path, contents)
     }
 }
 

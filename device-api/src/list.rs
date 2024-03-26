@@ -5,11 +5,11 @@ use std::path::{Path, PathBuf};
 
 use tokio::fs;
 
-use crate::arch::{Arch, ArchFamily};
+use crate::arch::ArchFamily;
 use crate::devfs::{self, is_character_device};
 use crate::device::{Device, DeviceFile, DeviceInfo};
 use crate::error::DeviceResult;
-use crate::sysfs::npu_mgmt::{self, *};
+use crate::sysfs::npu_mgmt;
 use crate::{hwmon, DeviceError};
 
 pub const DEVFS_RNGD_DIR: &str = "rngd";
@@ -71,7 +71,7 @@ pub(crate) async fn get_device_inner(
         let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
 
         // Since busname is a required field, it is guaranteed to exist.
-        let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
+        let busname = device_info.get(npu_mgmt::file::BUS_NAME).unwrap();
         let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, &busname).await?;
 
         let device = collect_devices(device_info, hwmon_fetcher, paths)?;
@@ -157,15 +157,11 @@ pub(crate) fn filter_dev_files(dev_files: Vec<DevFile>) -> DeviceResult<HashMap<
 }
 
 async fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
-    fs::read_to_string(npu_mgmt::path(
-        sysfs,
-        StaticMgmtFile::PlatformType.filename(),
-        idx,
-    ))
-    .await
-    .ok()
-    .filter(|c| npu_mgmt::is_furiosa_platform(c))
-    .is_some()
+    fs::read_to_string(npu_mgmt::path_warboy(sysfs, npu_mgmt::file::PLATFORM_TYPE, idx))
+        .await
+        .ok()
+        .filter(|c| npu_mgmt::is_furiosa_platform(c))
+        .is_some()
 }
 
 #[cfg(test)]
@@ -190,7 +186,7 @@ mod tests {
 
         let dev_files =
             filter_dev_files(list_devfs(ArchFamily::Renegade, "../test_data/test-0/dev").await?)?;
-        assert_eq!(sorted_keys(&dev_files), vec![]);
+        assert_eq!(sorted_keys(&dev_files), vec![] as Vec<u8>);
 
         let dev_files =
             filter_dev_files(list_devfs(ArchFamily::Warboy, "../test_data/test-1/dev/").await?)?;

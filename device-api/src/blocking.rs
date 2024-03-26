@@ -11,7 +11,6 @@ use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
 use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
-use crate::sysfs::npu_mgmt::MgmtFile;
 use crate::{
     devfs, find_device_files_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult,
 };
@@ -95,7 +94,7 @@ pub(crate) fn get_device_inner(
 ) -> DeviceResult<Device> {
     if is_furiosa_device(idx, sysfs) {
         let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
-        let busname = device_info.get(&npu_mgmt::StaticMgmtFile::Busname).unwrap();
+        let busname = device_info.get(npu_mgmt::file::BUS_NAME).unwrap();
         let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
 
         let device = collect_devices(device_info, hwmon_fetcher, paths)?;
@@ -120,9 +119,9 @@ fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
 }
 
 fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
-    std::fs::read_to_string(npu_mgmt::path(
+    std::fs::read_to_string(npu_mgmt::path_warboy(
         sysfs,
-        npu_mgmt::StaticMgmtFile::PlatformType.filename(),
+        npu_mgmt::file::PLATFORM_TYPE,
         idx,
     ))
     .ok()
