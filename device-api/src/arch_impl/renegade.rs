@@ -20,7 +20,7 @@ pub struct RenegadeInner {
 impl RenegadeInner {
     pub fn new(device_index: u8, sysfs: PathBuf) -> Self {
         let mgmt_root = sysfs.join(format!(
-            "/class/renegade_mgmt/renegade!npu{device_index}mgmt/"
+            "class/renegade_mgmt/renegade!npu{device_index}mgmt"
         ));
         RenegadeInner {
             device_index,
@@ -32,7 +32,7 @@ impl RenegadeInner {
     fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
         let path = self.mgmt_root.join(file);
         let value = fs::read_to_string(path)?;
-        Ok(value)
+        Ok(value.trim_end().to_string())
     }
 
     #[allow(dead_code)]
@@ -139,16 +139,27 @@ impl DevicePerf for RenegadeInner {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
 
     #[test]
-    fn test_renegade_inner() {
-        let sysfs = PathBuf::from("/sys");
-        let renegade = RenegadeInner::new(0, sysfs);
+    fn test_renegade_inner_functionality() -> eyre::Result<()> {
+        let device = RenegadeInner::new(0, PathBuf::from("../test_data/test-1/sys"));
 
-        assert_eq!(renegade.device_index(), 0);
-        assert_eq!(renegade.arch(), Arch::Renegade);
+        assert_eq!(device.device_index(), 0);
+        assert_eq!(device.arch(), Arch::Renegade);
+        assert!(device.alive()?);
+        assert_eq!(device.atr_error()?.len(), 9);
+        assert_eq!(device.busname()?, "0000:00:03.0");
+        assert_eq!(device.pci_dev()?, "235:0");
+        assert_eq!(device.device_sn()?, "");
+        assert_eq!(
+            device.device_uuid()?,
+            "82540B87-1055-48C6-AAB1-C4CC84672C71"
+        );
+        assert_eq!(device.firmware_version()?, "");
+        assert_eq!(device.driver_version()?, "1.0.0, abcdefg");
+        assert_eq!(device.heartbeat()?, 0);
+
+        Ok(())
     }
 }

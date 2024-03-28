@@ -188,6 +188,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_is_furiosa_device() -> tokio::io::Result<()> {
+        // only two warboy devices (0, 1) in test-0
         let res = is_furiosa_device(ArchFamily::Warboy, 0, "../test_data/test-0/sys").await;
         assert!(res);
 
@@ -200,8 +201,18 @@ mod tests {
         let res = is_furiosa_device(ArchFamily::Renegade, 0, "../test_data/test-0/sys").await;
         assert!(!res);
 
-        let res = is_furiosa_device(ArchFamily::Renegade, 1, "../test_data/test-1/sys").await;
+        // one warboy, one renegade device, both have index 0, in test-1
+        let res = is_furiosa_device(ArchFamily::Warboy, 0, "../test_data/test-1/sys").await;
         assert!(res);
+
+        let res = is_furiosa_device(ArchFamily::Renegade, 0, "../test_data/test-1/sys").await;
+        assert!(res);
+
+        let res = is_furiosa_device(ArchFamily::Warboy, 1, "../test_data/test-1/sys").await;
+        assert!(!res);
+
+        let res = is_furiosa_device(ArchFamily::Renegade, 1, "../test_data/test-1/sys").await;
+        assert!(!res);
 
         Ok(())
     }

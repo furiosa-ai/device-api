@@ -22,10 +22,10 @@ pub fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys")
 }
 
-fn list_devices_with(_devfs: &str, _sysfs: &str) -> DeviceResult<Vec<Device>> {
+fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
     let mut devices = Vec::new();
-    for family in [ArchFamily::Warboy, ArchFamily::Renegade].iter() {
-        let d = list_devices_with_family(*family, "/dev", "/sys")?;
+    for family in [ArchFamily::Warboy, ArchFamily::Renegade].into_iter() {
+        let d = list_devices_with_family(family, devfs, sysfs)?;
         devices.extend(d);
     }
     Ok(devices)
@@ -113,7 +113,7 @@ pub(crate) fn get_device_inner(
 ) -> DeviceResult<Device> {
     if is_furiosa_device(family, idx, sysfs) {
         let inner = family.create_inner(idx, devfs, sysfs);
-        let busname = inner.busname()?;
+        let busname = inner.busname().unwrap();
         let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
         let device = collect_devices(inner, hwmon_fetcher, paths)?;
         Ok(device)

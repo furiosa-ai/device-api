@@ -18,7 +18,7 @@ pub struct WarboyInner {
 
 impl WarboyInner {
     pub fn new(device_index: u8, sysfs: PathBuf) -> Self {
-        let mgmt_root = sysfs.join(format!("/class/npu_mgmt/npu{device_index}_mgmt/"));
+        let mgmt_root = sysfs.join(format!("class/npu_mgmt/npu{device_index}_mgmt"));
         WarboyInner {
             device_index,
             sysfs,
@@ -29,7 +29,7 @@ impl WarboyInner {
     fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
         let path = self.mgmt_root.join(file);
         let value = fs::read_to_string(path)?;
-        Ok(value)
+        Ok(value.trim_end().to_string())
     }
 
     fn write_ctrl_file<P: AsRef<Path>>(&self, file: P, contents: &str) -> DeviceResult<()> {
@@ -50,10 +50,12 @@ impl DeviceMgmt for WarboyInner {
         self.device_index
     }
 
-    #[inline]
     fn arch(&self) -> Arch {
-        // TODO(n0gu): determine arch based on soc_rev
-        Arch::WarboyB0
+        let soc_rev = self.read_mgmt_to_string(npu_mgmt::file::SOC_REV).unwrap();
+        match soc_rev.as_str() {
+            "B0" => Arch::WarboyB0,
+            _ => Arch::WarboyA0,
+        }
     }
 
     fn alive(&self) -> DeviceResult<bool> {
@@ -148,8 +150,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_warboy_inner() -> eyre::Result<()> {
-        let _device = WarboyInner::new(0, PathBuf::from("/sys"));
+    fn test_warboy_inner_functionality() -> eyre::Result<()> {
+        let device = WarboyInner::new(0, PathBuf::from("../test_data/test-1/sys"));
+
+        assert_eq!(device.device_index(), 0);
+        assert_eq!(device.arch(), Arch::WarboyB0);
+        assert!(device.alive()?);
+        assert_eq!(device.atr_error()?.len(), 9);
+        assert_eq!(device.busname()?, "0000:6d:00.0");
+        assert_eq!(device.pci_dev()?, "000:0");
+        assert_eq!(device.device_sn()?, "WBYB0000000000000");
+        assert_eq!(
+            device.device_uuid()?,
+            "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"
+        );
+        assert_eq!(device.firmware_version()?, "1.6.0, c1bebfd");
+        assert_eq!(device.driver_version()?, "1.0.0, 0000000");
+        assert_eq!(device.heartbeat()?, 42);
+
         Ok(())
     }
 }

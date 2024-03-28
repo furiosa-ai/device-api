@@ -106,6 +106,7 @@ pub mod npu_mgmt {
     }
 }
 
+// XXX(n0gu): currently both family share the same implementation, but this may change in the future.
 pub(crate) mod pci {
     pub(crate) mod numa {
         use std::io;
