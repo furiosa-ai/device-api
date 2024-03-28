@@ -34,6 +34,8 @@ pub enum DeviceError {
     UnexpectedValue { message: String },
     #[error("Failed to parse given message {message}: {cause}")]
     ParseError { message: String, cause: String },
+    #[error("Hwloc value: {message}")]
+    HwlocError { message: String },
 }
 
 impl DeviceError {
@@ -82,6 +84,12 @@ impl DeviceError {
         DeviceError::ParseError {
             message: message.to_string(),
             cause: cause.to_string(),
+        }
+    }
+
+    pub(crate) fn hwloc_error<S: ToString>(message: S) -> DeviceError {
+        DeviceError::HwlocError {
+            message: message.to_string(),
         }
     }
 }

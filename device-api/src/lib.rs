@@ -81,6 +81,7 @@ mod config;
 mod devfs;
 mod device;
 mod error;
+pub mod hwloc;
 pub mod hwmon;
 mod list;
 pub mod perf_regs;
