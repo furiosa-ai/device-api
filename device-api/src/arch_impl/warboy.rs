@@ -8,6 +8,7 @@ use crate::perf_regs::PerformanceCounter;
 use crate::sysfs::npu_mgmt;
 use crate::{Arch, ClockFrequency, DeviceError, DeviceFile};
 
+#[derive(Clone)]
 pub struct WarboyInner {
     device_index: u8,
     sysfs: PathBuf,
@@ -37,6 +38,7 @@ impl WarboyInner {
         Ok(())
     }
 }
+
 impl DeviceInner for WarboyInner {}
 
 impl DeviceMgmt for WarboyInner {
@@ -147,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_warboy_inner() -> eyre::Result<()> {
-        let device = WarboyInner::new(0, PathBuf::from("/sys"));
+        let _device = WarboyInner::new(0, PathBuf::from("/sys"));
         Ok(())
     }
 }

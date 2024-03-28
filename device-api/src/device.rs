@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
-use std::sync::Arc;
 
+use dyn_clone::DynClone;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -40,13 +40,18 @@ use crate::{devfs, DeviceError, DeviceResult};
 /// Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
 /// identify its [`DeviceMode`].
 pub struct Device {
-    inner: Arc<dyn DeviceInner>,
+    inner: Box<dyn DeviceInner>,
     hwmon_fetcher: hwmon::Fetcher,
     pub(crate) cores: Vec<CoreIdx>,
     pub(crate) dev_files: Vec<DeviceFile>,
 }
 
-pub(crate) trait DeviceInner: DeviceMgmt + DeviceCtrl + DevicePerf {}
+pub(crate) trait DeviceInner:
+    DeviceMgmt + DeviceCtrl + DevicePerf + DynClone + Send + Sync
+{
+}
+
+dyn_clone::clone_trait_object!(DeviceInner);
 
 impl core::fmt::Debug for dyn DeviceInner {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -68,7 +73,6 @@ pub(crate) trait DeviceMgmt {
     fn driver_version(&self) -> DeviceResult<String>;
     fn heartbeat(&self) -> DeviceResult<u32>;
     fn clock_frequency(&self) -> DeviceResult<Vec<ClockFrequency>>;
-    // XXX(n0gu): technically this is not a mgmt file, but making a new trait soley for this is overkill
 }
 
 pub(crate) trait DeviceCtrl {
@@ -84,7 +88,7 @@ pub(crate) trait DevicePerf {
 
 impl Device {
     pub(crate) fn new(
-        inner: Arc<dyn DeviceInner>,
+        inner: Box<dyn DeviceInner>,
         hwmon_fetcher: hwmon::Fetcher,
         cores: Vec<CoreIdx>,
         dev_files: Vec<DeviceFile>,

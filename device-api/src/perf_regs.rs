@@ -238,7 +238,8 @@ mod tests {
 
     #[test]
     fn test_read() {
-        let res = PerformanceCounter::read("../test_data/test-0/sys/class/npu_mgmt/npu0pe0/perf_regs");
+        let res =
+            PerformanceCounter::read("../test_data/test-0/sys/class/npu_mgmt/npu0pe0/perf_regs");
         assert!(res.is_ok());
     }
 

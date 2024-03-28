@@ -8,7 +8,7 @@ mod device;
 mod errors;
 mod hwmon;
 mod sync;
-use arch::ArchPy;
+use arch::{ArchFamilyPy, ArchPy};
 use config::DeviceConfigPy;
 use device::{
     ClockFrequencyPy, CoreRangePy, DeviceFilePy, DeviceModePy, DevicePy, PerformanceCounterPy,
@@ -59,9 +59,12 @@ fn list_devices_python(py: Python<'_>) -> PyResult<&PyAny> {
 ///
 /// `Device` offers methods for further information of each device.
 #[pyfunction(name = "get_device")]
-fn get_device_python(py: Python<'_>, idx: u8) -> PyResult<&PyAny> {
+fn get_device_python(py: Python<'_>, family: ArchFamilyPy, idx: u8) -> PyResult<&PyAny> {
     pyo3_asyncio::tokio::future_into_py(py, async move {
-        get_device(idx).await.map(DevicePy::new).map_err(to_py_err)
+        get_device(family.into(), idx)
+            .await
+            .map(DevicePy::new)
+            .map_err(to_py_err)
     })
 }
 

@@ -9,6 +9,7 @@ use crate::Arch;
 use crate::ClockFrequency;
 use crate::DeviceError;
 
+#[derive(Clone)]
 pub struct RenegadeInner {
     device_index: u8,
     sysfs: PathBuf,

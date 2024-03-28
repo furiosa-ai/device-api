@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs::FileType;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use tokio::fs;
 
@@ -76,7 +75,7 @@ pub(crate) async fn get_device_inner(
 }
 
 pub(crate) fn collect_devices(
-    inner: Arc<dyn DeviceInner>,
+    inner: Box<dyn DeviceInner>,
     hwmon_fetcher: hwmon::Fetcher,
     paths: Vec<PathBuf>,
 ) -> DeviceResult<Device> {

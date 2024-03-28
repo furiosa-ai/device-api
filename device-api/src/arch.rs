@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use strum_macros::AsRefStr;
 
@@ -34,10 +33,10 @@ impl ArchFamily {
         }
     }
 
-    pub(crate) fn create_inner(self, idx: u8, _devfs: &str, sysfs: &str) -> Arc<dyn DeviceInner> {
+    pub(crate) fn create_inner(self, idx: u8, _devfs: &str, sysfs: &str) -> Box<dyn DeviceInner> {
         match self {
-            ArchFamily::Warboy => Arc::new(arch_impl::WarboyInner::new(idx, sysfs.into())),
-            ArchFamily::Renegade => Arc::new(arch_impl::RenegadeInner::new(idx, sysfs.into())),
+            ArchFamily::Warboy => Box::new(arch_impl::WarboyInner::new(idx, sysfs.into())),
+            ArchFamily::Renegade => Box::new(arch_impl::RenegadeInner::new(idx, sysfs.into())),
         }
     }
 
