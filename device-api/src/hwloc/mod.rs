@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use std::collections::BTreeMap;
 
 use crate::hwloc::bindgen::*;
@@ -160,15 +161,15 @@ mod tests {
     }
 
     impl Hwloc for HwlocTopologyMock {
-        fn init_topology(&mut self) -> DeviceResult<()> {
+        unsafe fn init_topology(&mut self) -> DeviceResult<()> {
             self.hwloc_topology.init_topology()
         }
 
-        fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()> {
+        unsafe fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()> {
             self.hwloc_topology.set_io_types_filter(filter)
         }
 
-        fn load_topology(&mut self) -> DeviceResult<()> {
+        unsafe fn load_topology(&mut self) -> DeviceResult<()> {
             let current_dir = env::current_dir().unwrap();
             let xml_path = current_dir.join("src/hwloc/test.xml");
             self.hwloc_topology
@@ -176,11 +177,11 @@ mod tests {
             self.hwloc_topology.load_topology()
         }
 
-        fn set_topology_from_xml(&mut self, xml_path: &str) -> DeviceResult<()> {
+        unsafe fn set_topology_from_xml(&mut self, xml_path: &str) -> DeviceResult<()> {
             self.hwloc_topology.set_topology_from_xml(xml_path)
         }
 
-        fn get_common_ancestor_obj(
+        unsafe fn get_common_ancestor_obj(
             &self,
             dev1bdf: &str,
             dev2bdf: &str,
@@ -189,7 +190,7 @@ mod tests {
                 .get_common_ancestor_obj(dev1bdf, dev2bdf)
         }
 
-        fn destroy_topology(&mut self) {
+        unsafe fn destroy_topology(&mut self) {
             self.hwloc_topology.destroy_topology()
         }
     }
@@ -200,18 +201,20 @@ mod tests {
         let xml_path = current_dir.join("src/hwloc/test.xml");
 
         let mut hwloc_topology = HwlocTopology::new();
-        assert!(hwloc_topology.init_topology().is_ok());
+        unsafe {
+            assert!(hwloc_topology.init_topology().is_ok());
 
-        assert!(hwloc_topology
-            .set_io_types_filter(hwloc_type_filter_e_HWLOC_TYPE_FILTER_KEEP_IMPORTANT)
-            .is_ok());
+            assert!(hwloc_topology
+                .set_io_types_filter(hwloc_type_filter_e_HWLOC_TYPE_FILTER_KEEP_IMPORTANT)
+                .is_ok());
 
-        assert!(hwloc_topology
-            .set_topology_from_xml(xml_path.to_str().unwrap())
-            .is_ok());
+            assert!(hwloc_topology
+                .set_topology_from_xml(xml_path.to_str().unwrap())
+                .is_ok());
 
-        assert!(hwloc_topology.load_topology().is_ok());
-        hwloc_topology.destroy_topology()
+            assert!(hwloc_topology.load_topology().is_ok());
+            hwloc_topology.destroy_topology()
+        }
     }
 
     // below hardware topology is used for testing
