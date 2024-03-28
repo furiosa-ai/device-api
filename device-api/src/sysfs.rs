@@ -1,8 +1,7 @@
 pub mod npu_mgmt {
     use std::collections::HashMap;
-    use std::io;
-    use std::path::{Path, PathBuf};
 
+    #[allow(dead_code)]
     pub mod file {
         pub const ALIVE: &str = "alive";
         pub const ATR_ERROR: &str = "atr_error";
@@ -11,6 +10,7 @@ pub mod npu_mgmt {
         pub const DEVICE_LED: &str = "device_led";
         pub const DEVICE_LEDS: &str = "device_leds";
         pub const DEVICE_SN: &str = "device_sn";
+        pub const DEVICE_STATE: &str = "device_state";
         pub const DEVICE_TYPE: &str = "device_type";
         pub const DEVICE_UUID: &str = "device_uuid";
         pub const FW_VERSION: &str = "fw_version";
@@ -44,8 +44,6 @@ pub mod npu_mgmt {
     #[derive(Copy, Clone, Debug)]
     #[allow(dead_code)]
     pub enum PerfMode {
-        Full2 = 5,
-        Full1 = 4,
         Normal2 = 3,
         Normal1 = 2,
         Half = 1,
@@ -106,32 +104,6 @@ pub mod npu_mgmt {
             _ => None,
         }
     }
-
-    // TODO(n0gu): get ArchFamily as an argument
-    pub(crate) fn path_warboy<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
-        base_dir
-            .as_ref()
-            .join(format!("class/npu_mgmt/npu{idx}_mgmt/{file}"))
-    }
-
-    pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
-        sysfs: P,
-        mgmt_file: &str,
-        idx: u8,
-    ) -> io::Result<String> {
-        let path = path_warboy(sysfs, mgmt_file, idx);
-        std::fs::read_to_string(path).map(|s| s.trim().to_string())
-    }
-
-    pub(crate) fn write_ctrl_file<P: AsRef<Path>, C: AsRef<[u8]>>(
-        sysfs: P,
-        ctrl_file: &str,
-        idx: u8,
-        contents: C,
-    ) -> io::Result<()> {
-        let path = path_warboy(sysfs, ctrl_file, idx);
-        std::fs::write(path, contents)
-    }
 }
 
 pub(crate) mod pci {
@@ -157,16 +129,6 @@ pub(crate) mod pci {
         pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
             PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
         }
-    }
-}
-
-pub mod perf_regs {
-    use std::path::{Path, PathBuf};
-
-    pub(crate) fn path<P: AsRef<Path>>(base_dir: P, dev_name: &str) -> PathBuf {
-        base_dir
-            .as_ref()
-            .join(format!("class/npu_mgmt/{dev_name}/perf_regs"))
     }
 }
 

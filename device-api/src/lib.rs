@@ -74,6 +74,7 @@ pub use crate::error::{DeviceError, DeviceResult};
 use crate::list::{get_device_with, list_devices_with};
 
 mod arch;
+mod arch_impl;
 #[cfg(feature = "blocking")]
 #[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 pub mod blocking;
@@ -92,7 +93,6 @@ mod sysfs;
 ///
 /// See the [crate-level documentation](crate).
 pub async fn list_devices() -> DeviceResult<Vec<Device>> {
-    // TODO(n0gu): better join
     list_devices_with("/dev", "/sys").await
 }
 
@@ -100,12 +100,12 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 ///
 /// # Arguments
 ///
+/// * `family` - An architecture family (e.g., Warboy, Renegade)
 /// * `idx` - An index number of the device (e.g., 0, 1)
 ///
 /// See the [crate-level documentation](crate).
-pub async fn get_device(idx: u8) -> DeviceResult<Device> {
-    // TODO(n0gu): deprecate this function
-    get_device_with(ArchFamily::Warboy, idx, "/dev", "/sys").await
+pub async fn get_device(family: ArchFamily, idx: u8) -> DeviceResult<Device> {
+    get_device_with(family, idx, "/dev", "/sys").await
 }
 
 /// Find a set of devices with specific configuration.

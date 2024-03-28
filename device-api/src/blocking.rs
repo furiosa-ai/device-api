@@ -7,12 +7,13 @@ use std::path::{Path, PathBuf};
 
 use crate::config::find::DeviceWithStatus;
 use crate::devfs::is_character_device;
-use crate::device::{CoreIdx, CoreStatus, DeviceInfo};
+use crate::device::{CoreIdx, CoreStatus};
 use crate::list::{collect_devices, filter_dev_files, DevFile};
 use crate::status::DeviceStatus;
 use crate::sysfs::npu_mgmt;
 use crate::{
-    devfs, find_device_files_in, Device, DeviceConfig, DeviceError, DeviceFile, DeviceResult,
+    devfs, find_device_files_in, ArchFamily, Device, DeviceConfig, DeviceError, DeviceFile,
+    DeviceResult,
 };
 use crate::{hwmon, DeviceMode};
 
@@ -21,9 +22,37 @@ pub fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys")
 }
 
+fn list_devices_with(_devfs: &str, _sysfs: &str) -> DeviceResult<Vec<Device>> {
+    let mut devices = Vec::new();
+    for family in [ArchFamily::Warboy, ArchFamily::Renegade].iter() {
+        let d = list_devices_with_family(*family, "/dev", "/sys")?;
+        devices.extend(d);
+    }
+    Ok(devices)
+}
+
+/// Allow to specify arbitrary sysfs, devfs paths for unit testing
+pub(crate) fn list_devices_with_family(
+    family: ArchFamily,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Vec<Device>> {
+    let mut devices = Vec::new();
+    let npu_dev_files = filter_dev_files(list_devfs(family, devfs)?)?;
+
+    for (idx, paths) in npu_dev_files {
+        if let Ok(device) = get_device_inner(family, idx, paths, devfs, sysfs) {
+            devices.push(device);
+        }
+    }
+
+    devices.sort();
+    Ok(devices)
+}
+
 /// Return a specific Furiosa NPU device in the system.
-pub fn get_device(idx: u8) -> DeviceResult<Device> {
-    get_device_with(idx, "/dev", "/sys")
+pub fn get_device(family: ArchFamily, idx: u8) -> DeviceResult<Device> {
+    get_device_with(family, idx, "/dev", "/sys")
 }
 
 /// Find a set of devices with specific configuration.
@@ -60,54 +89,48 @@ pub(crate) fn get_file_with(devfs: &str, device_name: &str) -> DeviceResult<Devi
     DeviceFile::try_from(&path)
 }
 
-/// Allow to specify arbitrary sysfs, devfs paths for unit testing
-pub(crate) fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
-    let npu_dev_files = filter_dev_files(list_devfs(devfs)?)?;
-
-    let mut devices: Vec<Device> = Vec::with_capacity(npu_dev_files.len());
-
-    for (idx, paths) in npu_dev_files {
-        if let Ok(device) = get_device_inner(idx, paths, devfs, sysfs) {
-            devices.push(device);
-        }
-    }
-
-    devices.sort();
-    Ok(devices)
-}
-
-pub(crate) fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
-    let mut npu_dev_files = filter_dev_files(list_devfs(devfs)?)?;
+pub(crate) fn get_device_with(
+    family: ArchFamily,
+    idx: u8,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Device> {
+    let mut npu_dev_files = filter_dev_files(list_devfs(family, devfs)?)?;
 
     if let Some(paths) = npu_dev_files.remove(&idx) {
-        get_device_inner(idx, paths, devfs, sysfs)
+        get_device_inner(family, idx, paths, devfs, sysfs)
     } else {
         Err(DeviceError::device_not_found(format!("npu{idx}")))
     }
 }
 
 pub(crate) fn get_device_inner(
+    family: ArchFamily,
     idx: u8,
     paths: Vec<PathBuf>,
     devfs: &str,
     sysfs: &str,
 ) -> DeviceResult<Device> {
-    if is_furiosa_device(idx, sysfs) {
-        let device_info = DeviceInfo::new(idx, PathBuf::from(devfs), PathBuf::from(sysfs));
-        let busname = device_info.get(npu_mgmt::file::BUS_NAME).unwrap();
+    if is_furiosa_device(family, idx, sysfs) {
+        let inner = family.create_inner(idx, devfs, sysfs);
+        let busname = inner.busname()?;
         let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
-
-        let device = collect_devices(device_info, hwmon_fetcher, paths)?;
+        let device = collect_devices(inner, hwmon_fetcher, paths)?;
         Ok(device)
     } else {
         Err(DeviceError::device_not_found(format!("npu{idx}")))
     }
 }
 
-fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
+fn list_devfs<P: AsRef<Path>>(family: ArchFamily, devfs: P) -> io::Result<Vec<DevFile>> {
     let mut dev_files = Vec::new();
-
-    for entry in std::fs::read_dir(devfs)? {
+    let path = family.devfile_dir(devfs);
+    let read_dir = match std::fs::read_dir(path) {
+        Ok(rd) => rd,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(dev_files),
+        Err(e) => return Err(e),
+    };
+    for entry in read_dir {
         let file = entry?;
         dev_files.push(DevFile {
             path: file.path(),
@@ -118,15 +141,11 @@ fn list_devfs<P: AsRef<Path>>(devfs: P) -> io::Result<Vec<DevFile>> {
     Ok(dev_files)
 }
 
-fn is_furiosa_device(idx: u8, sysfs: &str) -> bool {
-    std::fs::read_to_string(npu_mgmt::path_warboy(
-        sysfs,
-        npu_mgmt::file::PLATFORM_TYPE,
-        idx,
-    ))
-    .ok()
-    .filter(|c| npu_mgmt::is_furiosa_platform(c))
-    .is_some()
+fn is_furiosa_device(family: ArchFamily, idx: u8, sysfs: &str) -> bool {
+    std::fs::read_to_string(family.path_platform_type(idx, sysfs))
+        .ok()
+        .filter(|c| npu_mgmt::is_furiosa_platform(c))
+        .is_some()
 }
 
 pub(crate) fn expand_status(devices: Vec<Device>) -> DeviceResult<Vec<DeviceWithStatus>> {
