@@ -14,7 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install components
+      - name: install hwloc
+        run: sudo apt install -y hwloc libhwloc-dev
+      - name: Install rust components
         run: rustup component add clippy rustfmt
       - name: lint
         run: cargo fmt --all --check && cargo -q clippy --all-targets --features blocking -- -D rust_2018_idioms -D warnings
