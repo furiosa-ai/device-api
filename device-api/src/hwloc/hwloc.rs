@@ -9,7 +9,11 @@ pub trait Hwloc {
     unsafe fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()>;
     unsafe fn load_topology(&mut self) -> DeviceResult<()>;
     unsafe fn set_topology_from_xml(&mut self, xml_path: &str) -> DeviceResult<()>;
-    unsafe fn get_common_ancestor_obj(&self, dev1bdf: &str, dev2bdf: &str) -> DeviceResult<hwloc_obj_t>;
+    unsafe fn get_common_ancestor_obj(
+        &self,
+        dev1bdf: &str,
+        dev2bdf: &str,
+    ) -> DeviceResult<hwloc_obj_t>;
     unsafe fn destroy_topology(&mut self);
 }
 

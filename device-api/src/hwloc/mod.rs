@@ -132,9 +132,7 @@ impl Topology {
 
 impl Drop for Topology {
     fn drop(&mut self) {
-        unsafe {
-            self.hwloc_topology.destroy_topology()
-        }
+        unsafe { self.hwloc_topology.destroy_topology() }
     }
 }
 
