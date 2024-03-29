@@ -6,7 +6,7 @@ use std::ptr;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use crate::hwloc::bindgen::*;
+use crate::topology::bindgen::*;
 
 pub unsafe fn hwloc_get_common_ancestor_obj(
     mut obj1: hwloc_obj_t,

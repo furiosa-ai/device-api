@@ -1,5 +1,5 @@
 use cli_table::{print_stdout, Cell, Style, Table};
-use furiosa_device::{hwloc, list_devices, DeviceError};
+use furiosa_device::{list_devices, topology, DeviceError};
 
 #[tokio::main]
 async fn main() -> Result<(), DeviceError> {
@@ -11,7 +11,7 @@ async fn main() -> Result<(), DeviceError> {
         return Ok(());
     }
 
-    let mut topology = hwloc::Topology::new();
+    let mut topology = topology::Topology::new();
     unsafe {
         topology.populate(devices.clone())?;
     }

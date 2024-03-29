@@ -1,9 +1,9 @@
 #![allow(warnings)]
 use std::collections::BTreeMap;
 
-use crate::hwloc::bindgen::*;
-use crate::hwloc::hwloc::{Hwloc, HwlocTopology};
-use crate::hwloc::LinkType::*;
+use crate::topology::bindgen::*;
+use crate::topology::hwloc::{Hwloc, HwlocTopology};
+use crate::topology::LinkType::*;
 use crate::{Device, DeviceResult};
 
 mod bindgen;
@@ -142,10 +142,10 @@ mod tests {
     use std::collections::BTreeMap;
     use std::env;
 
-    use crate::hwloc::bindgen::*;
-    use crate::hwloc::hwloc::{Hwloc, HwlocTopology};
-    use crate::hwloc::LinkType::*;
-    use crate::hwloc::{LinkType, Topology};
+    use crate::topology::bindgen::*;
+    use crate::topology::hwloc::{Hwloc, HwlocTopology};
+    use crate::topology::LinkType::*;
+    use crate::topology::{LinkType, Topology};
     use crate::{Device, DeviceResult};
 
     struct HwlocTopologyMock {
@@ -171,7 +171,7 @@ mod tests {
 
         unsafe fn load_topology(&mut self) -> DeviceResult<()> {
             let current_dir = env::current_dir().unwrap();
-            let xml_path = current_dir.join("src/hwloc/test.xml");
+            let xml_path = current_dir.join("src/topology/test.xml");
             self.hwloc_topology
                 .set_topology_from_xml(xml_path.to_str().unwrap())?;
             self.hwloc_topology.load_topology()
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_hwloc_init_and_destroy() {
         let current_dir = env::current_dir().unwrap();
-        let xml_path = current_dir.join("src/hwloc/test.xml");
+        let xml_path = current_dir.join("src/topology/test.xml");
 
         let mut hwloc_topology = HwlocTopology::new();
         unsafe {

@@ -1,7 +1,7 @@
 use std::ffi::CString;
 
-use crate::hwloc::bindgen::*;
-use crate::hwloc::helper;
+use crate::topology::bindgen::*;
+use crate::topology::helper;
 use crate::{DeviceError, DeviceResult};
 
 pub trait Hwloc {
