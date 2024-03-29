@@ -197,7 +197,7 @@ impl Device {
     }
 
     /// Retrieve NUMA node ID associated with the NPU's PCI lane
-    // XXX(n0gu): warboy and renegade share the same implementation, but this is more like a coincidence
+    // XXX(n0gu): warboy and renegade share the same implementation, but this may change in the future devices.
     pub fn numa_node(&self) -> DeviceResult<NumaNode> {
         let busname = self.inner.busname()?;
         let id = pci::numa::read_numa_node(self.inner.sysfs(), &busname)?
@@ -214,7 +214,7 @@ impl Device {
             )));
         };
 
-        // TODO(n0gu): cache the result
+        // TODO(n0gu): cache result
         Ok(node)
     }
 
