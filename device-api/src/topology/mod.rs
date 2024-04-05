@@ -51,18 +51,19 @@ pub struct Topology {
 }
 
 impl Topology {
-    pub fn new() -> Topology {
-        Self {
+    pub fn new(devices: Vec<Device>) -> DeviceResult<Topology> {
+        let mut new_topology = Self {
             hwloc_topology: Box::new(HwlocTopology::new()),
             topology_matrix: BTreeMap::new(),
-        }
-    }
-    pub unsafe fn populate(&mut self, devices: Vec<Device>) -> DeviceResult<()> {
+        };
+
         let keys = devices.iter().map(|d| d.busname().unwrap()).collect();
-        self.populate_with_keys(keys)
+        new_topology.populate_with_keys(keys)?;
+
+        Ok(new_topology)
     }
 
-    unsafe fn populate_with_keys(&mut self, devices: Vec<String>) -> DeviceResult<()> {
+    fn populate_with_keys(&mut self, devices: Vec<String>) -> DeviceResult<()> {
         // Initialize hwloc topology
         self.hwloc_topology.init_topology()?;
 
@@ -79,7 +80,7 @@ impl Topology {
         }
     }
 
-    unsafe fn populate_topology_matrix(&mut self, devices: Vec<String>) -> DeviceResult<()> {
+    fn populate_topology_matrix(&mut self, devices: Vec<String>) -> DeviceResult<()> {
         for i in 0..devices.len() {
             for j in 0..devices.len() {
                 let dev1_bdf = devices.get(i).unwrap().clone();
@@ -99,21 +100,23 @@ impl Topology {
         Ok(())
     }
 
-    unsafe fn search_interconnect(&self, dev1_bdf: &str, dev2_bdf: &str) -> LinkType {
-        if dev1_bdf == dev2_bdf {
-            return LinkTypeSoc;
-        }
+    fn search_interconnect(&self, dev1_bdf: &str, dev2_bdf: &str) -> LinkType {
+        unsafe {
+            if dev1_bdf == dev2_bdf {
+                return LinkTypeSoc;
+            }
 
-        let ancestor_obj = self
-            .hwloc_topology
-            .get_common_ancestor_obj(dev1_bdf, dev2_bdf)
-            .unwrap();
+            let ancestor_obj = self
+                .hwloc_topology
+                .get_common_ancestor_obj(dev1_bdf, dev2_bdf)
+                .unwrap();
 
-        match (*ancestor_obj).type_ {
-            hwloc_obj_type_t_HWLOC_OBJ_MACHINE => LinkTypeInterconnect,
-            hwloc_obj_type_t_HWLOC_OBJ_PACKAGE => LinkTypeCPU,
-            hwloc_obj_type_t_HWLOC_OBJ_BRIDGE => LinkTypeHostBridge,
-            _ => LinkTypeUnknown,
+            match (*ancestor_obj).type_ {
+                hwloc_obj_type_t_HWLOC_OBJ_MACHINE => LinkTypeInterconnect,
+                hwloc_obj_type_t_HWLOC_OBJ_PACKAGE => LinkTypeCPU,
+                hwloc_obj_type_t_HWLOC_OBJ_BRIDGE => LinkTypeHostBridge,
+                _ => LinkTypeUnknown,
+            }
         }
     }
 

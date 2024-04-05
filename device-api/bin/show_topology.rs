@@ -11,11 +11,7 @@ async fn main() -> Result<(), DeviceError> {
         return Ok(());
     }
 
-    let mut topology = topology::Topology::new();
-    unsafe {
-        topology.populate(devices.clone())?;
-    }
-
+    let topology = topology::Topology::new(devices.clone())?;
     let mut rows = vec![];
     let mut header = vec!["Device".cell().bold(true)];
     for device in devices.iter() {
