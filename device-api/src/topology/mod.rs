@@ -161,15 +161,15 @@ mod tests {
     }
 
     impl Hwloc for HwlocTopologyMock {
-        unsafe fn init_topology(&mut self) -> DeviceResult<()> {
+        fn init_topology(&mut self) -> DeviceResult<()> {
             self.hwloc_topology.init_topology()
         }
 
-        unsafe fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()> {
+        fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()> {
             self.hwloc_topology.set_io_types_filter(filter)
         }
 
-        unsafe fn load_topology(&mut self) -> DeviceResult<()> {
+        fn load_topology(&mut self) -> DeviceResult<()> {
             let current_dir = env::current_dir().unwrap();
             let xml_path = current_dir.join("src/topology/test.xml");
             self.hwloc_topology
@@ -177,11 +177,11 @@ mod tests {
             self.hwloc_topology.load_topology()
         }
 
-        unsafe fn set_topology_from_xml(&mut self, xml_path: &str) -> DeviceResult<()> {
+        fn set_topology_from_xml(&mut self, xml_path: &str) -> DeviceResult<()> {
             self.hwloc_topology.set_topology_from_xml(xml_path)
         }
 
-        unsafe fn get_common_ancestor_obj(
+        fn get_common_ancestor_obj(
             &self,
             dev1bdf: &str,
             dev2bdf: &str,
@@ -190,7 +190,7 @@ mod tests {
                 .get_common_ancestor_obj(dev1bdf, dev2bdf)
         }
 
-        unsafe fn destroy_topology(&mut self) {
+        fn destroy_topology(&mut self) {
             self.hwloc_topology.destroy_topology()
         }
     }
