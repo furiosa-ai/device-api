@@ -202,16 +202,18 @@ impl Device {
         let busname = self.inner.busname();
         let id = pci::numa::read_numa_node(self.inner.sysfs(), &busname)?
             .parse::<i32>()
-            .unwrap();
+            .map_err(|e| {
+                DeviceError::unexpected_value(format!("Unexpected numa node id: {}", e))
+            })?;
 
-        let node = if id >= 0 {
-            NumaNode::Id(id as usize)
-        } else if id == -1 {
-            NumaNode::UnSupported
-        } else {
-            return Err(DeviceError::unexpected_value(format!(
-                "Unexpected numa node id: {id}"
-            )));
+        let node = match id {
+            _ if id >= 0 => NumaNode::Id(id as usize),
+            _ if id == -1 => NumaNode::UnSupported,
+            _ => {
+                return Err(DeviceError::unexpected_value(format!(
+                    "Unexpected numa node id: {id}"
+                )))
+            }
         };
 
         // TODO(n0gu): cache result
