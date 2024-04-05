@@ -39,7 +39,12 @@ pub(crate) fn list_devices_with_arch(
     sysfs: &str,
 ) -> DeviceResult<Vec<Device>> {
     let mut devices = Vec::new();
-    let npu_dev_files = filter_dev_files(list_devfs(arch, devfs)?)?;
+    let dev_files = match list_dev_files(arch.devfile_path(devfs)) {
+        Ok(files) => files,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    let npu_dev_files = filter_dev_files(dev_files)?;
 
     for (idx, paths) in npu_dev_files {
         if let Ok(device) = get_device_inner(arch, idx, paths, devfs, sysfs) {
@@ -96,8 +101,7 @@ pub(crate) fn get_device_with(
     devfs: &str,
     sysfs: &str,
 ) -> DeviceResult<Device> {
-    let mut npu_dev_files = filter_dev_files(list_devfs(arch, devfs)?)?;
-
+    let mut npu_dev_files = filter_dev_files(list_dev_files(arch.devfile_path(devfs))?)?;
     if let Some(paths) = npu_dev_files.remove(&idx) {
         get_device_inner(arch, idx, paths, devfs, sysfs)
     } else {
@@ -123,15 +127,9 @@ pub(crate) fn get_device_inner(
     }
 }
 
-fn list_devfs<P: AsRef<Path>>(arch: Arch, devfs: P) -> io::Result<Vec<DevFile>> {
+fn list_dev_files<P: AsRef<Path>>(path: P) -> io::Result<Vec<DevFile>> {
     let mut dev_files = Vec::new();
-    let path = arch.devfile_path(devfs);
-    let read_dir = match std::fs::read_dir(path) {
-        Ok(rd) => rd,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(dev_files),
-        Err(e) => return Err(e),
-    };
-    for entry in read_dir {
+    for entry in std::fs::read_dir(path)? {
         let file = entry?;
         dev_files.push(DevFile {
             path: file.path(),

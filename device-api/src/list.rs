@@ -28,9 +28,14 @@ pub async fn list_devices_with_arch(
     devfs: &str,
     sysfs: &str,
 ) -> DeviceResult<Vec<Device>> {
-    let dev_files = filter_dev_files(list_dev_files(arch, devfs).await?)?;
-    let mut devices: Vec<Device> = Vec::with_capacity(dev_files.keys().len());
-    for (idx, paths) in dev_files {
+    let dev_files = match list_dev_files(arch.devfile_path(devfs)).await {
+        Ok(files) => files,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    let npu_dev_files = filter_dev_files(dev_files)?;
+    let mut devices: Vec<Device> = Vec::with_capacity(npu_dev_files.keys().len());
+    for (idx, paths) in npu_dev_files {
         if let Ok(device) = get_device_inner(arch, idx, paths, devfs, sysfs).await {
             devices.push(device);
         }
@@ -47,7 +52,7 @@ pub(crate) async fn get_device_with(
     devfs: &str,
     sysfs: &str,
 ) -> DeviceResult<Device> {
-    let mut npu_dev_files = filter_dev_files(list_dev_files(arch, devfs).await?)?;
+    let mut npu_dev_files = filter_dev_files(list_dev_files(arch.devfile_path(devfs)).await?)?;
     if let Some(paths) = npu_dev_files.remove(&idx) {
         get_device_inner(arch, idx, paths, devfs, sysfs).await
     } else {
@@ -102,14 +107,9 @@ pub(crate) struct DevFile {
 }
 
 /// List all files in the devfs directory, including /dev/renegade/.
-async fn list_dev_files<P: AsRef<Path>>(arch: Arch, path: P) -> io::Result<Vec<DevFile>> {
+async fn list_dev_files<P: AsRef<Path>>(path: P) -> io::Result<Vec<DevFile>> {
     let mut dev_files = Vec::new();
-    let path = arch.devfile_path(path);
-    let mut read_dir = match tokio::fs::read_dir(path).await {
-        Ok(rd) => rd,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(dev_files),
-        Err(e) => return Err(e),
-    };
+    let mut read_dir = tokio::fs::read_dir(path).await?;
     while let Some(entry) = read_dir.next_entry().await? {
         dev_files.push(DevFile {
             path: entry.path(),
@@ -166,20 +166,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_dev_files() -> DeviceResult<()> {
-        let dev_files =
-            filter_dev_files(list_dev_files(Arch::WarboyB0, "../test_data/test-0/dev").await?)?;
+        let dev_files = filter_dev_files(
+            list_dev_files(Arch::WarboyB0.devfile_path("../test_data/test-0/dev")).await?,
+        )?;
         assert_eq!(sorted_keys(&dev_files), vec![0, 1]);
 
-        let dev_files =
-            filter_dev_files(list_dev_files(Arch::Renegade, "../test_data/test-0/dev").await?)?;
-        assert_eq!(sorted_keys(&dev_files), vec![] as Vec<u8>);
+        let dev_files_err = list_dev_files(Arch::Renegade.devfile_path("../test_data/test-0/dev"))
+            .await
+            .map(filter_dev_files);
+        assert!(dev_files_err.is_err());
 
-        let dev_files =
-            filter_dev_files(list_dev_files(Arch::WarboyB0, "../test_data/test-1/dev/").await?)?;
+        let dev_files = filter_dev_files(
+            list_dev_files(Arch::WarboyB0.devfile_path("../test_data/test-1/dev/")).await?,
+        )?;
         assert_eq!(sorted_keys(&dev_files), vec![0]);
 
-        let dev_files =
-            filter_dev_files(list_dev_files(Arch::Renegade, "../test_data/test-1/dev/").await?)?;
+        let dev_files = filter_dev_files(
+            list_dev_files(Arch::Renegade.devfile_path("../test_data/test-1/dev/")).await?,
+        )?;
         assert_eq!(sorted_keys(&dev_files), vec![0]);
 
         Ok(())
