@@ -63,14 +63,14 @@ pub(crate) trait DeviceMgmt {
     fn sysfs(&self) -> &PathBuf;
     fn device_index(&self) -> u8;
     fn arch(&self) -> Arch;
+    fn busname(&self) -> String;
+    fn pci_dev(&self) -> String;
+    fn device_sn(&self) -> String;
+    fn device_uuid(&self) -> String;
+    fn firmware_version(&self) -> String;
+    fn driver_version(&self) -> String;
     fn alive(&self) -> DeviceResult<bool>;
     fn atr_error(&self) -> DeviceResult<HashMap<String, u32>>;
-    fn busname(&self) -> DeviceResult<String>;
-    fn pci_dev(&self) -> DeviceResult<String>;
-    fn device_sn(&self) -> DeviceResult<String>;
-    fn device_uuid(&self) -> DeviceResult<String>;
-    fn firmware_version(&self) -> DeviceResult<String>;
-    fn driver_version(&self) -> DeviceResult<String>;
     fn heartbeat(&self) -> DeviceResult<u32>;
     fn clock_frequency(&self) -> DeviceResult<Vec<ClockFrequency>>;
 }
@@ -127,32 +127,32 @@ impl Device {
     }
 
     /// Returns PCI bus number of the device.
-    pub fn busname(&self) -> DeviceResult<String> {
+    pub fn busname(&self) -> String {
         self.inner.busname()
     }
 
     /// Returns PCI device ID of the device.
-    pub fn pci_dev(&self) -> DeviceResult<String> {
+    pub fn pci_dev(&self) -> String {
         self.inner.pci_dev()
     }
 
     /// Returns serial number of the device.
-    pub fn device_sn(&self) -> DeviceResult<String> {
+    pub fn device_sn(&self) -> String {
         self.inner.device_sn()
     }
 
     /// Returns UUID of the device.
-    pub fn device_uuid(&self) -> DeviceResult<String> {
+    pub fn device_uuid(&self) -> String {
         self.inner.device_uuid()
     }
 
     /// Retrieves firmware revision from the device.
-    pub fn firmware_version(&self) -> DeviceResult<String> {
+    pub fn firmware_version(&self) -> String {
         self.inner.firmware_version()
     }
 
     /// Retrieves driver version for the device.
-    pub fn driver_version(&self) -> DeviceResult<String> {
+    pub fn driver_version(&self) -> String {
         self.inner.driver_version()
     }
 
@@ -199,7 +199,7 @@ impl Device {
     /// Retrieve NUMA node ID associated with the NPU's PCI lane
     // XXX(n0gu): warboy and renegade share the same implementation, but this may change in the future devices.
     pub fn numa_node(&self) -> DeviceResult<NumaNode> {
-        let busname = self.inner.busname()?;
+        let busname = self.inner.busname();
         let id = pci::numa::read_numa_node(self.inner.sysfs(), &busname)?
             .parse::<i32>()
             .unwrap();

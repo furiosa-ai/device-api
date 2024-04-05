@@ -1,5 +1,9 @@
 pub mod npu_mgmt {
-    use std::collections::HashMap;
+    use std::{
+        collections::HashMap,
+        fs, io,
+        path::{Path, PathBuf},
+    };
 
     #[allow(dead_code)]
     pub mod file {
@@ -69,6 +73,14 @@ pub mod npu_mgmt {
         Level13 = 13,
         Level14 = 14,
         Level15 = 15,
+    }
+
+    pub(crate) fn read_mgmt_to_string<P: AsRef<Path>>(
+        mgmt_root: PathBuf,
+        file: P,
+    ) -> io::Result<String> {
+        let path = mgmt_root.join(file);
+        fs::read_to_string(path).map(|s| s.trim_end().to_string())
     }
 
     /// It can be used to check `platform_type`.

@@ -64,7 +64,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![feature(associated_type_bounds)]
 
-pub use crate::arch::{Arch, ArchFamily};
+pub use crate::arch::Arch;
 use crate::config::{expand_status, find_device_files_in};
 pub use crate::config::{DeviceConfig, DeviceConfigBuilder, EnvBuilder, NotDetermined};
 pub use crate::device::{
@@ -104,8 +104,8 @@ pub async fn list_devices() -> DeviceResult<Vec<Device>> {
 /// * `idx` - An index number of the device (e.g., 0, 1)
 ///
 /// See the [crate-level documentation](crate).
-pub async fn get_device(family: ArchFamily, idx: u8) -> DeviceResult<Device> {
-    get_device_with(family, idx, "/dev", "/sys").await
+pub async fn get_device(arch: Arch, idx: u8) -> DeviceResult<Device> {
+    get_device_with(arch, idx, "/dev", "/sys").await
 }
 
 /// Find a set of devices with specific configuration.

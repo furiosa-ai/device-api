@@ -1,6 +1,8 @@
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
+
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 use crate::device::{DeviceCtrl, DeviceInner, DeviceMgmt, DevicePerf};
 use crate::error::DeviceResult;
@@ -11,28 +13,37 @@ use crate::DeviceError;
 
 #[derive(Clone)]
 pub struct RenegadeInner {
+    arch: Arch,
     device_index: u8,
     sysfs: PathBuf,
     mgmt_root: PathBuf,
-    // TODO: cache static results
+    mgmt_cache: HashMap<StaticMgmtFile, String>,
 }
 
 impl RenegadeInner {
-    pub fn new(device_index: u8, sysfs: PathBuf) -> Self {
+    pub fn new(arch: Arch, device_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
         let mgmt_root = sysfs.join(format!(
             "class/renegade_mgmt/renegade!npu{device_index}mgmt"
         ));
-        RenegadeInner {
+        let m: DeviceResult<HashMap<_, _>> = StaticMgmtFile::iter()
+            .map(|key| {
+                let value = npu_mgmt::read_mgmt_to_string(mgmt_root.clone(), key.filename())?;
+                Ok((key, value))
+            })
+            .collect();
+        let mgmt_cache = m?;
+
+        Ok(RenegadeInner {
+            arch,
             device_index,
             sysfs,
             mgmt_root,
-        }
+            mgmt_cache,
+        })
     }
 
     fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
-        let path = self.mgmt_root.join(file);
-        let value = fs::read_to_string(path)?;
-        Ok(value.trim_end().to_string())
+        npu_mgmt::read_mgmt_to_string(self.mgmt_root.clone(), file).map_err(|e| e.into())
     }
 
     #[allow(dead_code)]
@@ -40,6 +51,36 @@ impl RenegadeInner {
         let path = self.mgmt_root.join(file);
         std::fs::write(path, contents)?;
         Ok(())
+    }
+
+    fn get_mgmt_cache(&self, file: StaticMgmtFile) -> String {
+        self.mgmt_cache
+            .get(&file)
+            .unwrap_or(&Default::default())
+            .clone()
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, EnumIter)]
+enum StaticMgmtFile {
+    BusName,
+    Dev,
+    DeviceSN,
+    DeviceUUID,
+    FWVersion,
+    Version,
+}
+
+impl StaticMgmtFile {
+    fn filename(&self) -> &'static str {
+        match self {
+            StaticMgmtFile::BusName => npu_mgmt::file::BUS_NAME,
+            StaticMgmtFile::Dev => npu_mgmt::file::DEV,
+            StaticMgmtFile::DeviceSN => npu_mgmt::file::DEVICE_SN,
+            StaticMgmtFile::DeviceUUID => npu_mgmt::file::DEVICE_UUID,
+            StaticMgmtFile::FWVersion => npu_mgmt::file::FW_VERSION,
+            StaticMgmtFile::Version => npu_mgmt::file::VERSION,
+        }
     }
 }
 
@@ -56,7 +97,7 @@ impl DeviceMgmt for RenegadeInner {
 
     #[inline]
     fn arch(&self) -> Arch {
-        Arch::Renegade
+        self.arch
     }
 
     fn alive(&self) -> DeviceResult<bool> {
@@ -69,28 +110,28 @@ impl DeviceMgmt for RenegadeInner {
             .map(npu_mgmt::build_atr_error_map)
     }
 
-    fn busname(&self) -> DeviceResult<String> {
-        self.read_mgmt_to_string(npu_mgmt::file::BUS_NAME)
+    fn busname(&self) -> String {
+        self.get_mgmt_cache(StaticMgmtFile::BusName)
     }
 
-    fn pci_dev(&self) -> DeviceResult<String> {
-        self.read_mgmt_to_string(npu_mgmt::file::DEV)
+    fn pci_dev(&self) -> String {
+        self.get_mgmt_cache(StaticMgmtFile::Dev)
     }
 
-    fn device_sn(&self) -> DeviceResult<String> {
-        self.read_mgmt_to_string(npu_mgmt::file::DEVICE_SN)
+    fn device_sn(&self) -> String {
+        self.get_mgmt_cache(StaticMgmtFile::DeviceSN)
     }
 
-    fn device_uuid(&self) -> DeviceResult<String> {
-        self.read_mgmt_to_string(npu_mgmt::file::DEVICE_UUID)
+    fn device_uuid(&self) -> String {
+        self.get_mgmt_cache(StaticMgmtFile::DeviceUUID)
     }
 
-    fn firmware_version(&self) -> DeviceResult<String> {
-        self.read_mgmt_to_string(npu_mgmt::file::FW_VERSION)
+    fn firmware_version(&self) -> String {
+        self.get_mgmt_cache(StaticMgmtFile::FWVersion)
     }
 
-    fn driver_version(&self) -> DeviceResult<String> {
-        self.read_mgmt_to_string(npu_mgmt::file::VERSION)
+    fn driver_version(&self) -> String {
+        self.get_mgmt_cache(StaticMgmtFile::Version)
     }
 
     fn heartbeat(&self) -> DeviceResult<u32> {
@@ -143,21 +184,19 @@ mod tests {
 
     #[test]
     fn test_renegade_inner_functionality() -> eyre::Result<()> {
-        let device = RenegadeInner::new(0, PathBuf::from("../test_data/test-1/sys"));
+        let device =
+            RenegadeInner::new(Arch::Renegade, 0, PathBuf::from("../test_data/test-1/sys"))?;
 
         assert_eq!(device.device_index(), 0);
         assert_eq!(device.arch(), Arch::Renegade);
         assert!(device.alive()?);
         assert_eq!(device.atr_error()?.len(), 9);
-        assert_eq!(device.busname()?, "0000:00:03.0");
-        assert_eq!(device.pci_dev()?, "235:0");
-        assert_eq!(device.device_sn()?, "");
-        assert_eq!(
-            device.device_uuid()?,
-            "82540B87-1055-48C6-AAB1-C4CC84672C71"
-        );
-        assert_eq!(device.firmware_version()?, "");
-        assert_eq!(device.driver_version()?, "1.0.0, abcdefg");
+        assert_eq!(device.busname(), "0000:00:03.0");
+        assert_eq!(device.pci_dev(), "235:0");
+        assert_eq!(device.device_sn(), "");
+        assert_eq!(device.device_uuid(), "82540B87-1055-48C6-AAB1-C4CC84672C71");
+        assert_eq!(device.firmware_version(), "");
+        assert_eq!(device.driver_version(), "1.0.0, 0abcdef");
         assert_eq!(device.heartbeat()?, 0);
 
         Ok(())

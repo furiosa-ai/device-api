@@ -1,64 +1,54 @@
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
-use strum_macros::AsRefStr;
+use strum_macros::{AsRefStr, EnumIter};
 
-use crate::arch_impl;
 use crate::device::DeviceInner;
 use crate::sysfs::npu_mgmt;
+use crate::{arch_impl, DeviceResult};
 
 /// Enum for the NPU architecture.
-#[derive(AsRefStr, Clone, Copy, Debug, enum_utils::FromStr, Eq, PartialEq, PartialOrd)]
+#[derive(
+    AsRefStr, Clone, Copy, Debug, enum_utils::FromStr, Eq, PartialEq, PartialOrd, EnumIter,
+)]
 #[enumeration(case_insensitive)]
 pub enum Arch {
-    WarboyA0,
     #[enumeration(alias = "Warboy")]
     WarboyB0,
     Renegade,
-    U250, /* TODO - It's somewhat ambiguous. We need two attributes to distinguish both HW type
-           * and NPU family. */
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum ArchFamily {
-    Warboy,
-    Renegade,
-}
-
-impl ArchFamily {
-    pub(crate) fn devfile_dir<P: AsRef<Path>>(self, devfs: P) -> PathBuf {
+impl Arch {
+    pub(crate) fn devfile_path<P: AsRef<Path>>(self, devfs: P) -> PathBuf {
         match self {
-            ArchFamily::Warboy => devfs.as_ref().to_path_buf(),
-            ArchFamily::Renegade => devfs.as_ref().join("renegade"),
+            Arch::WarboyB0 => devfs.as_ref().to_path_buf(),
+            Arch::Renegade => devfs.as_ref().join("renegade"),
         }
     }
 
-    pub(crate) fn create_inner(self, idx: u8, _devfs: &str, sysfs: &str) -> Box<dyn DeviceInner> {
+    pub(crate) fn create_inner(
+        self,
+        idx: u8,
+        _devfs: &str,
+        sysfs: &str,
+    ) -> DeviceResult<Box<dyn DeviceInner>> {
         match self {
-            ArchFamily::Warboy => Box::new(arch_impl::WarboyInner::new(idx, sysfs.into())),
-            ArchFamily::Renegade => Box::new(arch_impl::RenegadeInner::new(idx, sysfs.into())),
+            Arch::WarboyB0 => arch_impl::WarboyInner::new(self, idx, sysfs.into())
+                .map(|t| Box::new(t) as Box<dyn DeviceInner>),
+            Arch::Renegade => arch_impl::RenegadeInner::new(self, idx, sysfs.into())
+                .map(|t| Box::new(t) as Box<dyn DeviceInner>),
         }
     }
 
-    pub(crate) fn path_platform_type(self, idx: u8, sysfs: &str) -> PathBuf {
+    pub(crate) fn platform_type_path(self, idx: u8, sysfs: &str) -> PathBuf {
         let platform_type = npu_mgmt::file::PLATFORM_TYPE;
         match self {
-            ArchFamily::Warboy => {
+            Arch::WarboyB0 => {
                 PathBuf::from(sysfs).join(format!("class/npu_mgmt/npu{idx}_mgmt/{platform_type}"))
             }
-            ArchFamily::Renegade => PathBuf::from(sysfs).join(format!(
+            Arch::Renegade => PathBuf::from(sysfs).join(format!(
                 "class/renegade_mgmt/renegade!npu{idx}mgmt/{platform_type}"
             )),
-        }
-    }
-}
-
-impl From<Arch> for ArchFamily {
-    fn from(arch: Arch) -> Self {
-        match arch {
-            Arch::WarboyA0 | Arch::WarboyB0 => ArchFamily::Warboy,
-            Arch::Renegade => ArchFamily::Renegade,
-            Arch::U250 => ArchFamily::Warboy,
         }
     }
 }
@@ -69,10 +59,8 @@ impl Display for Arch {
 
         // Keep the same as npu-id of Compiler to display
         match self {
-            WarboyA0 => write!(f, "warboy-a0"),
             WarboyB0 => write!(f, "warboy"),
             Renegade => write!(f, "renegade"),
-            U250 => write!(f, "u250"),
         }
     }
 }
@@ -90,25 +78,28 @@ mod tests {
 
     #[test]
     fn test_family_devfile_dir() {
-        let warboy = ArchFamily::Warboy;
-        let renegade = ArchFamily::Renegade;
+        let warboy = Arch::WarboyB0;
+        let renegade = Arch::Renegade;
 
-        assert_eq!(warboy.devfile_dir("/dev"), PathBuf::from("/dev"));
-        assert_eq!(renegade.devfile_dir("/dev"), PathBuf::from("/dev/renegade"));
+        assert_eq!(warboy.devfile_path("/dev"), PathBuf::from("/dev"));
+        assert_eq!(
+            renegade.devfile_path("/dev"),
+            PathBuf::from("/dev/renegade")
+        );
     }
 
     #[test]
     fn test_family_path_platform_type() {
-        let warboy = ArchFamily::Warboy;
-        let renegade = ArchFamily::Renegade;
+        let warboy = Arch::WarboyB0;
+        let renegade = Arch::Renegade;
 
         assert_eq!(
-            warboy.path_platform_type(3, "/sys"),
+            warboy.platform_type_path(3, "/sys"),
             PathBuf::from("/sys/class/npu_mgmt/npu3_mgmt/platform_type")
         );
 
         assert_eq!(
-            renegade.path_platform_type(3, "/sys"),
+            renegade.platform_type_path(3, "/sys"),
             PathBuf::from("/sys/class/renegade_mgmt/renegade!npu3mgmt/platform_type")
         );
     }

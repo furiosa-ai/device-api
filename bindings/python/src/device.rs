@@ -140,10 +140,8 @@ impl DevicePy {
     /// Returns `Arch` of the device(e.g., `Warboy`).
     fn arch(&self) -> ArchPy {
         match self.inner.arch() {
-            Arch::WarboyA0 => ArchPy::WarboyA0,
             Arch::WarboyB0 => ArchPy::Warboy,
             Arch::Renegade => ArchPy::Renegade,
-            Arch::U250 => ArchPy::U250,
         }
     }
 
@@ -158,33 +156,33 @@ impl DevicePy {
     }
 
     /// Returns PCI bus number of the device.
-    fn busname(&self) -> PyResult<String> {
-        self.inner.busname().map_err(to_py_err)
+    fn busname(&self) -> String {
+        self.inner.busname()
     }
 
     /// Returns PCI device ID of the device.
-    fn pci_dev(&self) -> PyResult<String> {
-        self.inner.pci_dev().map_err(to_py_err)
+    fn pci_dev(&self) -> String {
+        self.inner.pci_dev()
     }
 
     /// Returns serial number of the device.
-    fn device_sn(&self) -> PyResult<String> {
-        self.inner.device_sn().map_err(to_py_err)
+    fn device_sn(&self) -> String {
+        self.inner.device_sn()
     }
 
     /// Returns UUID of the device.
-    fn device_uuid(&self) -> PyResult<String> {
-        self.inner.device_uuid().map_err(to_py_err)
+    fn device_uuid(&self) -> String {
+        self.inner.device_uuid()
     }
 
     /// Retrieves firmware revision from the device.
-    fn firmware_version(&self) -> PyResult<String> {
-        self.inner.firmware_version().map_err(to_py_err)
+    fn firmware_version(&self) -> String {
+        self.inner.firmware_version()
     }
 
     /// Retrieves driver version for the device.
-    fn driver_version(&self) -> PyResult<String> {
-        self.inner.driver_version().map_err(to_py_err)
+    fn driver_version(&self) -> String {
+        self.inner.driver_version()
     }
 
     /// Returns uptime of the device.
