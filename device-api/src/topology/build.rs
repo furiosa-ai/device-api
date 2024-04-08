@@ -1,6 +1,9 @@
+extern crate cbindgen;
+
 use std::env;
 use std::path::{Path, PathBuf};
 
+use cbindgen::{Builder, Language};
 use flate2::read::GzDecoder;
 use tar::Archive;
 
@@ -9,6 +12,7 @@ fn main() {
     let out_path = env::var("OUT_DIR").expect("No output directory given");
     let source_path = fetch_hwloc(out_path, version);
     let build_path = build_hwloc(&source_path);
+    gen_hwloc_binding(&build_path);
     link_hwloc(&build_path);
 }
 
@@ -88,4 +92,25 @@ fn link_hwloc(install_path: &Path) {
     println!("cargo:rustc-link-lib=static=hwloc");
     // link xml2 library for hwloc
     println!("cargo:rustc-link-lib=xml2");
+}
+
+fn gen_hwloc_binding(build_path: &Path) {
+    let include_path = build_path.join("include");
+    let bindings_file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("hwloc_bindings.rs");
+    let config = cbindgen::Config {
+        language: Language::C,
+        ..Default::default()
+    };
+
+    Builder::new()
+        .with_crate(include_path.to_str().unwrap())
+        .with_config(config)
+        .generate()
+        .expect("Unable to generate bindings")
+        .write_to_file(bindings_file_path.display().to_string());
+
+    println!(
+        "hwloc bindings generated at {:?}",
+        bindings_file_path.display()
+    );
 }
