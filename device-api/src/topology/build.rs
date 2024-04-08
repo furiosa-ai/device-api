@@ -49,12 +49,13 @@ fn fetch_hwloc(parent_path: impl AsRef<Path>, version: &str) -> PathBuf {
 }
 
 fn build_hwloc(source_path: &Path) -> PathBuf {
-    autotools::Config::new(source_path)
-        .enable_static()
-        .disable_shared()
-        .fast_build(true)
-        .reconf("-ivf")
-        .build()
+    let mut config = autotools::Config::new(source_path);
+    config.enable_static().disable_shared();
+
+    #[cfg(target_os = "macos")]
+    config.ldflag("-F/System/Library/Frameworks -framework CoreFoundation");
+
+    config.fast_build(true).reconf("-ivf").build()
 }
 
 fn link_hwloc(install_path: &Path) {
