@@ -16,6 +16,7 @@ use crate::perf_regs::PerformanceCounter;
 use crate::status::{get_device_status, DeviceStatus};
 use crate::sysfs::npu_mgmt::{self, *};
 use crate::sysfs::pci;
+use crate::topology::HardwareTopologyHint;
 use crate::{devfs, DeviceError, DeviceResult};
 
 #[derive(Debug, Clone)]
@@ -286,6 +287,12 @@ impl PartialEq for Device {
 impl PartialOrd for Device {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl HardwareTopologyHint for Device {
+    fn get_hw_topology_hint(&self) -> String {
+        self.busname().unwrap()
     }
 }
 

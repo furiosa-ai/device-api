@@ -44,6 +44,10 @@ impl LinkType {
     }
 }
 
+pub trait HardwareTopologyHint {
+    fn get_hw_topology_hint(&self) -> String;
+}
+
 pub struct Topology {
     hwloc_topology: Box<dyn Hwloc>,
     topology_matrix: BTreeMap<(String, String), LinkType>,
@@ -119,11 +123,18 @@ impl Topology {
         }
     }
 
-    pub fn get_link_type(&self, dev1_bdf: &str, dev2_bdf: &str) -> LinkType {
+    pub fn get_link_type<T: HardwareTopologyHint>(&self, device1: &T, device2: &T) -> LinkType {
+        self.get_link_type_with_bdf(
+            device1.get_hw_topology_hint(),
+            device2.get_hw_topology_hint(),
+        )
+    }
+
+    fn get_link_type_with_bdf(&self, dev1_bdf: String, dev2_bdf: String) -> LinkType {
         let key = if dev1_bdf > dev2_bdf {
-            (dev2_bdf.to_string(), dev1_bdf.to_string())
+            (dev2_bdf, dev1_bdf)
         } else {
-            (dev1_bdf.to_string(), dev2_bdf.to_string())
+            (dev1_bdf, dev2_bdf)
         };
 
         match self.topology_matrix.get(&key) {
@@ -286,41 +297,52 @@ mod tests {
             assert!(mock_topology.populate_with_keys(keys).is_ok());
         }
 
-        assert_eq!(mock_topology.get_link_type("", ""), LinkTypeUnknown);
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", ""),
+            mock_topology.get_link_type_with_bdf(String::from(""), String::from("")),
             LinkTypeUnknown
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:27:00.0"),
+            mock_topology.get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("")),
+            LinkTypeUnknown
+        );
+        assert_eq!(
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:27:00.0")),
             LinkTypeSoc
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:2a:00.0"),
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:2a:00.0")),
             LinkTypeHostBridge
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:51:00.0"),
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:51:00.0")),
             LinkTypeCPU
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:57:00.0"),
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:57:00.0")),
             LinkTypeCPU
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:9e:00.0"),
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:9e:00.0")),
             LinkTypeInterconnect
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:a4:00.0"),
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:a4:00.0")),
             LinkTypeInterconnect
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:c7:00.0"),
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:c7:00.0")),
             LinkTypeInterconnect
         );
         assert_eq!(
-            mock_topology.get_link_type("0000:27:00.0", "0000:ca:00.0"),
+            mock_topology
+                .get_link_type_with_bdf(String::from("0000:27:00.0"), String::from("0000:ca:00.0")),
             LinkTypeInterconnect
         );
     }
