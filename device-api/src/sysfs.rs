@@ -1,5 +1,6 @@
 pub mod npu_mgmt {
     use std::collections::HashMap;
+    use std::fmt::Display;
     use std::io;
     use std::path::{Path, PathBuf};
 
@@ -128,16 +129,16 @@ pub mod npu_mgmt {
         PerformanceMode,
     }
 
-    impl ToString for CtrlFile {
-        fn to_string(&self) -> String {
-            match self {
+    impl Display for CtrlFile {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let s = match self {
                 CtrlFile::DeviceLed => "device_led",
                 CtrlFile::NeClock => "ne_clock",
                 CtrlFile::NeDtmPolicy => "ne_dtm_policy",
                 CtrlFile::PerformanceLevel => "performance_level",
                 CtrlFile::PerformanceMode => "performance_mode",
-            }
-            .to_string()
+            };
+            write!(f, "{}", s)
         }
     }
 
