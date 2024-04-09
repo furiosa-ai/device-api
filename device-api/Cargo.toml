@@ -65,7 +65,7 @@ autotools = "0.2"
 flate2 = "1.0"
 tar = "0.4"
 attohttpc = "0.28"
-bindgen = "0.55.1"
+bindgen = "0.69.4"
 
 [build-dependencies]
 attohttpc = "0.28"
@@ -73,7 +73,7 @@ flate2 =  "1.0"
 tar = "0.4"
 autotools = "0.2"
 pkg-config = "0.3.8"
-bindgen = "0.55.1"
+bindgen = "0.69.4"
 
 [dev-dependencies]
 eyre = "0.6"
