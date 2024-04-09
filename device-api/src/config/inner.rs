@@ -236,7 +236,6 @@ impl Display for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DeviceResult;
 
     #[test]
     fn test_multiple_configs_repr() -> eyre::Result<()> {
