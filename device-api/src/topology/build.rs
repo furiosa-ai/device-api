@@ -67,7 +67,7 @@ fn link_hwloc(install_path: &Path) {
             .join("pkgconfig")
             .to_string_lossy(),
     );
-    env::set_var("PKG_CONFIG_PATH", &pkg_config_path);
+    env::set_var("PKG_CONFIG_PATH", pkg_config_path);
 
     let pkg_config = pkg_config::Config::new();
     let found = pkg_config.probe("hwloc").expect("couldn't find a hwloc");
