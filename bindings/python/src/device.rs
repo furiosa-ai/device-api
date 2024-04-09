@@ -244,7 +244,7 @@ impl DevicePy {
     }
 
     /// Examine a specific core of the device, whether it is available or not.
-    fn get_status_core<'py, 'a>(&'a self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
+    fn get_status_core<'py>(&self, py: Python<'py>, core: u8) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             device
@@ -256,7 +256,7 @@ impl DevicePy {
     }
 
     /// Examine each core of the device, whether it is available or not.
-    fn get_status_all<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
+    fn get_status_all<'py>(&self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let device = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             device

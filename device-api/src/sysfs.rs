@@ -1,9 +1,8 @@
 pub mod npu_mgmt {
-    use std::{
-        collections::HashMap,
-        fs, io,
-        path::{Path, PathBuf},
-    };
+    use std::collections::HashMap;
+    use std::fs;
+    use std::io;
+    use std::path::{Path, PathBuf};
 
     #[allow(dead_code)]
     pub mod file {

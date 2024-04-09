@@ -134,7 +134,7 @@ pub(crate) fn filter_dev_files(dev_files: Vec<DevFile>) -> DeviceResult<HashMap<
             if let Ok((device_id, _)) = devfs::parse_indices(&filename) {
                 npu_dev_files
                     .entry(device_id)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(path.canonicalize()?); // make an absolute path
             }
         }

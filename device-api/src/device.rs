@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
