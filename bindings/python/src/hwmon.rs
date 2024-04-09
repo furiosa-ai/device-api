@@ -44,7 +44,7 @@ impl FetcherPy {
 
 #[pymethods]
 impl FetcherPy {
-    fn read_currents<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
+    fn read_currents<'py>(&self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let fetcher = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             fetcher
@@ -59,7 +59,7 @@ impl FetcherPy {
         })
     }
 
-    fn read_voltages<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
+    fn read_voltages<'py>(&self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let fetcher = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             fetcher
@@ -74,7 +74,7 @@ impl FetcherPy {
         })
     }
 
-    fn read_powers_average<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
+    fn read_powers_average<'py>(&self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let fetcher = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             fetcher
@@ -89,7 +89,7 @@ impl FetcherPy {
         })
     }
 
-    fn read_temperatures<'py, 'a>(&'a self, py: Python<'py>) -> PyResult<&'py PyAny> {
+    fn read_temperatures<'py>(&self, py: Python<'py>) -> PyResult<&'py PyAny> {
         let fetcher = self.inner.clone();
         pyo3_asyncio::tokio::future_into_py(py, async move {
             fetcher
