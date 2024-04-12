@@ -6,7 +6,6 @@ use crate::topology::hwloc_binding::*;
 use crate::topology::LinkType::*;
 use crate::{Device, DeviceResult};
 
-mod build;
 mod hwloc;
 mod hwloc_binding;
 
