@@ -102,6 +102,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn read_cmdline_test() {
         let my_pid = std::process::id();
         let res = read_cmdline(my_pid);
