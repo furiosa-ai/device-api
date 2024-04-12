@@ -1,6 +1,7 @@
 #![allow(warnings)]
 use std::collections::BTreeMap;
 
+use itertools::iproduct;
 use libc::link;
 use strum_macros::AsRefStr;
 
@@ -79,26 +80,22 @@ fn populate_topology_matrix<T: TopologyProvider>(
 ) -> DeviceResult<BTreeMap<(String, String), LinkType>> {
     let mut topology_matrix: BTreeMap<(String, String), LinkType> = BTreeMap::new();
 
-    for i in 0..devices.len() {
-        for j in 0..devices.len() {
-            let dev1_bdf = devices.get(i).unwrap().clone();
-            let dev2_bdf = devices.get(j).unwrap().clone();
-            let mut link_type: LinkType = LinkTypeUnknown;
+    for (dev1_bdf, dev2_bdf) in iproduct!(devices.clone(), devices.clone()) {
+        let mut link_type: LinkType = LinkTypeUnknown;
 
-            if dev1_bdf == dev2_bdf {
-                link_type = LinkTypeSoc
-            } else {
-                link_type = topology_provider.get_common_ancestor_obj(&dev1_bdf, &dev2_bdf)?;
-            }
-
-            let key = if dev1_bdf > dev2_bdf {
-                (dev2_bdf, dev1_bdf)
-            } else {
-                (dev1_bdf, dev2_bdf)
-            };
-
-            topology_matrix.insert(key, link_type);
+        if dev1_bdf == dev2_bdf {
+            link_type = LinkTypeSoc
+        } else {
+            link_type = topology_provider.get_common_ancestor_obj(&dev1_bdf, &dev2_bdf)?;
         }
+
+        let key = if dev1_bdf > dev2_bdf {
+            (dev2_bdf, dev1_bdf)
+        } else {
+            (dev1_bdf, dev2_bdf)
+        };
+
+        topology_matrix.insert(key, link_type);
     }
 
     Ok(topology_matrix)
