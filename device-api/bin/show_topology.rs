@@ -24,7 +24,7 @@ async fn main() -> Result<(), DeviceError> {
         let mut row = vec![device1.to_string().cell()];
         for device2 in devices.iter() {
             let link_type = topology.get_link_type(device1, device2);
-            row.push(link_type.as_str().cell());
+            row.push(link_type.as_ref().cell());
         }
         rows.push(row);
     }

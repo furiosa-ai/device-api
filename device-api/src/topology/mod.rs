@@ -1,6 +1,8 @@
 #![allow(warnings)]
 use std::collections::BTreeMap;
 
+use strum_macros::AsRefStr;
+
 use crate::topology::hwloc::{Hwloc, HwlocTopology};
 use crate::topology::hwloc_binding::*;
 use crate::topology::LinkType::*;
@@ -9,7 +11,7 @@ use crate::{Device, DeviceResult};
 mod hwloc;
 mod hwloc_binding;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(AsRefStr, Clone, Copy, Debug, PartialEq)]
 pub enum LinkType {
     // LinkTypeUnknown unknown
     LinkTypeUnknown = 0,
@@ -29,18 +31,6 @@ pub enum LinkType {
 
     // LinkTypeSoc two devices are on the same Soc chip.
     LinkTypeSoc = 70,
-}
-
-impl LinkType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            LinkTypeUnknown => "LinkTypeUnknown",
-            LinkTypeInterconnect => "LinkTypeInterconnect",
-            LinkTypeCPU => "LinkTypeCPU",
-            LinkTypeHostBridge => "LinkTypeHostBridge",
-            LinkTypeSoc => "LinkTypeSoc",
-        }
-    }
 }
 
 pub trait HardwareTopologyHint {
