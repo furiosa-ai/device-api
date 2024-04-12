@@ -8,29 +8,18 @@ use regex::Regex;
 use crate::topology::hwloc_binding::*;
 use crate::{DeviceError, DeviceResult};
 
-pub trait Hwloc {
-    fn init_topology(&mut self) -> DeviceResult<()>;
-    fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()>;
-    fn load_topology(&mut self) -> DeviceResult<()>;
-    fn set_topology_from_xml(&mut self, xml_path: &str) -> DeviceResult<()>;
-    fn get_common_ancestor_obj(&self, dev1bdf: &str, dev2bdf: &str) -> DeviceResult<hwloc_obj_t>;
-    fn destroy_topology(&mut self);
-}
-
-pub struct HwlocTopology {
+pub(crate) struct HwlocTopology {
     topology: hwloc_topology_t,
 }
 
 impl HwlocTopology {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             topology: std::ptr::null_mut(),
         }
     }
-}
 
-impl Hwloc for HwlocTopology {
-    fn init_topology(&mut self) -> DeviceResult<()> {
+    pub(crate) fn init_topology(&mut self) -> DeviceResult<()> {
         if unsafe { hwloc_topology_init(&mut self.topology) } == 0 {
             Ok(())
         } else {
@@ -40,7 +29,7 @@ impl Hwloc for HwlocTopology {
         }
     }
 
-    fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()> {
+    pub(crate) fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()> {
         if unsafe { hwloc_topology_set_io_types_filter(self.topology, filter) } == 0 {
             Ok(())
         } else {
@@ -48,7 +37,7 @@ impl Hwloc for HwlocTopology {
         }
     }
 
-    fn load_topology(&mut self) -> DeviceResult<()> {
+    pub(crate) fn load_topology(&mut self) -> DeviceResult<()> {
         if unsafe { hwloc_topology_load(self.topology) } == 0 {
             Ok(())
         } else {
@@ -56,7 +45,7 @@ impl Hwloc for HwlocTopology {
         }
     }
 
-    fn set_topology_from_xml(&mut self, xmlpath: &str) -> DeviceResult<()> {
+    pub(crate) fn set_topology_from_xml(&mut self, xmlpath: &str) -> DeviceResult<()> {
         let xml_path_cstr = CString::new(xmlpath).unwrap();
         if unsafe { hwloc_topology_set_xml(self.topology, xml_path_cstr.as_ptr()) } == 0 {
             Ok(())
@@ -65,7 +54,11 @@ impl Hwloc for HwlocTopology {
         }
     }
 
-    fn get_common_ancestor_obj(&self, dev1bdf: &str, dev2bdf: &str) -> DeviceResult<hwloc_obj_t> {
+    pub(crate) fn get_common_ancestor_obj(
+        &self,
+        dev1bdf: &str,
+        dev2bdf: &str,
+    ) -> DeviceResult<hwloc_obj_t> {
         let dev1_obj = unsafe { hwloc_get_pcidev_by_busidstring(self.topology, dev1bdf) };
         if dev1_obj.is_null() {
             return Err(DeviceError::hwloc_error(format!(
@@ -90,7 +83,7 @@ impl Hwloc for HwlocTopology {
         Ok(ancestor)
     }
 
-    fn destroy_topology(&mut self) {
+    pub(crate) fn destroy_topology(&mut self) {
         if !self.topology.is_null() {
             unsafe { hwloc_topology_destroy(self.topology) };
             self.topology = std::ptr::null_mut();
