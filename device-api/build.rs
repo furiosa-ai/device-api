@@ -51,6 +51,8 @@ fn fetch_hwloc(parent_path: impl AsRef<Path>, version: &str) -> PathBuf {
 fn build_hwloc(source_path: &Path) -> PathBuf {
     let mut config = autotools::Config::new(source_path);
     config.enable_static().disable_shared();
+    // configure to use minimalistic XML backends
+    config.config_option("disable-libxml2", None);
 
     #[cfg(target_os = "macos")]
     config.ldflag("-F/System/Library/Frameworks -framework CoreFoundation");
@@ -89,8 +91,6 @@ fn link_hwloc(install_path: &Path) {
     }
 
     println!("cargo:rustc-link-lib=static=hwloc");
-    // link xml2 library for hwloc
-    println!("cargo:rustc-link-lib=xml2");
 }
 
 fn gen_hwloc_binding(build_path: &Path) {
