@@ -93,22 +93,20 @@ impl Topology {
     }
 
     fn search_interconnect(&self, dev1_bdf: &str, dev2_bdf: &str) -> LinkType {
-        unsafe {
-            if dev1_bdf == dev2_bdf {
-                return LinkTypeSoc;
-            }
+        if dev1_bdf == dev2_bdf {
+            return LinkTypeSoc;
+        }
 
-            let ancestor_obj = self
-                .hwloc_topology
-                .get_common_ancestor_obj(dev1_bdf, dev2_bdf)
-                .unwrap();
+        let ancestor_obj = self
+            .hwloc_topology
+            .get_common_ancestor_obj(dev1_bdf, dev2_bdf)
+            .unwrap();
 
-            match (*ancestor_obj).type_ {
-                hwloc_obj_type_t_HWLOC_OBJ_MACHINE => LinkTypeInterconnect,
-                hwloc_obj_type_t_HWLOC_OBJ_PACKAGE => LinkTypeCPU,
-                hwloc_obj_type_t_HWLOC_OBJ_BRIDGE => LinkTypeHostBridge,
-                _ => LinkTypeUnknown,
-            }
+        match unsafe { (*ancestor_obj).type_ } {
+            hwloc_obj_type_t_HWLOC_OBJ_MACHINE => LinkTypeInterconnect,
+            hwloc_obj_type_t_HWLOC_OBJ_PACKAGE => LinkTypeCPU,
+            hwloc_obj_type_t_HWLOC_OBJ_BRIDGE => LinkTypeHostBridge,
+            _ => LinkTypeUnknown,
         }
     }
 
