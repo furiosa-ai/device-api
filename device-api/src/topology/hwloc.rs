@@ -31,81 +31,69 @@ impl HwlocTopology {
 
 impl Hwloc for HwlocTopology {
     fn init_topology(&mut self) -> DeviceResult<()> {
-        unsafe {
-            if hwloc_topology_init(&mut self.topology) == 0 {
-                Ok(())
-            } else {
-                Err(DeviceError::hwloc_error(
-                    "couldn't initialize hwloc library",
-                ))
-            }
+        if unsafe { hwloc_topology_init(&mut self.topology) } == 0 {
+            Ok(())
+        } else {
+            Err(DeviceError::hwloc_error(
+                "couldn't initialize hwloc library",
+            ))
         }
     }
 
     fn set_io_types_filter(&mut self, filter: hwloc_type_filter_e) -> DeviceResult<()> {
-        unsafe {
-            if hwloc_topology_set_io_types_filter(self.topology, filter) == 0 {
-                Ok(())
-            } else {
-                Err(DeviceError::hwloc_error("couldn't set filter"))
-            }
+        if unsafe { hwloc_topology_set_io_types_filter(self.topology, filter) } == 0 {
+            Ok(())
+        } else {
+            Err(DeviceError::hwloc_error("couldn't set filter"))
         }
     }
 
     fn load_topology(&mut self) -> DeviceResult<()> {
-        unsafe {
-            if hwloc_topology_load(self.topology) == 0 {
-                Ok(())
-            } else {
-                Err(DeviceError::hwloc_error("couldn't load topology"))
-            }
+        if unsafe { hwloc_topology_load(self.topology) } == 0 {
+            Ok(())
+        } else {
+            Err(DeviceError::hwloc_error("couldn't load topology"))
         }
     }
 
     fn set_topology_from_xml(&mut self, xmlpath: &str) -> DeviceResult<()> {
-        unsafe {
-            let xml_path_cstr = CString::new(xmlpath).unwrap();
-            if hwloc_topology_set_xml(self.topology, xml_path_cstr.as_ptr()) == 0 {
-                Ok(())
-            } else {
-                Err(DeviceError::hwloc_error("couldn't set topology from xml"))
-            }
+        let xml_path_cstr = CString::new(xmlpath).unwrap();
+        if unsafe { hwloc_topology_set_xml(self.topology, xml_path_cstr.as_ptr()) } == 0 {
+            Ok(())
+        } else {
+            Err(DeviceError::hwloc_error("couldn't set topology from xml"))
         }
     }
 
     fn get_common_ancestor_obj(&self, dev1bdf: &str, dev2bdf: &str) -> DeviceResult<hwloc_obj_t> {
-        unsafe {
-            let dev1_obj = hwloc_get_pcidev_by_busidstring(self.topology, dev1bdf);
-            if dev1_obj.is_null() {
-                return Err(DeviceError::hwloc_error(format!(
-                    "couldn't find object with the bus id {dev1bdf}"
-                )));
-            }
-
-            let dev2_obj = hwloc_get_pcidev_by_busidstring(self.topology, dev2bdf);
-            if dev2_obj.is_null() {
-                return Err(DeviceError::hwloc_error(format!(
-                    "couldn't find object with the bus id {dev2bdf}"
-                )));
-            }
-
-            let ancestor = hwloc_get_common_ancestor_obj(dev1_obj, dev2_obj);
-            if ancestor.is_null() {
-                return Err(DeviceError::hwloc_error(format!(
-                    "couldn't find a common ancestor for objects {dev1bdf} and {dev2bdf}"
-                )));
-            }
-
-            Ok(ancestor)
+        let dev1_obj = unsafe { hwloc_get_pcidev_by_busidstring(self.topology, dev1bdf) };
+        if dev1_obj.is_null() {
+            return Err(DeviceError::hwloc_error(format!(
+                "couldn't find object with the bus id {dev1bdf}"
+            )));
         }
+
+        let dev2_obj = unsafe { hwloc_get_pcidev_by_busidstring(self.topology, dev2bdf) };
+        if dev2_obj.is_null() {
+            return Err(DeviceError::hwloc_error(format!(
+                "couldn't find object with the bus id {dev2bdf}"
+            )));
+        }
+
+        let ancestor = unsafe { hwloc_get_common_ancestor_obj(dev1_obj, dev2_obj) };
+        if ancestor.is_null() {
+            return Err(DeviceError::hwloc_error(format!(
+                "couldn't find a common ancestor for objects {dev1bdf} and {dev2bdf}"
+            )));
+        }
+
+        Ok(ancestor)
     }
 
     fn destroy_topology(&mut self) {
-        unsafe {
-            if !self.topology.is_null() {
-                hwloc_topology_destroy(self.topology);
-                self.topology = std::ptr::null_mut();
-            }
+        if !self.topology.is_null() {
+            unsafe { hwloc_topology_destroy(self.topology) };
+            self.topology = std::ptr::null_mut();
         }
     }
 }
