@@ -41,9 +41,7 @@ name = "show_topology"
 path = "bin/show_topology.rs"
 
 [dependencies]
-array_tool = "1"
 cli-table = "0.4"
-enum-display-derive = "0.1"
 enum-utils = "0.1.2"
 itertools = "0.12.1"
 lazy_static = "1.4"
@@ -59,7 +57,6 @@ tokio = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter", "json"] }
 libc = "0.2.153"
-sscanf = "0.4.1"
 pkg-config = "0.3.8"
 autotools = "0.2"
 flate2 = "1.0"
