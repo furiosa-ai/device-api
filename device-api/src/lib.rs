@@ -74,7 +74,6 @@ pub use crate::error::{DeviceError, DeviceResult};
 use crate::list::{get_device_with, list_devices_with};
 
 mod arch;
-mod arch_impl;
 #[cfg(feature = "blocking")]
 #[cfg_attr(docsrs, doc(cfg(feature = "blocking")))]
 pub mod blocking;

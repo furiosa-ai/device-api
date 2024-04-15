@@ -1,11 +1,16 @@
+mod renegade;
+mod warboy;
+
 use std::fmt::{Display, Formatter};
 use std::path::{Path, PathBuf};
 
+use renegade::RenegadeInner;
 use strum_macros::{AsRefStr, EnumIter};
+use warboy::WarboyInner;
 
 use crate::device::DeviceInner;
 use crate::sysfs::npu_mgmt;
-use crate::{arch_impl, DeviceResult};
+use crate::DeviceResult;
 
 /// Enum for the NPU architecture.
 #[derive(
@@ -34,9 +39,9 @@ impl Arch {
         sysfs: &str,
     ) -> DeviceResult<Box<dyn DeviceInner>> {
         match self {
-            Arch::WarboyB0 => arch_impl::WarboyInner::new(*self, idx, sysfs.into())
+            Arch::WarboyB0 => WarboyInner::new(*self, idx, sysfs.into())
                 .map(|t| Box::new(t) as Box<dyn DeviceInner>),
-            Arch::Renegade => arch_impl::RenegadeInner::new(*self, idx, sysfs.into())
+            Arch::Renegade => RenegadeInner::new(*self, idx, sysfs.into())
                 .map(|t| Box::new(t) as Box<dyn DeviceInner>),
         }
     }

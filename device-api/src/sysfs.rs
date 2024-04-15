@@ -2,7 +2,7 @@ pub mod npu_mgmt {
     use std::collections::HashMap;
     use std::fs;
     use std::io;
-    use std::path::{Path};
+    use std::path::Path;
 
     #[allow(dead_code)]
     pub mod file {
