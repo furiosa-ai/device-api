@@ -85,7 +85,7 @@ pub mod npu_mgmt {
     /// It can be used to check `platform_type`.
     pub(crate) fn is_furiosa_platform(contents: &str) -> bool {
         let contents = contents.trim();
-        contents == "FuriosaAI" || contents == "VITIS"
+        contents == "FuriosaAI"
     }
 
     pub(crate) fn build_atr_error_map<S: AsRef<str>>(contents: S) -> HashMap<String, u32> {
