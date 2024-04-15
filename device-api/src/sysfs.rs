@@ -1,8 +1,12 @@
 pub mod npu_mgmt {
     use std::collections::HashMap;
     use std::fs;
+    use std::hash::Hash;
     use std::io;
     use std::path::Path;
+    use std::path::PathBuf;
+
+    use crate::DeviceResult;
 
     #[allow(dead_code)]
     pub mod file {
@@ -113,6 +117,50 @@ pub mod npu_mgmt {
             "0" => Some(false),
             "1" => Some(true),
             _ => None,
+        }
+    }
+
+    pub(crate) trait MgmtFileIO {
+        fn mgmt_root(&self) -> PathBuf;
+
+        fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
+            read_mgmt_to_string(self.mgmt_root(), file).map_err(|e| e.into())
+        }
+
+        fn write_ctrl_file<P: AsRef<Path>>(&self, file: P, contents: &str) -> DeviceResult<()> {
+            let path = &self.mgmt_root().join(file);
+            std::fs::write(path, contents)?;
+            Ok(())
+        }
+    }
+
+    pub(crate) trait MgmtFile {
+        fn filename(&self) -> &'static str;
+    }
+
+    #[derive(Clone)]
+    pub(crate) struct MgmtCache<K: Eq + Hash + MgmtFile> {
+        cache: HashMap<K, String>,
+    }
+
+    impl<K: Eq + Hash + MgmtFile> MgmtCache<K> {
+        pub fn init<P: AsRef<Path>>(
+            mgmt_root: P,
+            keys: impl Iterator<Item = K>,
+        ) -> io::Result<Self> {
+            let cache: io::Result<HashMap<_, _>> = keys
+                .map(|key| {
+                    let value = read_mgmt_to_string(&mgmt_root, key.filename())?;
+                    Ok((key, value))
+                })
+                .collect();
+
+            let cache = cache?;
+            Ok(MgmtCache { cache })
+        }
+
+        pub fn get(&self, key: &K) -> String {
+            self.cache.get(key).unwrap_or(&Default::default()).clone()
         }
     }
 }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -7,7 +7,7 @@ use strum_macros::EnumIter;
 use crate::device::{DeviceCtrl, DeviceInner, DeviceMgmt, DevicePerf};
 use crate::error::DeviceResult;
 use crate::perf_regs::PerformanceCounter;
-use crate::sysfs::npu_mgmt;
+use crate::sysfs::npu_mgmt::{self, MgmtCache, MgmtFile, MgmtFileIO};
 use crate::{Arch, ClockFrequency, DeviceError, DeviceFile};
 
 #[derive(Clone)]
@@ -16,19 +16,13 @@ pub struct WarboyInner {
     device_index: u8,
     sysfs: PathBuf,
     mgmt_root: PathBuf,
-    mgmt_cache: HashMap<StaticMgmtFile, String>,
+    mgmt_cache: MgmtCache<StaticMgmtFile>,
 }
 
 impl WarboyInner {
     pub fn new(arch: Arch, device_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
         let mgmt_root = sysfs.join(format!("class/npu_mgmt/npu{device_index}_mgmt"));
-        let m: DeviceResult<HashMap<_, _>> = StaticMgmtFile::iter()
-            .map(|key| {
-                let value = npu_mgmt::read_mgmt_to_string(&mgmt_root, key.filename())?;
-                Ok((key, value))
-            })
-            .collect();
-        let mgmt_cache = m?;
+        let mgmt_cache = MgmtCache::init(&mgmt_root, StaticMgmtFile::iter())?;
 
         Ok(WarboyInner {
             arch,
@@ -37,23 +31,6 @@ impl WarboyInner {
             mgmt_root,
             mgmt_cache,
         })
-    }
-
-    fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
-        npu_mgmt::read_mgmt_to_string(&self.mgmt_root, file).map_err(|e| e.into())
-    }
-
-    fn write_ctrl_file<P: AsRef<Path>>(&self, file: P, contents: &str) -> DeviceResult<()> {
-        let path = self.mgmt_root.join(file);
-        std::fs::write(path, contents)?;
-        Ok(())
-    }
-
-    fn get_mgmt_cache(&self, file: StaticMgmtFile) -> String {
-        self.mgmt_cache
-            .get(&file)
-            .unwrap_or(&Default::default())
-            .clone()
     }
 }
 
@@ -67,7 +44,7 @@ enum StaticMgmtFile {
     Version,
 }
 
-impl StaticMgmtFile {
+impl MgmtFile for StaticMgmtFile {
     fn filename(&self) -> &'static str {
         match self {
             StaticMgmtFile::BusName => npu_mgmt::file::BUS_NAME,
@@ -81,6 +58,12 @@ impl StaticMgmtFile {
 }
 
 impl DeviceInner for WarboyInner {}
+
+impl MgmtFileIO for WarboyInner {
+    fn mgmt_root(&self) -> PathBuf {
+        self.mgmt_root.clone()
+    }
+}
 
 impl DeviceMgmt for WarboyInner {
     fn sysfs(&self) -> &PathBuf {
@@ -112,27 +95,27 @@ impl DeviceMgmt for WarboyInner {
     }
 
     fn busname(&self) -> String {
-        self.get_mgmt_cache(StaticMgmtFile::BusName)
+        self.mgmt_cache.get(&StaticMgmtFile::BusName)
     }
 
     fn pci_dev(&self) -> String {
-        self.get_mgmt_cache(StaticMgmtFile::Dev)
+        self.mgmt_cache.get(&StaticMgmtFile::Dev)
     }
 
     fn device_sn(&self) -> String {
-        self.get_mgmt_cache(StaticMgmtFile::DeviceSN)
+        self.mgmt_cache.get(&StaticMgmtFile::DeviceSN)
     }
 
     fn device_uuid(&self) -> String {
-        self.get_mgmt_cache(StaticMgmtFile::DeviceUUID)
+        self.mgmt_cache.get(&StaticMgmtFile::DeviceUUID)
     }
 
     fn firmware_version(&self) -> String {
-        self.get_mgmt_cache(StaticMgmtFile::FWVersion)
+        self.mgmt_cache.get(&StaticMgmtFile::FWVersion)
     }
 
     fn driver_version(&self) -> String {
-        self.get_mgmt_cache(StaticMgmtFile::Version)
+        self.mgmt_cache.get(&StaticMgmtFile::Version)
     }
 
     fn heartbeat(&self) -> DeviceResult<u32> {
