@@ -20,7 +20,7 @@ pub enum Arch {
 }
 
 impl Arch {
-    pub(crate) fn devfile_path<P: AsRef<Path>>(self, devfs: P) -> PathBuf {
+    pub(crate) fn devfile_path<P: AsRef<Path>>(&self, devfs: P) -> PathBuf {
         match self {
             Arch::WarboyB0 => devfs.as_ref().to_path_buf(),
             Arch::Renegade => devfs.as_ref().join("renegade"),
@@ -28,20 +28,20 @@ impl Arch {
     }
 
     pub(crate) fn create_inner(
-        self,
+        &self,
         idx: u8,
         _devfs: &str,
         sysfs: &str,
     ) -> DeviceResult<Box<dyn DeviceInner>> {
         match self {
-            Arch::WarboyB0 => arch_impl::WarboyInner::new(self, idx, sysfs.into())
+            Arch::WarboyB0 => arch_impl::WarboyInner::new(self.clone(), idx, sysfs.into())
                 .map(|t| Box::new(t) as Box<dyn DeviceInner>),
-            Arch::Renegade => arch_impl::RenegadeInner::new(self, idx, sysfs.into())
+            Arch::Renegade => arch_impl::RenegadeInner::new(self.clone(), idx, sysfs.into())
                 .map(|t| Box::new(t) as Box<dyn DeviceInner>),
         }
     }
 
-    pub(crate) fn platform_type_path(self, idx: u8, sysfs: &str) -> PathBuf {
+    pub(crate) fn platform_type_path(&self, idx: u8, sysfs: &str) -> PathBuf {
         let platform_type = npu_mgmt::file::PLATFORM_TYPE;
         match self {
             Arch::WarboyB0 => {
