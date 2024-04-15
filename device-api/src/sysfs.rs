@@ -74,11 +74,11 @@ pub mod npu_mgmt {
         Level15 = 15,
     }
 
-    pub(crate) fn read_mgmt_to_string<P: AsRef<Path>>(
-        mgmt_root: PathBuf,
-        file: P,
+    pub(crate) fn read_mgmt_to_string<P: AsRef<Path>, F: AsRef<Path>>(
+        mgmt_root: P,
+        file: F,
     ) -> io::Result<String> {
-        let path = mgmt_root.join(file);
+        let path = mgmt_root.as_ref().join(file);
         fs::read_to_string(path).map(|s| s.trim_end().to_string())
     }
 

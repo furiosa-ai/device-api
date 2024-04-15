@@ -27,7 +27,7 @@ impl RenegadeInner {
         ));
         let m: DeviceResult<HashMap<_, _>> = StaticMgmtFile::iter()
             .map(|key| {
-                let value = npu_mgmt::read_mgmt_to_string(mgmt_root.clone(), key.filename())?;
+                let value = npu_mgmt::read_mgmt_to_string(&mgmt_root, key.filename())?;
                 Ok((key, value))
             })
             .collect();
@@ -43,7 +43,7 @@ impl RenegadeInner {
     }
 
     fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
-        npu_mgmt::read_mgmt_to_string(self.mgmt_root.clone(), file).map_err(|e| e.into())
+        npu_mgmt::read_mgmt_to_string(&self.mgmt_root, file).map_err(|e| e.into())
     }
 
     #[allow(dead_code)]

@@ -24,7 +24,7 @@ impl WarboyInner {
         let mgmt_root = sysfs.join(format!("class/npu_mgmt/npu{device_index}_mgmt"));
         let m: DeviceResult<HashMap<_, _>> = StaticMgmtFile::iter()
             .map(|key| {
-                let value = npu_mgmt::read_mgmt_to_string(mgmt_root.clone(), key.filename())?;
+                let value = npu_mgmt::read_mgmt_to_string(&mgmt_root, key.filename())?;
                 Ok((key, value))
             })
             .collect();
@@ -40,7 +40,7 @@ impl WarboyInner {
     }
 
     fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
-        npu_mgmt::read_mgmt_to_string(self.mgmt_root.clone(), file).map_err(|e| e.into())
+        npu_mgmt::read_mgmt_to_string(&self.mgmt_root, file).map_err(|e| e.into())
     }
 
     fn write_ctrl_file<P: AsRef<Path>>(&self, file: P, contents: &str) -> DeviceResult<()> {
