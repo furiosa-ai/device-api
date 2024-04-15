@@ -86,8 +86,7 @@ pub(crate) fn get_file_with(devfs: &str, device_name: &str) -> DeviceResult<Devi
 }
 
 pub(crate) fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
-    let devices = list_devices_with(devfs, sysfs)?;
-    devices
+    list_devices_with(devfs, sysfs)?
         .into_iter()
         .find(|d| d.device_index() == idx)
         .ok_or_else(|| DeviceError::device_not_found(format!("{idx}")))

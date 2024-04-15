@@ -37,8 +37,8 @@ pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<
 }
 
 pub(crate) async fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
-    let devices = list_devices_with(devfs, sysfs).await?;
-    devices
+    list_devices_with(devfs, sysfs)
+        .await?
         .into_iter()
         .find(|d| d.device_index() == idx)
         .ok_or_else(|| DeviceError::device_not_found(format!("{idx}")))
