@@ -13,7 +13,6 @@ use crate::{Arch, ClockFrequency, DeviceError, DeviceFile};
 
 #[derive(Clone, Debug)]
 pub struct WarboyInner {
-    arch: Arch,
     devfile_index: u8,
     sysfs: PathBuf,
     mgmt_root: PathBuf,
@@ -21,12 +20,11 @@ pub struct WarboyInner {
 }
 
 impl WarboyInner {
-    pub fn new(arch: Arch, devfile_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
+    pub fn new(devfile_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
         let mgmt_root = sysfs.join(format!("class/npu_mgmt/npu{devfile_index}_mgmt"));
         let mgmt_cache = MgmtCache::init(&mgmt_root, StaticMgmtFile::iter())?;
 
         Ok(WarboyInner {
-            arch,
             devfile_index,
             sysfs,
             mgmt_root,
@@ -75,8 +73,9 @@ impl DeviceMgmt for WarboyInner {
         self.devfile_index
     }
 
+    #[inline]
     fn arch(&self) -> Arch {
-        self.arch
+        Arch::WarboyB0
     }
 
     fn name(&self) -> String {
@@ -176,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_warboy_inner_functionality() -> eyre::Result<()> {
-        let device = WarboyInner::new(Arch::WarboyB0, 0, PathBuf::from("../test_data/test-1/sys"))?;
+        let device = WarboyInner::new(0, PathBuf::from("../test_data/test-1/sys"))?;
 
         assert_eq!(device.devfile_index(), 0);
         assert_eq!(device.arch(), Arch::WarboyB0);

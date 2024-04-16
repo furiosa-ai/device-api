@@ -38,10 +38,12 @@ impl Arch {
         sysfs: &str,
     ) -> DeviceResult<Box<dyn DeviceInner>> {
         match self {
-            Arch::WarboyB0 => WarboyInner::new(*self, idx, sysfs.into())
-                .map(|t| Box::new(t) as Box<dyn DeviceInner>),
-            Arch::Renegade => RenegadeInner::new(*self, idx, sysfs.into())
-                .map(|t| Box::new(t) as Box<dyn DeviceInner>),
+            Arch::WarboyB0 => {
+                WarboyInner::new(idx, sysfs.into()).map(|t| Box::new(t) as Box<dyn DeviceInner>)
+            }
+            Arch::Renegade => {
+                RenegadeInner::new(idx, sysfs.into()).map(|t| Box::new(t) as Box<dyn DeviceInner>)
+            }
         }
     }
 
