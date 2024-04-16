@@ -2,10 +2,8 @@ from enum import Enum
 from typing import Dict, List, Tuple, Union
 
 class Arch(Enum):
-    Warboy = ...
     WarboyB0 = ...
     Renegade = ...
-    U250 = ...
 
 class DeviceMode(Enum):
     Single = ...
@@ -47,7 +45,7 @@ class ClockFrequency:
 class DeviceConfig:
     def __new__(
         cls,
-        _arch: Arch = Arch.Warboy,
+        _arch: Arch = Arch.WarboyB0,
         mode: DeviceMode = DeviceMode.Fusion,
         count: int = 1,
     ) -> DeviceConfig: ...
