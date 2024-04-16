@@ -36,7 +36,7 @@ pub enum LinkType {
 }
 
 pub trait HardwareTopologyHint {
-    fn get_hw_topology_hint(&self) -> String;
+    fn get_bpf(&self) -> String;
 }
 
 pub struct Topology {
@@ -55,8 +55,8 @@ impl Topology {
 
     pub fn get_link_type<T: HardwareTopologyHint>(&self, device1: &T, device2: &T) -> LinkType {
         self.get_link_type_with_bdf(
-            device1.get_hw_topology_hint(),
-            device2.get_hw_topology_hint(),
+            device1.get_bpf(),
+            device2.get_bpf(),
         )
     }
 

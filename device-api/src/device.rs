@@ -290,7 +290,7 @@ impl PartialOrd for Device {
 }
 
 impl HardwareTopologyHint for Device {
-    fn get_hw_topology_hint(&self) -> String {
+    fn get_bpf(&self) -> String {
         self.busname().unwrap()
     }
 }
