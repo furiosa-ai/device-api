@@ -17,7 +17,6 @@ use crate::DeviceResult;
     AsRefStr, Clone, Copy, Debug, enum_utils::FromStr, Eq, PartialEq, PartialOrd, EnumIter,
 )]
 #[enumeration(case_insensitive)]
-// the order here is important, it will be used to determine the index of the devices
 pub enum Arch {
     #[enumeration(alias = "Warboy")]
     WarboyB0,
@@ -83,7 +82,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arch_devfile_dir() {
+    fn test_family_devfile_dir() {
         let warboy = Arch::WarboyB0;
         let renegade = Arch::Renegade;
 
@@ -95,7 +94,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arch_path_platform_type() {
+    fn test_family_path_platform_type() {
         let warboy = Arch::WarboyB0;
         let renegade = Arch::Renegade;
 
@@ -108,14 +107,5 @@ mod tests {
             renegade.platform_type_path(3, "/sys"),
             PathBuf::from("/sys/class/renegade_mgmt/renegade!npu3mgmt/platform_type")
         );
-    }
-
-    #[test]
-    fn test_arch_order() {
-        use strum::IntoEnumIterator;
-        let mut iter = Arch::iter();
-        assert_eq!(iter.next(), Some(Arch::WarboyB0));
-        assert_eq!(iter.next(), Some(Arch::Renegade));
-        assert_eq!(iter.next(), None);
     }
 }

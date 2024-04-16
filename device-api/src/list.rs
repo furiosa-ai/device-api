@@ -16,32 +16,48 @@ use crate::{hwmon, DeviceError};
 /// Allow to specify arbitrary sysfs, devfs paths for unit testing
 pub(crate) async fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
     let mut devices = Vec::new();
-    let mut idx: u8 = 0;
     for arch in Arch::iter() {
-        let dev_files = match list_dev_files(arch.devfile_path(devfs)).await {
-            Ok(files) => files,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Vec::new(),
-            Err(e) => return Err(e.into()),
-        };
-        let mut npu_dev_files_sorted = filter_dev_files(dev_files)?.into_iter().collect::<Vec<_>>();
-        npu_dev_files_sorted.sort_by_key(|(idx, _)| *idx);
-
-        for (_, paths) in npu_dev_files_sorted {
-            if let Ok(device) = get_device_inner(arch, idx, paths, devfs, sysfs).await {
-                devices.push(device);
-            }
-            idx += 1;
-        }
+        let d = list_devices_with_arch(arch, devfs, sysfs).await?;
+        devices.extend(d);
     }
     Ok(devices)
 }
 
-pub(crate) async fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
-    list_devices_with(devfs, sysfs)
-        .await?
-        .into_iter()
-        .find(|d| d.device_index() == idx)
-        .ok_or_else(|| DeviceError::device_not_found(format!("{idx}")))
+pub async fn list_devices_with_arch(
+    arch: Arch,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Vec<Device>> {
+    let dev_files = match list_dev_files(arch.devfile_path(devfs)).await {
+        Ok(files) => files,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    let npu_dev_files = filter_dev_files(dev_files)?;
+    let mut devices: Vec<Device> = Vec::with_capacity(npu_dev_files.keys().len());
+    for (idx, paths) in npu_dev_files {
+        if let Ok(device) = get_device_inner(arch, idx, paths, devfs, sysfs).await {
+            devices.push(device);
+        }
+    }
+
+    devices.sort();
+    Ok(devices)
+}
+
+/// Deprecated: idx no longer unique
+pub(crate) async fn get_device_with(
+    arch: Arch,
+    idx: u8,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Device> {
+    let mut npu_dev_files = filter_dev_files(list_dev_files(arch.devfile_path(devfs)).await?)?;
+    if let Some(paths) = npu_dev_files.remove(&idx) {
+        get_device_inner(arch, idx, paths, devfs, sysfs).await
+    } else {
+        Err(DeviceError::device_not_found(format!("npu{idx}")))
+    }
 }
 
 pub(crate) async fn get_device_inner(

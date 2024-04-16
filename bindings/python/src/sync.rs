@@ -7,6 +7,7 @@ use tokio::runtime::Runtime;
 use crate::device::{CoreStatusPy, DeviceFilePy, DevicePy};
 use crate::errors::to_py_err;
 use crate::hwmon::{FetcherPy, SensorValuePy};
+use crate::ArchPy;
 use crate::DeviceConfigPy;
 
 #[pyclass(extends=DevicePy, name="DeviceSync")]
@@ -130,8 +131,10 @@ fn list_devices_python_sync(py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
 
 /// This is sync version of get_device
 #[pyfunction(name = "get_device")]
-fn get_device_python_sync(idx: u8) -> PyResult<DevicePy> {
-    get_device(idx).map(DevicePy::new).map_err(to_py_err)
+fn get_device_python_sync(arch: ArchPy, idx: u8) -> PyResult<DevicePy> {
+    get_device(arch.into(), idx)
+        .map(DevicePy::new)
+        .map_err(to_py_err)
 }
 
 /// This is sync version of find_device_files

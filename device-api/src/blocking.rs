@@ -23,32 +23,42 @@ pub fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys")
 }
 
-/// Allow to specify arbitrary sysfs, devfs paths for unit testing
 fn list_devices_with(devfs: &str, sysfs: &str) -> DeviceResult<Vec<Device>> {
     let mut devices = Vec::new();
-    let mut idx: u8 = 0;
     for arch in Arch::iter() {
-        let dev_files = match list_dev_files(arch.devfile_path(devfs)) {
-            Ok(files) => files,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Vec::new(),
-            Err(e) => return Err(e.into()),
-        };
-        let mut npu_dev_files_sorted = filter_dev_files(dev_files)?.into_iter().collect::<Vec<_>>();
-        npu_dev_files_sorted.sort_by_key(|(idx, _)| *idx);
-
-        for (_, paths) in npu_dev_files_sorted {
-            if let Ok(device) = get_device_inner(arch, idx, paths, devfs, sysfs) {
-                devices.push(device);
-            }
-            idx += 1;
-        }
+        let d = list_devices_with_arch(arch, devfs, sysfs)?;
+        devices.extend(d);
     }
     Ok(devices)
 }
 
+/// Allow to specify arbitrary sysfs, devfs paths for unit testing
+pub(crate) fn list_devices_with_arch(
+    arch: Arch,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Vec<Device>> {
+    let mut devices = Vec::new();
+    let dev_files = match list_dev_files(arch.devfile_path(devfs)) {
+        Ok(files) => files,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    let npu_dev_files = filter_dev_files(dev_files)?;
+
+    for (idx, paths) in npu_dev_files {
+        if let Ok(device) = get_device_inner(arch, idx, paths, devfs, sysfs) {
+            devices.push(device);
+        }
+    }
+
+    devices.sort();
+    Ok(devices)
+}
+
 /// Return a specific Furiosa NPU device in the system.
-pub fn get_device(idx: u8) -> DeviceResult<Device> {
-    get_device_with(idx, "/dev", "/sys")
+pub fn get_device(arch: Arch, idx: u8) -> DeviceResult<Device> {
+    get_device_with(arch, idx, "/dev", "/sys")
 }
 
 /// Find a set of devices with specific configuration.
@@ -85,11 +95,18 @@ pub(crate) fn get_file_with(devfs: &str, device_name: &str) -> DeviceResult<Devi
     DeviceFile::try_from(&path)
 }
 
-pub(crate) fn get_device_with(idx: u8, devfs: &str, sysfs: &str) -> DeviceResult<Device> {
-    list_devices_with(devfs, sysfs)?
-        .into_iter()
-        .find(|d| d.device_index() == idx)
-        .ok_or_else(|| DeviceError::device_not_found(format!("{idx}")))
+pub(crate) fn get_device_with(
+    arch: Arch,
+    idx: u8,
+    devfs: &str,
+    sysfs: &str,
+) -> DeviceResult<Device> {
+    let mut npu_dev_files = filter_dev_files(list_dev_files(arch.devfile_path(devfs))?)?;
+    if let Some(paths) = npu_dev_files.remove(&idx) {
+        get_device_inner(arch, idx, paths, devfs, sysfs)
+    } else {
+        Err(DeviceError::device_not_found(format!("npu{idx}")))
+    }
 }
 
 pub(crate) fn get_device_inner(
