@@ -54,10 +54,7 @@ impl Topology {
     }
 
     pub fn get_link_type<T: HardwareTopologyHint>(&self, device1: &T, device2: &T) -> LinkType {
-        self.get_link_type_with_bdf(
-            device1.get_bpf(),
-            device2.get_bpf(),
-        )
+        self.get_link_type_with_bdf(device1.get_bpf(), device2.get_bpf())
     }
 
     fn get_link_type_with_bdf(&self, dev1_bdf: String, dev2_bdf: String) -> LinkType {
