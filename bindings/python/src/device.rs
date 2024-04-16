@@ -134,7 +134,7 @@ impl DevicePy {
 
     /// Returns the device index (e.g., 0 for npu0).
     fn device_index(&self) -> u8 {
-        self.inner.device_index()
+        self.inner.devfile_index()
     }
 
     /// Returns `Arch` of the device(e.g., `Warboy`).
@@ -361,7 +361,7 @@ impl DeviceFilePy {
 
     /// Returns the device index (e.g., 1 for npu1pe0).
     fn device_index(&self) -> u8 {
-        self.inner.device_index()
+        self.inner.devfile_index()
     }
 
     /// Returns the range of cores this device file may occupy.

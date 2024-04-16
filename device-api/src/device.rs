@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::path::PathBuf;
 
 use dyn_clone::DynClone;
@@ -54,13 +54,13 @@ dyn_clone::clone_trait_object!(DeviceInner);
 
 impl core::fmt::Debug for dyn DeviceInner {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}", self.arch(), self.device_index())
+        write!(f, "{}/{}", self.arch(), self.devfile_index())
     }
 }
 
 pub(crate) trait DeviceMgmt {
     fn sysfs(&self) -> &PathBuf;
-    fn device_index(&self) -> u8;
+    fn devfile_index(&self) -> u8;
     fn arch(&self) -> Arch;
     fn busname(&self) -> String;
     fn pci_dev(&self) -> String;
@@ -102,12 +102,12 @@ impl Device {
 
     /// Returns the name of the device (e.g., npu0).
     pub fn name(&self) -> String {
-        format!("npu{}", self.device_index())
+        format!("npu{}", self.devfile_index())
     }
 
     /// Returns the device index (e.g., 0 for npu0).
-    pub fn device_index(&self) -> u8 {
-        self.inner.device_index()
+    pub fn devfile_index(&self) -> u8 {
+        self.inner.devfile_index()
     }
 
     /// Returns `Arch` of the device(e.g., `Warboy`).
@@ -289,7 +289,7 @@ impl Device {
 
 impl Display for Device {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "npu{}", self.device_index())
+        write!(f, "npu{}", self.devfile_index())
     }
 }
 
@@ -297,13 +297,13 @@ impl Eq for Device {}
 
 impl Ord for Device {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.device_index().cmp(&other.device_index())
+        self.devfile_index().cmp(&other.devfile_index())
     }
 }
 
 impl PartialEq for Device {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.device_index() == other.inner.device_index()
+        self.inner.devfile_index() == other.inner.devfile_index()
             && self.inner.arch() == other.inner.arch()
             && self.hwmon_fetcher == other.hwmon_fetcher
             && self.cores == other.cores
@@ -411,7 +411,7 @@ impl TryFrom<(u8, u8)> for CoreRange {
 /// An abstraction for a device file and its mode.
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct DeviceFile {
-    pub(crate) device_index: u8,
+    pub(crate) devfile_index: u8,
     pub(crate) core_range: CoreRange,
     pub(crate) path: PathBuf,
     pub(crate) mode: DeviceMode,
@@ -425,7 +425,7 @@ impl Display for DeviceFile {
 
 impl Ord for DeviceFile {
     fn cmp(&self, other: &Self) -> Ordering {
-        (self.device_index, self.core_range).cmp(&(other.device_index(), other.core_range()))
+        (self.devfile_index, self.core_range).cmp(&(other.devfile_index(), other.core_range()))
     }
 }
 
@@ -452,8 +452,8 @@ impl DeviceFile {
     }
 
     /// Returns the device index (e.g., 1 for npu1pe0).
-    pub fn device_index(&self) -> u8 {
-        self.device_index
+    pub fn devfile_index(&self) -> u8 {
+        self.devfile_index
     }
 
     /// Returns the range of cores this device file may occupy.
@@ -467,7 +467,7 @@ impl DeviceFile {
     }
 
     pub fn has_intersection(&self, other: &Self) -> bool {
-        self.device_index() == other.device_index()
+        self.devfile_index() == other.devfile_index()
             && self.core_range().has_intersection(&other.core_range())
     }
 }
@@ -482,7 +482,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
             .to_string_lossy()
             .to_string();
 
-        let (device_index, core_indices) = devfs::parse_indices(file_name)?;
+        let (devfile_index, core_indices) = devfs::parse_indices(file_name)?;
 
         let (mode, core_range) = match core_indices.len() {
             0 => (DeviceMode::MultiCore, CoreRange::All),
@@ -495,7 +495,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
         };
 
         Ok(DeviceFile {
-            device_index,
+            devfile_index,
             core_range,
             path: path.clone(),
             mode,
@@ -581,7 +581,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0"),
                 core_range: CoreRange::All,
                 mode: DeviceMode::MultiCore,
@@ -591,7 +591,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe0"),
                 core_range: CoreRange::Range((0, 0)),
                 mode: DeviceMode::Single,
@@ -600,7 +600,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe1"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe1"),
                 core_range: CoreRange::Range((1, 1)),
                 mode: DeviceMode::Single,
@@ -609,7 +609,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-1"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe0-1"),
                 core_range: CoreRange::Range((0, 1)),
                 mode: DeviceMode::Fusion,
@@ -618,7 +618,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-2"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe0-2"),
                 core_range: CoreRange::Range((0, 2)),
                 mode: DeviceMode::Fusion,

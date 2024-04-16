@@ -56,11 +56,6 @@ pub(crate) fn list_devices_with_arch(
     Ok(devices)
 }
 
-/// Return a specific Furiosa NPU device in the system.
-pub fn get_device(arch: Arch, idx: u8) -> DeviceResult<Device> {
-    get_device_with(arch, idx, "/dev", "/sys")
-}
-
 /// Find a set of devices with specific configuration.
 pub fn find_device_files(config: &DeviceConfig) -> DeviceResult<Vec<DeviceFile>> {
     let devices = expand_status(list_devices()?)?;
@@ -93,20 +88,6 @@ pub(crate) fn get_file_with(devfs: &str, device_name: &str) -> DeviceResult<Devi
     devfs::parse_indices(path.file_name().expect("not a file").to_string_lossy())?;
 
     DeviceFile::try_from(&path)
-}
-
-pub(crate) fn get_device_with(
-    arch: Arch,
-    idx: u8,
-    devfs: &str,
-    sysfs: &str,
-) -> DeviceResult<Device> {
-    let mut npu_dev_files = filter_dev_files(list_dev_files(arch.devfile_path(devfs))?)?;
-    if let Some(paths) = npu_dev_files.remove(&idx) {
-        get_device_inner(arch, idx, paths, devfs, sysfs)
-    } else {
-        Err(DeviceError::device_not_found(format!("npu{idx}")))
-    }
 }
 
 pub(crate) fn get_device_inner(

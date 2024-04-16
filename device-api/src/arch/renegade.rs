@@ -14,7 +14,7 @@ use crate::DeviceError;
 #[derive(Clone)]
 pub struct RenegadeInner {
     arch: Arch,
-    device_index: u8,
+    devfile_index: u8,
     sysfs: PathBuf,
     mgmt_root: PathBuf,
     mgmt_cache: MgmtCache<StaticMgmtFile>,
@@ -29,7 +29,7 @@ impl RenegadeInner {
 
         Ok(RenegadeInner {
             arch,
-            device_index,
+            devfile_index: device_index,
             sysfs,
             mgmt_root,
             mgmt_cache,
@@ -73,8 +73,8 @@ impl DeviceMgmt for RenegadeInner {
         &self.sysfs
     }
 
-    fn device_index(&self) -> u8 {
-        self.device_index
+    fn devfile_index(&self) -> u8 {
+        self.devfile_index
     }
 
     #[inline]
@@ -169,7 +169,7 @@ mod tests {
         let device =
             RenegadeInner::new(Arch::Renegade, 0, PathBuf::from("../test_data/test-1/sys"))?;
 
-        assert_eq!(device.device_index(), 0);
+        assert_eq!(device.devfile_index(), 0);
         assert_eq!(device.arch(), Arch::Renegade);
         assert!(device.alive()?);
         assert_eq!(device.atr_error()?.len(), 9);

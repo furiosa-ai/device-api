@@ -1,4 +1,4 @@
-use furiosa_device::{find_device_files, get_device, get_device_file, list_devices};
+use furiosa_device::{find_device_files, get_device_file, list_devices};
 use hwmon::FetcherPy;
 use pyo3::prelude::*;
 
@@ -42,28 +42,6 @@ fn list_devices_python(py: Python<'_>) -> PyResult<&PyAny> {
                     .map(DevicePy::new)
                     .collect::<Vec<DevicePy>>()
             })
-            .map_err(to_py_err)
-    })
-}
-
-/// `get_device` returns a specific Furiosa NPU device in the system.
-/// One can simply call as below:
-/// ```python
-/// import asyncio
-/// from furiosa_device import get_device
-///
-/// async def main():
-///     device = await furiosa_device.get_device(0)
-/// asyncio.run(main())
-/// ```
-///
-/// `Device` offers methods for further information of each device.
-#[pyfunction(name = "get_device")]
-fn get_device_python(py: Python<'_>, arch: ArchPy, idx: u8) -> PyResult<&PyAny> {
-    pyo3_asyncio::tokio::future_into_py(py, async move {
-        get_device(arch.into(), idx)
-            .await
-            .map(DevicePy::new)
             .map_err(to_py_err)
     })
 }
@@ -118,7 +96,6 @@ fn get_device_file_python(py: Python<'_>, device_name: String) -> PyResult<&PyAn
 #[pyo3(name = "furiosa_native_device")]
 fn furiosa_device_python(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_devices_python, m)?)?;
-    m.add_function(wrap_pyfunction!(get_device_python, m)?)?;
     m.add_function(wrap_pyfunction!(find_device_files_python, m)?)?;
     m.add_function(wrap_pyfunction!(get_device_file_python, m)?)?;
     m.add_class::<DevicePy>()?;

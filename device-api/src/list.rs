@@ -45,21 +45,6 @@ pub async fn list_devices_with_arch(
     Ok(devices)
 }
 
-/// Deprecated: idx no longer unique
-pub(crate) async fn get_device_with(
-    arch: Arch,
-    idx: u8,
-    devfs: &str,
-    sysfs: &str,
-) -> DeviceResult<Device> {
-    let mut npu_dev_files = filter_dev_files(list_dev_files(arch.devfile_path(devfs)).await?)?;
-    if let Some(paths) = npu_dev_files.remove(&idx) {
-        get_device_inner(arch, idx, paths, devfs, sysfs).await
-    } else {
-        Err(DeviceError::device_not_found(format!("npu{idx}")))
-    }
-}
-
 pub(crate) async fn get_device_inner(
     arch: Arch,
     idx: u8,

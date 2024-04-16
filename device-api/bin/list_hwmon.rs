@@ -5,7 +5,7 @@ async fn main() -> Result<(), DeviceError> {
     for device in list_devices().await? {
         let fetcher = device.get_hwmon_fetcher();
 
-        println!("-- npu{} --", device.device_index());
+        println!("-- npu{} --", device.devfile_index());
         println!("Current");
         for sensor_value in fetcher.read_currents().await? {
             println!(
