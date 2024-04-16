@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::path::PathBuf;
 
 use strum::IntoEnumIterator;
@@ -11,7 +12,7 @@ use crate::Arch;
 use crate::ClockFrequency;
 use crate::DeviceError;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RenegadeInner {
     arch: Arch,
     devfile_index: u8,
@@ -21,15 +22,15 @@ pub struct RenegadeInner {
 }
 
 impl RenegadeInner {
-    pub fn new(arch: Arch, device_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
+    pub fn new(arch: Arch, devfile_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
         let mgmt_root = sysfs.join(format!(
-            "class/renegade_mgmt/renegade!npu{device_index}mgmt"
+            "class/renegade_mgmt/renegade!npu{devfile_index}mgmt"
         ));
         let mgmt_cache = MgmtCache::init(&mgmt_root, StaticMgmtFile::iter())?;
 
         Ok(RenegadeInner {
             arch,
-            devfile_index: device_index,
+            devfile_index,
             sysfs,
             mgmt_root,
             mgmt_cache,
@@ -37,7 +38,7 @@ impl RenegadeInner {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, EnumIter)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, EnumIter)]
 enum StaticMgmtFile {
     BusName,
     Dev,
@@ -80,6 +81,10 @@ impl DeviceMgmt for RenegadeInner {
     #[inline]
     fn arch(&self) -> Arch {
         self.arch
+    }
+
+    fn name(&self) -> String {
+        format!("/dev/renegade/npu{}", self.devfile_index())
     }
 
     fn alive(&self) -> DeviceResult<bool> {

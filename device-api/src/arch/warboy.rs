@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::path::PathBuf;
 
 use strum::IntoEnumIterator;
@@ -10,7 +11,7 @@ use crate::perf_regs::PerformanceCounter;
 use crate::sysfs::npu_mgmt::{self, MgmtCache, MgmtFile, MgmtFileIO};
 use crate::{Arch, ClockFrequency, DeviceError, DeviceFile};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WarboyInner {
     arch: Arch,
     devfile_index: u8,
@@ -20,13 +21,13 @@ pub struct WarboyInner {
 }
 
 impl WarboyInner {
-    pub fn new(arch: Arch, device_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
-        let mgmt_root = sysfs.join(format!("class/npu_mgmt/npu{device_index}_mgmt"));
+    pub fn new(arch: Arch, devfile_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
+        let mgmt_root = sysfs.join(format!("class/npu_mgmt/npu{devfile_index}_mgmt"));
         let mgmt_cache = MgmtCache::init(&mgmt_root, StaticMgmtFile::iter())?;
 
         Ok(WarboyInner {
             arch,
-            devfile_index: device_index,
+            devfile_index,
             sysfs,
             mgmt_root,
             mgmt_cache,
@@ -34,7 +35,7 @@ impl WarboyInner {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, EnumIter)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, EnumIter)]
 enum StaticMgmtFile {
     BusName,
     Dev,
@@ -76,6 +77,10 @@ impl DeviceMgmt for WarboyInner {
 
     fn arch(&self) -> Arch {
         self.arch
+    }
+
+    fn name(&self) -> String {
+        format!("/dev/npu{}", self.devfile_index())
     }
 
     fn alive(&self) -> DeviceResult<bool> {

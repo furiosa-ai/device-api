@@ -138,7 +138,7 @@ pub mod npu_mgmt {
         fn filename(&self) -> &'static str;
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub(crate) struct MgmtCache<K: Eq + Hash + MgmtFile> {
         cache: HashMap<K, String>,
     }

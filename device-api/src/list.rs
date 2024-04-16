@@ -55,7 +55,7 @@ pub(crate) async fn get_device_inner(
     if is_furiosa_device(arch, idx, sysfs).await {
         let inner = arch.create_inner(idx, devfs, sysfs)?;
         let busname = inner.busname();
-        let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, idx, &busname).await?;
+        let hwmon_fetcher = crate::hwmon::Fetcher::new(sysfs, &inner.name(), &busname).await?;
 
         let device = collect_devices(inner, hwmon_fetcher, paths)?;
         Ok(device)

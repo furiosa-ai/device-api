@@ -46,22 +46,17 @@ pub struct Device {
 }
 
 pub(crate) trait DeviceInner:
-    DeviceMgmt + DeviceCtrl + DevicePerf + DynClone + Send + Sync
+    DeviceMgmt + DeviceCtrl + DevicePerf + DynClone + Send + Sync + Debug
 {
 }
 
 dyn_clone::clone_trait_object!(DeviceInner);
 
-impl core::fmt::Debug for dyn DeviceInner {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}", self.arch(), self.devfile_index())
-    }
-}
-
 pub(crate) trait DeviceMgmt {
     fn sysfs(&self) -> &PathBuf;
-    fn devfile_index(&self) -> u8;
     fn arch(&self) -> Arch;
+    fn devfile_index(&self) -> u8;
+    fn name(&self) -> String;
     fn busname(&self) -> String;
     fn pci_dev(&self) -> String;
     fn device_sn(&self) -> String;
@@ -100,12 +95,12 @@ impl Device {
         }
     }
 
-    /// Returns the name of the device (e.g., npu0).
+    /// Returns the name of the device, represented by the common prefix of the character device file (e.g., /dev/npu0).
     pub fn name(&self) -> String {
-        format!("npu{}", self.devfile_index())
+        self.inner.name()
     }
 
-    /// Returns the device index (e.g., 0 for npu0).
+    /// Returns the device file index (e.g., 0 for /dev/npu0).
     pub fn devfile_index(&self) -> u8 {
         self.inner.devfile_index()
     }
@@ -289,7 +284,7 @@ impl Device {
 
 impl Display for Device {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "npu{}", self.devfile_index())
+        write!(f, "{}", self.name())
     }
 }
 

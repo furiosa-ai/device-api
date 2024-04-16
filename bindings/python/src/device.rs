@@ -132,8 +132,8 @@ impl DevicePy {
         self.inner.name()
     }
 
-    /// Returns the device index (e.g., 0 for npu0).
-    fn device_index(&self) -> u8 {
+    /// Returns the device file index (e.g., 0 for npu0).
+    fn devfile_index(&self) -> u8 {
         self.inner.devfile_index()
     }
 
@@ -360,7 +360,7 @@ impl DeviceFilePy {
     }
 
     /// Returns the device index (e.g., 1 for npu1pe0).
-    fn device_index(&self) -> u8 {
+    fn devfile_index(&self) -> u8 {
         self.inner.devfile_index()
     }
 

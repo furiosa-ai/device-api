@@ -100,11 +100,11 @@ pub(crate) fn get_device_inner(
     if is_furiosa_device(arch, idx, sysfs) {
         let inner = arch.create_inner(idx, devfs, sysfs)?;
         let busname = inner.busname();
-        let hwmon_fetcher = hwmon_fetcher_new(sysfs, idx, &busname)?;
+        let hwmon_fetcher = hwmon_fetcher_new(sysfs, &inner.name(), &busname)?;
         let device = collect_devices(inner, hwmon_fetcher, paths)?;
         Ok(device)
     } else {
-        Err(DeviceError::device_not_found(format!("npu{idx}")))
+        Err(DeviceError::device_not_found(format!("{arch}/{idx}")))
     }
 }
 
@@ -180,14 +180,14 @@ pub fn get_status_all(device: &Device) -> DeviceResult<HashMap<CoreIdx, CoreStat
 
 fn hwmon_fetcher_new(
     base_dir: &str,
-    device_index: u8,
+    device_name: &str,
     busname: &str,
 ) -> DeviceResult<hwmon::Fetcher> {
     Ok(hwmon::Fetcher {
-        device_index,
+        device_name: device_name.to_string(),
         sensor_container: hwmon::SensorContainer::new_blocking(base_dir, busname).map_err(
             |cause| DeviceError::HwmonError {
-                device_index,
+                device_name: device_name.to_string(),
                 cause,
             },
         )?,
