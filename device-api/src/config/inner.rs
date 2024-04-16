@@ -277,7 +277,7 @@ mod tests {
 
         assert!(config.fit(Arch::WarboyB0, &npu0pe0));
         assert!(config.fit(Arch::WarboyB0, &npu0pe1));
-        assert!(!config.fit(Arch::Renegade, &npu0pe0));
+        assert!(!config.fit(Arch::RNGD, &npu0pe0));
         assert!(!config.fit(Arch::WarboyB0, &npu0pe0_1));
 
         Ok(())
