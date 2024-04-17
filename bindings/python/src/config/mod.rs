@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
-use furiosa_device::DeviceConfig;
+use furiosa_device::{Arch, DeviceConfig};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
+use crate::arch::ArchPy;
 use crate::errors::to_py_err;
-use crate::{arch::ArchPy, device::DeviceModePy};
 
 /// Describes a required set of devices for `find_device_files`.
 ///
@@ -21,7 +21,7 @@ use crate::{arch::ArchPy, device::DeviceModePy};
 /// config = DeviceConfig(arch=Arch.Warboy, count=2)
 ///
 /// # Fused 2 cores x 2
-/// config = DeviceConfig(arch=Arch.Warboy, mode=DeviceMode.Fusion, count=2)
+/// config = DeviceConfig(arch=Arch.Warboy, cores=2, count=2)
 /// ```
 ///
 /// # Textual Representation
@@ -43,8 +43,8 @@ use crate::{arch::ArchPy, device::DeviceModePy};
 /// from furiosa_device import DeviceConfig
 ///
 /// # Using specific device names
-/// config = DeviceConfig.from_str("0:0"); # npu0pe0
-/// config = DeviceConfig.from_str("0:0-1"); # npu0pe0-1
+/// config = DeviceConfig.from_str("warboy:0:0"); # warboy / npu0pe0
+/// config = DeviceConfig.from_str("warboy:0:0-1"); # warboy / npu0pe0-1
 ///
 /// # Using device configs
 /// config = DeviceConfig.from_str("warboy*2"); # single pe x 2 (equivalent to "warboy(1)*2")
@@ -52,7 +52,7 @@ use crate::{arch::ArchPy, device::DeviceModePy};
 /// config = DeviceConfig.from_str("warboy(2)*2"); # 2-pe fusioned x 2
 ///
 /// # Combine multiple representations separated by commas
-/// config = DeviceConfig.from_str("0:0-1, 1:0-1"); # npu0pe0-1, npu1pe0-1
+/// config = DeviceConfig.from_str("warboy:0:0-1, warboy:1:0-1"); # warbpy / npu0pe0-1, warboy / npu1pe0-1
 /// ```
 #[pyclass(name = "DeviceConfig")]
 #[derive(Clone)]
@@ -69,8 +69,8 @@ impl DeviceConfigPy {
 #[pymethods]
 impl DeviceConfigPy {
     #[new]
-    #[pyo3(signature = (arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
-    fn py_new(arch: ArchPy, mode: DeviceModePy, count: u8) -> PyResult<DeviceConfigPy> {
+    #[pyo3(signature = (arch=ArchPy::Warboy, cores=1, count=1))]
+    fn py_new(arch: ArchPy, cores: u8, count: u8) -> PyResult<DeviceConfigPy> {
         let config = match arch {
             ArchPy::Warboy => DeviceConfig::warboy(),
             _ => {
@@ -80,13 +80,13 @@ impl DeviceConfigPy {
                 )))
             }
         };
-        let config = match mode {
-            DeviceModePy::Single => config.single(),
-            DeviceModePy::MultiCore => config.multicore(),
-            DeviceModePy::Fusion => config.fused(),
+        if !Arch::from(arch.clone()).is_fusible_count(cores) {
+            return Err(PyRuntimeError::new_err(format!(
+                "Invalid core count: {} cores are not available for {:?}",
+                cores, arch
+            )));
         }
-        .count(count);
-        Ok(DeviceConfigPy::new(config))
+        Ok(DeviceConfigPy::new(config.cores(cores).count(count)))
     }
 
     fn __repr__(&self) -> String {

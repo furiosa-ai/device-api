@@ -10,7 +10,7 @@ use crate::{DeviceError, DeviceResult};
 lazy_static! {
     // Update MATCH_PATTERN_NUM when you change this pattern
     static ref DEVICE_FILE_PATTERN: Regex =
-    Regex::new(r"^npu(?P<device_id>\d+)((?:pe)(?P<start_core>\d+)(-(?P<end_core>\d+))?)?$").unwrap();
+    Regex::new(r"^npu(?P<device_id>\d+)((?:pe)(?P<start_core>\d+)(-(?P<end_core>\d+))?)$").unwrap();
 }
 
 pub(crate) fn path<P: AsRef<Path>>(base_path: P, filename: &str) -> PathBuf {
@@ -37,7 +37,6 @@ pub(crate) fn parse_indices<S: AsRef<str>>(filename: S) -> DeviceResult<(u8, Vec
     let end_core = parse_id(name, matches.name("end_core"));
 
     let (device_id, core_ids) = match (device_id, core_start, end_core) {
-        (Some(device_id), None, None) => (device_id?, vec![]),
         (Some(device_id), Some(start_core), None) => (device_id?, vec![start_core?]),
         (Some(device_id), Some(start_core), Some(end_core)) => {
             (device_id?, (start_core?..=end_core?).collect())
@@ -62,11 +61,8 @@ mod tests {
 
     #[test]
     fn test_file_pattern() {
-        let items = DEVICE_FILE_PATTERN.captures("npu0").unwrap();
-
-        assert_eq!("npu0", items.get(0).unwrap().as_str());
-        assert_eq!("0", items.name("device_id").unwrap().as_str());
-        assert!(items.name("start_core").is_none());
+        // device file without pe, which previously meant Warboy's multicore mode, is no longer supported
+        assert!(DEVICE_FILE_PATTERN.captures("npu0").is_none());
 
         // Only start_core
         let items = DEVICE_FILE_PATTERN.captures("npu0pe4").unwrap();
@@ -90,11 +86,11 @@ mod tests {
 
     #[test]
     fn test_parse_indices() -> DeviceResult<()> {
-        assert_eq!(parse_indices("npu0")?, (0, vec![]));
         assert_eq!(parse_indices("npu3pe4")?, (3, vec![4]));
         assert_eq!(parse_indices("npu3pe4-7")?, (3, vec![4, 5, 6, 7]));
 
         // incomplete cases
+        assert!(parse_indices("npu0").is_err());
         assert!(parse_indices("npu").is_err());
         assert!(parse_indices("npu0pe").is_err());
         assert!(parse_indices("npu0pe0-").is_err());

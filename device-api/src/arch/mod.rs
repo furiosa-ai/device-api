@@ -24,6 +24,20 @@ pub enum Arch {
 }
 
 impl Arch {
+    pub fn num_pe(&self) -> u8 {
+        match self {
+            Arch::WarboyB0 => 2,
+            Arch::Renegade => 8,
+        }
+    }
+
+    pub fn is_fusible_count(&self, count: u8) -> bool {
+        match self {
+            Arch::WarboyB0 => matches!(count, 1 | 2),
+            Arch::Renegade => matches!(count, 1 | 2 | 4),
+        }
+    }
+
     pub(crate) fn devfile_path<P: AsRef<Path>>(&self, devfs: P) -> PathBuf {
         match self {
             Arch::WarboyB0 => devfs.as_ref().to_path_buf(),

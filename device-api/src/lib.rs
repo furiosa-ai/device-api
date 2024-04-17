@@ -44,7 +44,7 @@
 //! // Find two Warboy devices, fused.
 //! # #[tokio::main]
 //! # async fn main() -> eyre::Result<()> {
-//! let config = DeviceConfig::warboy().fused().count(2);
+//! let config = DeviceConfig::warboy().cores(2).count(2);
 //! let dev_files = find_device_files(&config).await?;
 //! # Ok(())
 //! # }
@@ -67,9 +67,7 @@
 pub use crate::arch::Arch;
 use crate::config::{expand_status, find_device_files_in};
 pub use crate::config::{DeviceConfig, DeviceConfigBuilder, EnvBuilder, NotDetermined};
-pub use crate::device::{
-    ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode, NumaNode,
-};
+pub use crate::device::{ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, NumaNode};
 pub use crate::error::{DeviceError, DeviceResult};
 use crate::list::list_devices_with;
 

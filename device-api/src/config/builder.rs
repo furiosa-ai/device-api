@@ -1,6 +1,5 @@
-use super::inner::{Config, Count, DeviceConfigInner};
+use super::inner::{Config, Cores, Count, DeviceConfigInner};
 use crate::arch::Arch;
-use crate::device::DeviceMode;
 use crate::{DeviceConfig, DeviceError};
 
 #[derive(Clone)]
@@ -25,9 +24,9 @@ impl From<NotDetermined> for Arch {
     }
 }
 
-impl From<NotDetermined> for DeviceMode {
+impl From<NotDetermined> for Cores {
     fn from(_: NotDetermined) -> Self {
-        DeviceMode::Fusion
+        Cores(1)
     }
 }
 
@@ -50,48 +49,32 @@ impl From<All> for Count {
 
 /// A builder struct for `DeviceConfig`.
 #[derive(Clone)]
-pub struct DeviceConfigBuilder<A, M, C> {
+pub struct DeviceConfigBuilder<A, N, C> {
     pub(crate) arch: A,
-    pub(crate) mode: M,
+    pub(crate) cores: N,
     pub(crate) count: C,
 }
 
 impl<A, C> DeviceConfigBuilder<A, NotDetermined, C> {
-    pub fn multicore(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
+    pub fn cores(self, n: u8) -> DeviceConfigBuilder<A, Cores, C> {
         DeviceConfigBuilder {
             arch: self.arch,
-            mode: DeviceMode::MultiCore,
-            count: self.count,
-        }
-    }
-
-    pub fn single(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
-        DeviceConfigBuilder {
-            arch: self.arch,
-            mode: DeviceMode::Single,
-            count: self.count,
-        }
-    }
-
-    pub fn fused(self) -> DeviceConfigBuilder<A, DeviceMode, C> {
-        DeviceConfigBuilder {
-            arch: self.arch,
-            mode: DeviceMode::Fusion,
+            cores: Cores(n),
             count: self.count,
         }
     }
 }
 
-impl<A, M, C> DeviceConfigBuilder<A, M, C>
+impl<A, N, C> DeviceConfigBuilder<A, N, C>
 where
     Arch: From<A>,
-    DeviceMode: From<M>,
+    Cores: From<N>,
     Count: From<C>,
 {
     pub fn count(self, count: u8) -> DeviceConfig {
         let builder = DeviceConfigBuilder {
             arch: self.arch,
-            mode: self.mode,
+            cores: self.cores,
             count: Count::Finite(count),
         };
         builder.build()
@@ -100,7 +83,7 @@ where
     pub fn all(self) -> DeviceConfig {
         let builder = DeviceConfigBuilder {
             arch: self.arch,
-            mode: self.mode,
+            cores: self.cores,
             count: All { _priv: () },
         };
 
@@ -108,19 +91,11 @@ where
     }
 
     pub fn build(self) -> DeviceConfig {
-        let mode = DeviceMode::from(self.mode);
-        let core_num = match mode {
-            DeviceMode::MultiCore => 0,
-            DeviceMode::Single => 1,
-            DeviceMode::Fusion => 2,
-        };
-
         DeviceConfig {
             inner: DeviceConfigInner {
                 cfgs: vec![Config::Unnamed {
                     arch: Arch::from(self.arch),
-                    core_num,
-                    mode,
+                    core_num: Cores::from(self.cores).0,
                     count: Count::from(self.count),
                 }],
             },
