@@ -197,6 +197,8 @@ fn hwmon_fetcher_new(
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     #[test]
@@ -224,7 +226,7 @@ mod tests {
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
         }
 
-        // // try lookup 2 different fused cores
+        // try lookup 2 different fused cores
         let config = DeviceConfig::warboy().cores(2).count(2);
         let found_device_files = find_device_files_in(&config, &devices_with_statuses)?;
         let mut found_device_file_names: Vec<&str> =
@@ -232,13 +234,54 @@ mod tests {
         found_device_file_names.sort();
         assert_eq!(found_device_file_names, &["npu0pe0-1", "npu1pe0-1"],);
 
-        // // looking for 3 different fused cores should fail
+        // looking for 3 different fused cores should fail
         let config = DeviceConfig::warboy().cores(2).count(3);
         let found = find_device_files_in(&config, &devices_with_statuses);
         match found {
             Ok(_) => panic!("looking for 3 different fused cores should fail"),
             Err(e) => assert!(matches!(e, DeviceError::DeviceNotFound { .. })),
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_find_device_files_when_already_occupied() -> DeviceResult<()> {
+        // set up test data
+        let devices = list_devices_with("../test_data/test-0/dev", "../test_data/test-0/sys")?;
+        let mut devices_with_statuses = expand_status(devices)?;
+        assert_eq!(devices_with_statuses.len(), 2);
+
+        // assume that npu0pe0 is already occupied
+        assert_eq!(devices_with_statuses[0].device.devfile_index(), 0);
+        *devices_with_statuses[0].statuses.get_mut(&0).unwrap() =
+            CoreStatus::Occupied("npu0pe0".to_string());
+
+        // now, trying to find npu0pe0, npu0pe0-1 should fail
+        let config = DeviceConfig::from_str("npu:0:0");
+        assert!(matches!(
+            find_device_files_in(&config?, &devices_with_statuses),
+            Err(DeviceError::DeviceBusy { .. })
+        ));
+        let config = DeviceConfig::from_str("npu:0:0-1");
+        assert!(matches!(
+            find_device_files_in(&config?, &devices_with_statuses),
+            Err(DeviceError::DeviceBusy { .. })
+        ));
+
+        // finding npu1* should succeed
+        let config = DeviceConfig::from_str("npu:1:0");
+        assert!(find_device_files_in(&config?, &devices_with_statuses).is_ok());
+        let config = DeviceConfig::from_str("npu:1:0-1");
+        assert!(find_device_files_in(&config?, &devices_with_statuses).is_ok());
+
+        // finding "any 2-pe fused warboy" should succeed, because npu1pe0-1 is not occupied
+        let config = DeviceConfig::from_str("warboy(2)*1");
+        assert!(find_device_files_in(&config?, &devices_with_statuses).is_ok());
+
+        // but finding "TWO 2-pe fused warboy" should fail
+        let config = DeviceConfig::from_str("warboy(2)*2");
+        assert!(find_device_files_in(&config?, &devices_with_statuses).is_err());
 
         Ok(())
     }

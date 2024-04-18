@@ -333,7 +333,6 @@ pub enum NumaNode {
 pub enum CoreStatus {
     Available,
     Occupied(String),
-    Unavailable,
 }
 
 impl Display for CoreStatus {
@@ -341,7 +340,6 @@ impl Display for CoreStatus {
         match self {
             CoreStatus::Available => write!(f, "available"),
             CoreStatus::Occupied(devfile) => write!(f, "occupied by {devfile}"),
-            CoreStatus::Unavailable => write!(f, "unavailable"),
         }
     }
 }
@@ -586,7 +584,6 @@ mod tests {
     #[test]
     fn test_core_status_fmt() {
         assert_eq!(format!("{}", CoreStatus::Available), "available");
-        assert_eq!(format!("{}", CoreStatus::Unavailable), "unavailable");
         assert_eq!(
             format!("{}", CoreStatus::Occupied(String::from("npu0pe0"))),
             "occupied by npu0pe0"

@@ -38,10 +38,6 @@ impl CoreStatusPy {
                 status_type: CoreStatusTypePy::Occupied,
                 value: Some(s),
             },
-            CoreStatus::Unavailable => Self {
-                status_type: CoreStatusTypePy::Unavailable,
-                value: None,
-            },
         }
     }
 }
