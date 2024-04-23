@@ -8,6 +8,7 @@ license = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
 readme = { workspace = true }
+links = "hwloc"
 
 [features]
 blocking = [] # Enable blocking APIs
@@ -34,25 +35,36 @@ path = "bin/list_proc.rs"
 name = "list_clock_frequency"
 path = "bin/list_clock_frequency.rs"
 
+[[bin]]
+name = "show_topology"
+path = "bin/show_topology.rs"
+
 [dependencies]
-array_tool = "1"
 cli-table = "0.4"
 dyn-clone = "1.0.17"
 enum-display-derive = "0.1"
 enum-utils = "0.1.2"
-itertools = "0.10"
+itertools = "0.12.1"
 lazy_static = "1.4"
-memoize = { version = "0.3.1", features = ["full"] }
+memoize = { version = "0.4.2", features = ["full"] }
 nom = "7.1"
 rayon = "1.5"
 regex = "1.5"
 serde = { version = "1.0.156", features = ["derive"] }
-strum = "0.24"
-strum_macros = "0.24"
+strum = "0.26.2"
+strum_macros = "0.26.2"
 thiserror = "1"
 tokio = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter", "json"] }
+
+[build-dependencies]
+attohttpc = "0.28"
+flate2 =  "1.0"
+tar = "0.4"
+autotools = "0.2"
+pkg-config = "0.3.8"
+bindgen = "0.69.4"
 
 [dev-dependencies]
 eyre = "0.6"

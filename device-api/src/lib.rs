@@ -87,6 +87,7 @@ pub mod perf_regs;
 pub mod proc;
 mod status;
 mod sysfs;
+pub mod topology;
 
 /// List all Furiosa NPU devices in the system.
 ///
