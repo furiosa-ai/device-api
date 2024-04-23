@@ -91,7 +91,7 @@ impl HwlocTopology {
     }
 }
 
-pub unsafe fn hwloc_get_common_ancestor_obj(
+unsafe fn hwloc_get_common_ancestor_obj(
     mut obj1: hwloc_obj_t,
     mut obj2: hwloc_obj_t,
 ) -> hwloc_obj_t {
@@ -136,10 +136,7 @@ lazy_static! {
     static ref BDF_NOTATION_PATTERN: Regex = Regex::new(r"^(?:(?P<domain>[0-9a-fA-F]+):)?(?P<bus>[0-9a-fA-F]+):(?P<dev>[0-9a-fA-F]+)\.(?P<func>[0-9a-fA-F]+)").unwrap();
 }
 
-pub unsafe fn hwloc_get_pcidev_by_busidstring(
-    topology: hwloc_topology_t,
-    busid: &str,
-) -> hwloc_obj_t {
+unsafe fn hwloc_get_pcidev_by_busidstring(topology: hwloc_topology_t, busid: &str) -> hwloc_obj_t {
     return match BDF_NOTATION_PATTERN.captures(busid) {
         Some(caps) => {
             let domain = caps

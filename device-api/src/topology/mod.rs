@@ -2,7 +2,6 @@
 use std::collections::BTreeMap;
 
 use itertools::iproduct;
-use libc::link;
 use strum_macros::AsRefStr;
 
 use crate::topology::hwloc::HwlocTopology;
@@ -45,7 +44,7 @@ pub struct Topology {
 
 impl Topology {
     pub fn new(devices: Vec<Device>) -> DeviceResult<Topology> {
-        let keys = devices.iter().map(|d| d.busname().unwrap()).collect();
+        let keys = devices.iter().map(|d| d.busname()).collect();
         let topology_provider = DefaultTopologyProvider::new()?;
         let populated_matrix = populate_topology_matrix(topology_provider, keys)?;
         Ok(Self {
@@ -78,13 +77,11 @@ fn populate_topology_matrix<T: TopologyProvider>(
     let mut topology_matrix: BTreeMap<(String, String), LinkType> = BTreeMap::new();
 
     for (dev1_bdf, dev2_bdf) in iproduct!(devices.clone(), devices.clone()) {
-        let mut link_type: LinkType = LinkTypeUnknown;
-
-        if dev1_bdf == dev2_bdf {
-            link_type = LinkTypeSoc
+        let link_type = if dev1_bdf == dev2_bdf {
+            LinkTypeSoc
         } else {
-            link_type = topology_provider.get_common_ancestor_obj(&dev1_bdf, &dev2_bdf)?;
-        }
+            topology_provider.get_common_ancestor_obj(&dev1_bdf, &dev2_bdf)?
+        };
 
         let key = if dev1_bdf > dev2_bdf {
             (dev2_bdf, dev1_bdf)
@@ -92,7 +89,7 @@ fn populate_topology_matrix<T: TopologyProvider>(
             (dev1_bdf, dev2_bdf)
         };
 
-        topology_matrix.insert(key, link_type);
+        topology_matrix.entry(key).or_insert(link_type);
     }
 
     Ok(topology_matrix)

@@ -11,7 +11,7 @@ use crate::arch::Arch;
 use crate::hwmon;
 use crate::perf_regs::PerformanceCounter;
 use crate::status::{get_device_status, DeviceStatus};
-use crate::sysfs::npu_mgmt::{self, *};
+use crate::sysfs::npu_mgmt::{self};
 use crate::sysfs::pci;
 use crate::topology::HardwareTopologyHint;
 use crate::{devfs, DeviceError, DeviceResult};
@@ -316,7 +316,7 @@ impl PartialOrd for Device {
 
 impl HardwareTopologyHint for Device {
     fn get_bpf(&self) -> String {
-        self.busname().unwrap()
+        self.busname()
     }
 }
 

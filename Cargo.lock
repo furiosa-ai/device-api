@@ -435,7 +435,6 @@ dependencies = [
  "flate2",
  "itertools",
  "lazy_static",
- "libc",
  "memoize",
  "nom",
  "pkg-config",
