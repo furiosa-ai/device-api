@@ -77,7 +77,7 @@ impl Config {
                 device_id,
                 core_range,
             } => {
-                device_file.device_index() == *device_id && device_file.core_range() == *core_range
+                device_file.devfile_index() == *device_id && device_file.core_range() == *core_range
             }
             Self::Unnamed {
                 arch: config_arch,

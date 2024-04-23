@@ -71,7 +71,7 @@ pub use crate::device::{
     ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode, NumaNode,
 };
 pub use crate::error::{DeviceError, DeviceResult};
-use crate::list::{get_device_with, list_devices_with};
+use crate::list::list_devices_with;
 
 mod arch;
 #[cfg(feature = "blocking")]
@@ -93,17 +93,6 @@ mod sysfs;
 /// See the [crate-level documentation](crate).
 pub async fn list_devices() -> DeviceResult<Vec<Device>> {
     list_devices_with("/dev", "/sys").await
-}
-
-/// Return a specific Furiosa NPU device in the system.
-///
-/// # Arguments
-///
-/// * `idx` - An index number of the device (e.g., 0, 1)
-///
-/// See the [crate-level documentation](crate).
-pub async fn get_device(idx: u8) -> DeviceResult<Device> {
-    get_device_with(idx, "/dev", "/sys").await
 }
 
 /// Find a set of devices with specific configuration.

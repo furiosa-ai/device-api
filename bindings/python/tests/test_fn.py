@@ -7,29 +7,22 @@ from furiosa_native_device import (
     DeviceConfig,
     DeviceMode,
     find_device_files,
-    get_device,
     get_device_file,
     list_devices,
 )
 
+def get_first_device(pattern):
+    return sorted(glob.glob(pattern))[0]
 
 def get_first_device_name(pattern):
-    return sorted(glob.glob(pattern))[0].split("/")[-1]
+    return get_first_device(pattern).split("/")[-1]
 
 
 @pytest.mark.asyncio
 async def test_list_devices():
-    dev_name = get_first_device_name("/dev/npu*")
+    dev_name = get_first_device("/dev/npu*")
     devices = await list_devices()
     assert devices[0].name() == dev_name
-
-
-@pytest.mark.asyncio
-async def test_get_device():
-    dev_name = get_first_device_name("/dev/npu*")
-    dev_idx = int(dev_name.replace("npu", ""))
-    device = await get_device(dev_idx)
-    assert device.name() == dev_name
 
 
 @pytest.mark.asyncio

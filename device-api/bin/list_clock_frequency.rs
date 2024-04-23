@@ -3,7 +3,7 @@ use furiosa_device::{list_devices, DeviceError};
 #[tokio::main]
 async fn main() -> Result<(), DeviceError> {
     for device in list_devices().await? {
-        println!("-- npu{} --", device.device_index());
+        println!("-- {} --", device);
         for frequency in device.clock_frequency()? {
             println!(
                 "{:15}: {} {}",

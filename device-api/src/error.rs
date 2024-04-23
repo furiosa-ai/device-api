@@ -26,8 +26,11 @@ pub enum DeviceError {
     UnknownArch { arch: String, rev: String },
     #[error("Incompatible device driver: {cause}")]
     IncompatibleDriver { cause: String },
-    #[error("HwmonError: [npu{device_index}] {cause}")]
-    HwmonError { device_index: u8, cause: HwmonError },
+    #[error("HwmonError: [{device_name}] {cause}")]
+    HwmonError {
+        device_name: String,
+        cause: HwmonError,
+    },
     #[error("PerformanceCounterError: {cause}")]
     PerformanceCounterError { cause: PerformanceCounterError },
     #[error("Unexpected value: {message}")]
@@ -61,11 +64,8 @@ impl DeviceError {
         }
     }
 
-    pub(crate) fn hwmon_error(device_index: u8, cause: HwmonError) -> DeviceError {
-        DeviceError::HwmonError {
-            device_index,
-            cause,
-        }
+    pub(crate) fn hwmon_error(device_name: String, cause: HwmonError) -> DeviceError {
+        DeviceError::HwmonError { device_name, cause }
     }
 
     pub(crate) fn performance_counter_error(cause: PerformanceCounterError) -> DeviceError {

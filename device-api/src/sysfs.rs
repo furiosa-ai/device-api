@@ -1,10 +1,38 @@
 pub mod npu_mgmt {
     use std::collections::HashMap;
-    use std::fmt::Display;
+    use std::fs;
+    use std::hash::Hash;
     use std::io;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
+    use std::path::PathBuf;
 
-    use strum_macros::EnumIter;
+    use crate::DeviceResult;
+
+    #[allow(dead_code)]
+    pub mod file {
+        pub const ALIVE: &str = "alive";
+        pub const ATR_ERROR: &str = "atr_error";
+        pub const BUS_NAME: &str = "busname";
+        pub const DEV: &str = "dev";
+        pub const DEVICE_LED: &str = "device_led";
+        pub const DEVICE_LEDS: &str = "device_leds";
+        pub const DEVICE_SN: &str = "device_sn";
+        pub const DEVICE_STATE: &str = "device_state";
+        pub const DEVICE_TYPE: &str = "device_type";
+        pub const DEVICE_UUID: &str = "device_uuid";
+        pub const FW_VERSION: &str = "fw_version";
+        pub const HEARTBEAT: &str = "heartbeat";
+        pub const NE_CLK_FREQ_INFO: &str = "ne_clk_freq_info";
+        pub const NE_DTM_POLICY: &str = "ne_dtm_policy";
+        pub const NPU_CLOCKS: &str = "npu_clocks";
+        pub const PERFORMANCE_LEVEL: &str = "performance_level";
+        pub const PERFORMANCE_MODE: &str = "performance_mode";
+        pub const PLATFORM_TYPE: &str = "platform_type";
+        pub const SOC_ID: &str = "soc_id";
+        pub const SOC_REV: &str = "soc_rev";
+        pub const SOC_UID: &str = "soc_uid";
+        pub const VERSION: &str = "version";
+    }
 
     #[derive(Copy, Clone, Debug)]
     #[allow(dead_code)]
@@ -23,8 +51,6 @@ pub mod npu_mgmt {
     #[derive(Copy, Clone, Debug)]
     #[allow(dead_code)]
     pub enum PerfMode {
-        Full2 = 5,
-        Full1 = 4,
         Normal2 = 3,
         Normal1 = 2,
         Half = 1,
@@ -52,125 +78,18 @@ pub mod npu_mgmt {
         Level15 = 15,
     }
 
-    pub trait MgmtFile {
-        fn filename(&self) -> &'static str;
-
-        fn is_static(&self) -> bool;
-    }
-
-    #[derive(EnumIter)]
-    pub enum StaticMgmtFile {
-        Busname,
-        Dev,
-        DeviceSn,
-        DeviceType,
-        DeviceUuid,
-        PlatformType,
-        SocRev,
-        SocUid,
-    }
-
-    impl MgmtFile for StaticMgmtFile {
-        fn filename(&self) -> &'static str {
-            match self {
-                StaticMgmtFile::Busname => "busname",
-                StaticMgmtFile::Dev => "dev",
-                StaticMgmtFile::DeviceSn => "device_sn",
-                StaticMgmtFile::DeviceType => "device_type",
-                StaticMgmtFile::DeviceUuid => "device_uuid",
-                StaticMgmtFile::PlatformType => "platform_type",
-                StaticMgmtFile::SocRev => "soc_rev",
-                StaticMgmtFile::SocUid => "soc_uid",
-            }
-        }
-
-        fn is_static(&self) -> bool {
-            true
-        }
-    }
-
-    pub enum DynamicMgmtFile {
-        Alive,
-        AtrError,
-        FwVersion,
-        Heartbeat,
-        NeClkFreqInfo,
-        Version,
-        // not used
-        // DeviceState,
-        // PerformanceLevel,
-    }
-
-    impl MgmtFile for DynamicMgmtFile {
-        fn filename(&self) -> &'static str {
-            match self {
-                DynamicMgmtFile::Alive => "alive",
-                DynamicMgmtFile::AtrError => "atr_error",
-                DynamicMgmtFile::FwVersion => "fw_version",
-                DynamicMgmtFile::Heartbeat => "heartbeat",
-                DynamicMgmtFile::NeClkFreqInfo => "ne_clk_freq_info",
-                DynamicMgmtFile::Version => "version",
-                // not used
-                // DynamicMgmtFile::DeviceState => "device_state",
-                // DynamicMgmtFile::PerformanceLevel => "performance_level",
-            }
-        }
-
-        fn is_static(&self) -> bool {
-            false
-        }
-    }
-
-    pub enum CtrlFile {
-        DeviceLed,
-        NeClock,
-        NeDtmPolicy,
-        PerformanceLevel,
-        PerformanceMode,
-    }
-
-    impl Display for CtrlFile {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let s = match self {
-                CtrlFile::DeviceLed => "device_led",
-                CtrlFile::NeClock => "ne_clock",
-                CtrlFile::NeDtmPolicy => "ne_dtm_policy",
-                CtrlFile::PerformanceLevel => "performance_level",
-                CtrlFile::PerformanceMode => "performance_mode",
-            };
-            write!(f, "{}", s)
-        }
-    }
-
-    pub(crate) fn path<P: AsRef<Path>>(base_dir: P, file: &str, idx: u8) -> PathBuf {
-        base_dir
-            .as_ref()
-            .join(format!("class/npu_mgmt/npu{idx}_mgmt/{file}"))
+    pub(crate) fn read_mgmt_to_string<P: AsRef<Path>, F: AsRef<Path>>(
+        mgmt_root: P,
+        file: F,
+    ) -> io::Result<String> {
+        let path = mgmt_root.as_ref().join(file);
+        fs::read_to_string(path).map(|s| s.trim_end().to_string())
     }
 
     /// It can be used to check `platform_type`.
     pub(crate) fn is_furiosa_platform(contents: &str) -> bool {
         let contents = contents.trim();
-        contents == "FuriosaAI" || contents == "VITIS"
-    }
-
-    pub(crate) fn read_mgmt_file<P: AsRef<Path>>(
-        sysfs: P,
-        mgmt_file: &str,
-        idx: u8,
-    ) -> io::Result<String> {
-        let path = path(sysfs, mgmt_file, idx);
-        std::fs::read_to_string(path).map(|s| s.trim().to_string())
-    }
-
-    pub(crate) fn write_ctrl_file<P: AsRef<Path>, C: AsRef<[u8]>>(
-        sysfs: P,
-        ctrl_file: &str,
-        idx: u8,
-        contents: C,
-    ) -> io::Result<()> {
-        let path = path(sysfs, ctrl_file, idx);
-        std::fs::write(path, contents)
+        contents == "FuriosaAI"
     }
 
     pub(crate) fn build_atr_error_map<S: AsRef<str>>(contents: S) -> HashMap<String, u32> {
@@ -200,8 +119,53 @@ pub mod npu_mgmt {
             _ => None,
         }
     }
+
+    pub(crate) trait MgmtFileIO {
+        fn mgmt_root(&self) -> PathBuf;
+
+        fn read_mgmt_to_string<P: AsRef<Path>>(&self, file: P) -> DeviceResult<String> {
+            read_mgmt_to_string(self.mgmt_root(), file).map_err(|e| e.into())
+        }
+
+        fn write_ctrl_file<P: AsRef<Path>>(&self, file: P, contents: &str) -> DeviceResult<()> {
+            let path = &self.mgmt_root().join(file);
+            std::fs::write(path, contents)?;
+            Ok(())
+        }
+    }
+
+    pub(crate) trait MgmtFile {
+        fn filename(&self) -> &'static str;
+    }
+
+    #[derive(Clone, Debug)]
+    pub(crate) struct MgmtCache<K: Eq + Hash + MgmtFile> {
+        cache: HashMap<K, String>,
+    }
+
+    impl<K: Eq + Hash + MgmtFile> MgmtCache<K> {
+        pub fn init<P: AsRef<Path>>(
+            mgmt_root: P,
+            keys: impl Iterator<Item = K>,
+        ) -> io::Result<Self> {
+            let cache: io::Result<HashMap<_, _>> = keys
+                .map(|key| {
+                    let value = read_mgmt_to_string(&mgmt_root, key.filename())?;
+                    Ok((key, value))
+                })
+                .collect();
+
+            let cache = cache?;
+            Ok(MgmtCache { cache })
+        }
+
+        pub fn get(&self, key: &K) -> String {
+            self.cache.get(key).unwrap_or(&Default::default()).clone()
+        }
+    }
 }
 
+// XXX(n0gu): warboy and renegade share the same implementation, but this may change in the future devices.
 pub(crate) mod pci {
     pub(crate) mod numa {
         use std::io;
@@ -225,16 +189,6 @@ pub(crate) mod pci {
         pub fn path(base_dir: &str, bdf: &str) -> PathBuf {
             PathBuf::from(format!("{}/bus/pci/devices/{}/hwmon", base_dir, bdf.trim()))
         }
-    }
-}
-
-pub mod perf_regs {
-    use std::path::{Path, PathBuf};
-
-    pub(crate) fn path<P: AsRef<Path>>(base_dir: P, dev_name: &str) -> PathBuf {
-        base_dir
-            .as_ref()
-            .join(format!("class/npu_mgmt/{dev_name}/perf_regs"))
     }
 }
 
