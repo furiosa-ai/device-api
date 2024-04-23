@@ -5,7 +5,7 @@ use super::inner::Count;
 use super::DeviceConfig;
 use crate::device::{CoreIdx, CoreStatus, Device, DeviceFile};
 use crate::error::DeviceResult;
-use crate::DeviceError;
+use crate::{CoreRange, DeviceError};
 
 pub(crate) struct DeviceWithStatus {
     pub device: Device,
@@ -47,20 +47,33 @@ pub(crate) fn find_device_files_in(
                 {
                     continue;
                 }
-                let core_idxes: Vec<&CoreIdx> = device
-                    .cores()
-                    .iter()
-                    .filter(|c| dev_file.core_range.contains(c))
-                    .collect();
-                let status = if core_idxes
-                    .iter()
-                    .all(|c| *device.statuses.get(c).unwrap() == CoreStatus::Available)
-                {
-                    CoreStatus::Available
-                } else {
-                    CoreStatus::Unavailable
+
+                let cores_in_devfile = {
+                    let CoreRange(start, end) = dev_file.core_range();
+                    if start > end {
+                        // Handle this just in case,
+                        // but this is unlikely to happen since we assure that start <= end in TryFrom.
+                        end..=start
+                    } else {
+                        start..=end
+                    }
                 };
-                fit_device_files.insert(dev_file.clone(), status);
+
+                let cores_status: Vec<&CoreStatus> = cores_in_devfile
+                    .map(|core_num| device.statuses.get(&core_num).unwrap())
+                    .collect();
+
+                // if there exists at least one occupied core, return the first occupied status directly
+                let devfile_status = if let Some(occupied) = cores_status
+                    .into_iter()
+                    .find(|&status| matches!(*status, CoreStatus::Occupied(_)))
+                {
+                    occupied.clone()
+                } else {
+                    CoreStatus::Available
+                };
+
+                fit_device_files.insert(dev_file.clone(), devfile_status);
             }
         }
         match config.count() {

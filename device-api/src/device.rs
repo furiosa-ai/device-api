@@ -248,7 +248,8 @@ impl Device {
     pub async fn get_status_core(&self, core: CoreIdx) -> DeviceResult<CoreStatus> {
         for file in &self.dev_files {
             // get status of the exact core
-            if file.mode() != DeviceMode::Single {
+            let CoreRange(start, end) = file.core_range();
+            if start != end {
                 continue;
             }
             if (file.core_range().contains(&core))
@@ -332,7 +333,6 @@ pub enum NumaNode {
 pub enum CoreStatus {
     Available,
     Occupied(String),
-    Unavailable,
 }
 
 impl Display for CoreStatus {
@@ -340,7 +340,6 @@ impl Display for CoreStatus {
         match self {
             CoreStatus::Available => write!(f, "available"),
             CoreStatus::Occupied(devfile) => write!(f, "occupied by {devfile}"),
-            CoreStatus::Unavailable => write!(f, "unavailable"),
         }
     }
 }
@@ -348,43 +347,24 @@ impl Display for CoreStatus {
 pub(crate) type CoreIdx = u8;
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub enum CoreRange {
-    All, // TODO: rename this to MultiCore
-    // This range is inclusive [s, e]
-    Range((u8, u8)),
-}
+pub struct CoreRange(pub u8, pub u8);
 
 impl CoreRange {
     pub fn contains(&self, idx: &CoreIdx) -> bool {
-        match self {
-            CoreRange::All => true,
-            CoreRange::Range((s, e)) => (*s..=*e).contains(idx),
-        }
+        let CoreRange(start, end) = self;
+        start <= idx && idx <= end
     }
 
     pub fn has_intersection(&self, other: &Self) -> bool {
-        match (self, other) {
-            (CoreRange::All, _) | (_, CoreRange::All) => true,
-            (CoreRange::Range(a), CoreRange::Range(b)) => !(a.1 < b.0 || b.1 < a.0),
-        }
+        self.contains(&other.0) || self.contains(&other.1)
     }
 }
 
 impl Ord for CoreRange {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self {
-            CoreRange::All => {
-                if self == other {
-                    std::cmp::Ordering::Equal
-                } else {
-                    std::cmp::Ordering::Less
-                }
-            }
-            CoreRange::Range(r) => match other {
-                CoreRange::All => std::cmp::Ordering::Greater,
-                CoreRange::Range(other) => (r.1 - r.0).cmp(&(other.1 - other.0)).then(r.cmp(other)),
-            },
-        }
+        (self.1 - self.0)
+            .cmp(&(other.1 - other.0))
+            .then(self.0.cmp(&other.0))
     }
 }
 
@@ -396,7 +376,7 @@ impl PartialOrd for CoreRange {
 
 impl From<u8> for CoreRange {
     fn from(id: u8) -> Self {
-        Self::Range((id, id))
+        Self(id, id)
     }
 }
 
@@ -404,7 +384,7 @@ impl TryFrom<(u8, u8)> for CoreRange {
     type Error = ();
     fn try_from(v: (u8, u8)) -> Result<Self, Self::Error> {
         if v.0 < v.1 {
-            Ok(Self::Range(v))
+            Ok(Self(v.0, v.1))
         } else {
             Err(())
         }
@@ -417,7 +397,6 @@ pub struct DeviceFile {
     pub(crate) devfile_index: u8,
     pub(crate) core_range: CoreRange,
     pub(crate) path: PathBuf,
-    pub(crate) mode: DeviceMode,
 }
 
 impl Display for DeviceFile {
@@ -464,11 +443,6 @@ impl DeviceFile {
         self.core_range
     }
 
-    /// Return the mode of this device file.
-    pub fn mode(&self) -> DeviceMode {
-        self.mode
-    }
-
     pub fn has_intersection(&self, other: &Self) -> bool {
         self.devfile_index() == other.devfile_index()
             && self.core_range().has_intersection(&other.core_range())
@@ -487,32 +461,19 @@ impl TryFrom<&PathBuf> for DeviceFile {
 
         let (devfile_index, core_indices) = devfs::parse_indices(file_name)?;
 
-        let (mode, core_range) = match core_indices.len() {
-            0 => (DeviceMode::MultiCore, CoreRange::All),
-            1 => (DeviceMode::Single, CoreRange::from(core_indices[0])),
-            n => (
-                DeviceMode::Fusion,
-                CoreRange::try_from((core_indices[0], core_indices[n - 1]))
-                    .map_err(|_| DeviceError::unrecognized_file(path.to_string_lossy()))?,
-            ),
+        let core_range = match core_indices.len() {
+            0 => return Err(DeviceError::unrecognized_file(path.to_string_lossy())),
+            1 => CoreRange::from(core_indices[0]),
+            n => CoreRange::try_from((core_indices[0], core_indices[n - 1]))
+                .map_err(|_| DeviceError::unrecognized_file(path.to_string_lossy()))?,
         };
 
         Ok(DeviceFile {
             devfile_index,
             core_range,
             path: path.clone(),
-            mode,
         })
     }
-}
-
-/// Enum for NPU's operating mode.
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, enum_utils::FromStr, PartialOrd)]
-#[enumeration(case_insensitive)]
-pub enum DeviceMode {
-    Single,
-    Fusion,
-    MultiCore,
 }
 
 lazy_static! {
@@ -565,14 +526,12 @@ mod tests {
 
     #[test]
     fn test_core_range_ordering() {
-        let all = CoreRange::All;
-        let core0 = CoreRange::Range((0, 0));
-        let core1 = CoreRange::Range((1, 1));
-        let core0_1 = CoreRange::Range((0, 1));
-        let core0_3 = CoreRange::Range((0, 3));
-        let core2_3 = CoreRange::Range((2, 3));
+        let core0 = CoreRange(0, 0);
+        let core1 = CoreRange(1, 1);
+        let core0_1 = CoreRange(0, 1);
+        let core0_3 = CoreRange(0, 3);
+        let core2_3 = CoreRange(2, 3);
 
-        assert!(all < core0);
         assert!(core0 < core1);
         assert!(core1 < core0_1);
         assert!(core0_1 < core2_3);
@@ -581,23 +540,16 @@ mod tests {
 
     #[test]
     fn test_try_from() -> Result<(), DeviceError> {
-        assert_eq!(
-            DeviceFile::try_from(&PathBuf::from("./npu0"))?,
-            DeviceFile {
-                devfile_index: 0,
-                path: PathBuf::from("./npu0"),
-                core_range: CoreRange::All,
-                mode: DeviceMode::MultiCore,
-            }
-        );
+        let expected_err = DeviceFile::try_from(&PathBuf::from("./npu0"));
+        assert!(expected_err.is_err());
+
         assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe")).is_err());
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0"))?,
             DeviceFile {
                 devfile_index: 0,
                 path: PathBuf::from("./npu0pe0"),
-                core_range: CoreRange::Range((0, 0)),
-                mode: DeviceMode::Single,
+                core_range: CoreRange(0, 0),
             }
         );
         assert_eq!(
@@ -605,8 +557,7 @@ mod tests {
             DeviceFile {
                 devfile_index: 0,
                 path: PathBuf::from("./npu0pe1"),
-                core_range: CoreRange::Range((1, 1)),
-                mode: DeviceMode::Single,
+                core_range: CoreRange(1, 1),
             }
         );
         assert_eq!(
@@ -614,8 +565,7 @@ mod tests {
             DeviceFile {
                 devfile_index: 0,
                 path: PathBuf::from("./npu0pe0-1"),
-                core_range: CoreRange::Range((0, 1)),
-                mode: DeviceMode::Fusion,
+                core_range: CoreRange(0, 1),
             }
         );
         assert_eq!(
@@ -623,8 +573,7 @@ mod tests {
             DeviceFile {
                 devfile_index: 0,
                 path: PathBuf::from("./npu0pe0-2"),
-                core_range: CoreRange::Range((0, 2)),
-                mode: DeviceMode::Fusion,
+                core_range: CoreRange(0, 2),
             }
         );
         assert!(DeviceFile::try_from(&PathBuf::from("./npu0pe0-")).is_err());
@@ -635,22 +584,10 @@ mod tests {
     #[test]
     fn test_core_status_fmt() {
         assert_eq!(format!("{}", CoreStatus::Available), "available");
-        assert_eq!(format!("{}", CoreStatus::Unavailable), "unavailable");
         assert_eq!(
             format!("{}", CoreStatus::Occupied(String::from("npu0pe0"))),
             "occupied by npu0pe0"
         );
-    }
-
-    #[test]
-    fn test_device_mode_from_str() {
-        assert_eq!("single".parse(), Ok(DeviceMode::Single));
-        assert_eq!("SiNgLe".parse(), Ok(DeviceMode::Single));
-        assert_eq!("fusion".parse(), Ok(DeviceMode::Fusion));
-        assert_eq!("fUsIoN".parse(), Ok(DeviceMode::Fusion));
-        assert_eq!("multicore".parse(), Ok(DeviceMode::MultiCore));
-        assert_eq!("MultiCore".parse(), Ok(DeviceMode::MultiCore));
-        assert_eq!("invalid".parse::<DeviceMode>(), Err(()));
     }
 
     #[test]

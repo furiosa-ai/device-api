@@ -1,27 +1,27 @@
 use std::str::FromStr;
 
-use furiosa_device::DeviceConfig;
+use furiosa_device::{Arch, DeviceConfig};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 
+use crate::arch::ArchPy;
 use crate::errors::to_py_err;
-use crate::{arch::ArchPy, device::DeviceModePy};
 
 /// Describes a required set of devices for `find_device_files`.
 ///
 /// # Examples
 /// ```python
-/// from furiosa_device import Arch, DeviceConfig, DeviceMode
+/// from furiosa_device import Arch, DeviceConfig
 ///
-/// # 1 core
+/// # 1 core Warboy
 /// config = DeviceConfig(arch=Arch.Warboy)
 ///
-/// # 1 core x 2
+/// # 1 core Warboy x 2
 /// config = DeviceConfig(arch=Arch.Warboy, count=2)
 ///
-/// # Fused 2 cores x 2
-/// config = DeviceConfig(arch=Arch.Warboy, mode=DeviceMode.Fusion, count=2)
+/// # Fused 2 cores RNGD x 2
+/// config = DeviceConfig(arch=Arch.RNGD, cores=2, count=2)
 /// ```
 ///
 /// # Textual Representation
@@ -33,8 +33,8 @@ use crate::{arch::ArchPy, device::DeviceModePy};
 /// ```python
 /// from furiosa_device import DeviceConfig
 ///
-/// config = DeviceConfig.from_env("SOME_OTHER_ENV_KEY")
-/// config = DeviceConfig.from_str("0:0,0:1"); # get config directly from a string literal
+/// config = DeviceConfig.from_env("SOME_ENV_KEY")
+/// config = DeviceConfig.from_str("rngd:0:0-3,rngd:0:4-7") # get config directly from a string literal
 /// ```
 ///
 /// The rules for textual representation are as follows:
@@ -42,17 +42,23 @@ use crate::{arch::ArchPy, device::DeviceModePy};
 /// ```python
 /// from furiosa_device import DeviceConfig
 ///
-/// # Using specific device names
-/// config = DeviceConfig.from_str("0:0"); # npu0pe0
-/// config = DeviceConfig.from_str("0:0-1"); # npu0pe0-1
+/// # Named configuration examples (using specific device names)
+/// config = DeviceConfig.from_str("warboy:0:0") # warboy, npu0pe0
+/// config = DeviceConfig.from_str("warboy:0:0-1") # warboy, npu0pe0-1
+/// config = DeviceConfig.from_str("rngd:0:0-3") # rngd, npu0pe0-3
+/// config = DeviceConfig.from_str("rngd:1:4-5") # rngd, npu1pe4-5
+/// config = DeviceConfig.from_str("npu:0:0") # warboy, npu0pe0; "npu" is an alias for "warboy" for backward compatibility
 ///
-/// # Using device configs
-/// config = DeviceConfig.from_str("warboy*2"); # single pe x 2 (equivalent to "warboy(1)*2")
-/// config = DeviceConfig.from_str("warboy(1)*2"); # single pe x 2
-/// config = DeviceConfig.from_str("warboy(2)*2"); # 2-pe fusioned x 2
+/// # Unnamed configuration examples
+/// config = DeviceConfig.from_str("warboy*2") # single pe x 2 (equivalent to "warboy(1)*2")
+/// config = DeviceConfig.from_str("warboy(1)*2") # single pe x 2
+/// config = DeviceConfig.from_str("warboy(2)*2") # 2-pe fusioned x 2
+/// config = DeviceConfig.from_str("rngd(1)*2") # single pe x 2
+/// config = DeviceConfig.from_str("rngd(4)*1") # 4-pe fusioned x 1
 ///
-/// # Combine multiple representations separated by commas
-/// config = DeviceConfig.from_str("0:0-1, 1:0-1"); # npu0pe0-1, npu1pe0-1
+/// # Combining multiple comma-separated representation is also possible.
+/// config = DeviceConfig.from_str("warboy:0:0-1,warboy:1:0-1")
+/// config = DeviceConfig.from_str("warboy:0:0-1,warboy(2)*1") // One named 2-pe warboy (npu0pe0-1), and one anonmyous 2-pe warboy
 /// ```
 #[pyclass(name = "DeviceConfig")]
 #[derive(Clone)]
@@ -69,24 +75,19 @@ impl DeviceConfigPy {
 #[pymethods]
 impl DeviceConfigPy {
     #[new]
-    #[pyo3(signature = (arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
-    fn py_new(arch: ArchPy, mode: DeviceModePy, count: u8) -> PyResult<DeviceConfigPy> {
+    #[pyo3(signature = (arch=ArchPy::Warboy, cores=1, count=1))]
+    fn py_new(arch: ArchPy, cores: u8, count: u8) -> PyResult<DeviceConfigPy> {
         let config = match arch {
             ArchPy::Warboy => DeviceConfig::warboy(),
-            _ => {
-                return Err(PyRuntimeError::new_err(format!(
-                    "Invalid architecture: Not supported architecture '{:?}'",
-                    arch
-                )))
-            }
+            ArchPy::RNGD => DeviceConfig::rngd(),
         };
-        let config = match mode {
-            DeviceModePy::Single => config.single(),
-            DeviceModePy::MultiCore => config.multicore(),
-            DeviceModePy::Fusion => config.fused(),
+        if !Arch::from(arch.clone()).is_fusible_count(cores) {
+            return Err(PyRuntimeError::new_err(format!(
+                "Invalid core count: {} cores are not available for {:?}",
+                cores, arch
+            )));
         }
-        .count(count);
-        Ok(DeviceConfigPy::new(config))
+        Ok(DeviceConfigPy::new(config.cores(cores).count(count)))
     }
 
     fn __repr__(&self) -> String {

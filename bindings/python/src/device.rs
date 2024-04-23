@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use furiosa_device::perf_regs::{PerformanceCounter, Utilization};
-use furiosa_device::{
-    Arch, ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, DeviceMode, NumaNode,
-};
+use furiosa_device::{Arch, ClockFrequency, CoreRange, CoreStatus, Device, DeviceFile, NumaNode};
 use pyo3::prelude::*;
 
 use crate::arch::ArchPy;
@@ -39,10 +37,6 @@ impl CoreStatusPy {
             CoreStatus::Occupied(s) => Self {
                 status_type: CoreStatusTypePy::Occupied,
                 value: Some(s),
-            },
-            CoreStatus::Unavailable => Self {
-                status_type: CoreStatusTypePy::Unavailable,
-                value: None,
             },
         }
     }
@@ -288,45 +282,27 @@ enum CoreRangeTypePy {
 #[derive(Clone)]
 pub struct CoreRangePy {
     #[pyo3(get)]
-    range_type: CoreRangeTypePy,
+    start: u8,
     #[pyo3(get)]
-    value: Option<(u8, u8)>,
+    end: u8,
 }
 
 impl CoreRangePy {
     fn new(cr: CoreRange) -> Self {
-        match cr {
-            CoreRange::All => Self {
-                range_type: CoreRangeTypePy::All,
-                value: None,
-            },
-            CoreRange::Range(r) => Self {
-                range_type: CoreRangeTypePy::Range,
-                value: Some(r),
-            },
-        }
+        let CoreRange(s, e) = cr;
+        Self { start: s, end: e }
     }
 }
 
 #[pymethods]
 impl CoreRangePy {
     fn __repr__(&self) -> String {
-        match self.range_type {
-            CoreRangeTypePy::All => String::from("All"),
-            CoreRangeTypePy::Range => format!(
-                "Range ({}, {})",
-                self.value.unwrap().0,
-                self.value.unwrap().1
-            ),
-        }
+        format!("Range ({}, {})", self.start, self.end)
     }
 
     pub fn contains(&self, idx: u8) -> bool {
-        if let Some((s, e)) = self.value {
-            (s..=e).contains(&idx)
-        } else {
-            true
-        }
+        let CoreRangePy { start, end } = self;
+        *start <= idx && idx <= *end
     }
 }
 
@@ -368,24 +344,6 @@ impl DeviceFilePy {
     pub fn core_range(&self) -> CoreRangePy {
         CoreRangePy::new(self.inner.core_range())
     }
-
-    /// Return the mode of this device file.
-    fn mode(&self) -> DeviceModePy {
-        match self.inner.mode() {
-            DeviceMode::Single => DeviceModePy::Single,
-            DeviceMode::Fusion => DeviceModePy::Fusion,
-            DeviceMode::MultiCore => DeviceModePy::MultiCore,
-        }
-    }
-}
-
-/// Enum for NPU's operating mode.
-#[pyclass(name = "DeviceMode")]
-#[derive(Clone)]
-pub enum DeviceModePy {
-    Single,
-    Fusion,
-    MultiCore,
 }
 
 /// An abstraction for a performance counter.
