@@ -72,7 +72,6 @@ impl DeviceConfigPy {
     #[pyo3(signature = (arch=ArchPy::Warboy, mode=DeviceModePy::Fusion, count=1))]
     fn py_new(arch: ArchPy, mode: DeviceModePy, count: u8) -> PyResult<DeviceConfigPy> {
         let config = match arch {
-            ArchPy::WarboyA0 => DeviceConfig::warboy_a0(),
             ArchPy::Warboy => DeviceConfig::warboy(),
             _ => {
                 return Err(PyRuntimeError::new_err(format!(

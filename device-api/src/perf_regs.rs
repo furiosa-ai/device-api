@@ -1,7 +1,5 @@
 use std::{path::Path, time::SystemTime};
 
-use crate::sysfs;
-
 pub mod error {
     use std::io;
 
@@ -79,11 +77,7 @@ impl Default for PerformanceCounter {
 
 impl PerformanceCounter {
     /// Read performance counters about specific device.
-    pub fn read<P: AsRef<Path>>(
-        base_dir: P,
-        dev_name: &str,
-    ) -> error::PerformanceCounterResult<PerformanceCounter> {
-        let path = sysfs::perf_regs::path(base_dir, dev_name);
+    pub fn read<P: AsRef<Path>>(path: P) -> error::PerformanceCounterResult<PerformanceCounter> {
         std::fs::read_to_string(path)
             .map_err(|err| match err.kind() {
                 std::io::ErrorKind::PermissionDenied => {
@@ -244,7 +238,8 @@ mod tests {
 
     #[test]
     fn test_read() {
-        let res = PerformanceCounter::read("../test_data/test-0/sys", "npu0pe0");
+        let res =
+            PerformanceCounter::read("../test_data/test-0/sys/class/npu_mgmt/npu0pe0/perf_regs");
         assert!(res.is_ok());
     }
 

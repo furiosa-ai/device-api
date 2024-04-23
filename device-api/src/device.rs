@@ -1,13 +1,11 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::Mutex;
 
+use dyn_clone::DynClone;
 use lazy_static::lazy_static;
 use regex::Regex;
-use strum::IntoEnumIterator;
 
 use crate::arch::Arch;
 use crate::hwmon;
@@ -43,153 +41,179 @@ use crate::{devfs, DeviceError, DeviceResult};
 /// Each [`DeviceFile`] again offers [`mode`][DeviceFile::mode] method to
 /// identify its [`DeviceMode`].
 pub struct Device {
-    device_info: DeviceInfo,
+    inner: Box<dyn DeviceInner>,
     hwmon_fetcher: hwmon::Fetcher,
     pub(crate) cores: Vec<CoreIdx>,
     pub(crate) dev_files: Vec<DeviceFile>,
 }
 
+pub(crate) trait DeviceInner:
+    DeviceMgmt + DeviceCtrl + DevicePerf + DynClone + Send + Sync + Debug
+{
+}
+
+dyn_clone::clone_trait_object!(DeviceInner);
+
+pub(crate) trait DeviceMgmt {
+    fn sysfs(&self) -> &PathBuf;
+    fn arch(&self) -> Arch;
+    fn devfile_index(&self) -> u8;
+    fn name(&self) -> String;
+    fn busname(&self) -> String;
+    fn pci_dev(&self) -> String;
+    fn device_sn(&self) -> String;
+    fn device_uuid(&self) -> String;
+    fn firmware_version(&self) -> String;
+    fn driver_version(&self) -> String;
+    fn alive(&self) -> DeviceResult<bool>;
+    fn atr_error(&self) -> DeviceResult<HashMap<String, u32>>;
+    fn heartbeat(&self) -> DeviceResult<u32>;
+    fn clock_frequency(&self) -> DeviceResult<Vec<ClockFrequency>>;
+}
+
+pub(crate) trait DeviceCtrl {
+    fn ctrl_device_led(&self, led: (bool, bool, bool)) -> DeviceResult<()>;
+    fn ctrl_ne_dtm_policy(&self, policy: npu_mgmt::DtmPolicy) -> DeviceResult<()>;
+    fn ctrl_performance_level(&self, level: npu_mgmt::PerfLevel) -> DeviceResult<()>;
+    fn ctrl_performance_mode(&self, mode: npu_mgmt::PerfMode) -> DeviceResult<()>;
+}
+
+pub(crate) trait DevicePerf {
+    fn get_performance_counter(&self, file: &DeviceFile) -> DeviceResult<PerformanceCounter>;
+}
+
 impl Device {
     pub(crate) fn new(
-        device_info: DeviceInfo,
+        inner: Box<dyn DeviceInner>,
         hwmon_fetcher: hwmon::Fetcher,
         cores: Vec<CoreIdx>,
         dev_files: Vec<DeviceFile>,
     ) -> Self {
         Self {
-            device_info,
+            inner,
             hwmon_fetcher,
             cores,
             dev_files,
         }
     }
 
-    /// Returns the name of the device (e.g., npu0).
+    /// Returns the name of the device, represented by the common prefix of the character device file (e.g., /dev/npu0).
     pub fn name(&self) -> String {
-        format!("npu{}", self.device_index())
+        self.inner.name()
     }
 
-    /// Returns the device index (e.g., 0 for npu0).
-    pub fn device_index(&self) -> u8 {
-        self.device_info.device_index
-    }
-
-    /// Returns the `DeviceInfo` struct.
-    fn device_info(&self) -> &DeviceInfo {
-        &self.device_info
+    /// Returns the device file index (e.g., 0 for /dev/npu0).
+    pub fn devfile_index(&self) -> u8 {
+        self.inner.devfile_index()
     }
 
     /// Returns `Arch` of the device(e.g., `Warboy`).
     pub fn arch(&self) -> Arch {
-        self.device_info().arch()
+        self.inner.arch()
     }
 
     /// Returns a liveness state of the device.
     pub fn alive(&self) -> DeviceResult<bool> {
-        self.device_info.get(&DynamicMgmtFile::Alive).and_then(|v| {
-            npu_mgmt::parse_zero_or_one_to_bool(&v).ok_or_else(|| {
-                DeviceError::unexpected_value(format!(
-                    "Bad alive value: {v} (only 0 or 1 expected)"
-                ))
-            })
-        })
+        self.inner.alive()
     }
 
     /// Returns error states of the device.
     pub fn atr_error(&self) -> DeviceResult<HashMap<String, u32>> {
-        self.device_info
-            .get(&DynamicMgmtFile::AtrError)
-            .map(npu_mgmt::build_atr_error_map)
+        self.inner.atr_error()
     }
 
     /// Returns PCI bus number of the device.
-    pub fn busname(&self) -> DeviceResult<String> {
-        self.device_info.get(&StaticMgmtFile::Busname)
+    pub fn busname(&self) -> String {
+        self.inner.busname()
     }
 
     /// Returns PCI device ID of the device.
-    pub fn pci_dev(&self) -> DeviceResult<String> {
-        self.device_info.get(&StaticMgmtFile::Dev)
+    pub fn pci_dev(&self) -> String {
+        self.inner.pci_dev()
     }
 
     /// Returns serial number of the device.
-    pub fn device_sn(&self) -> DeviceResult<String> {
-        self.device_info.get(&StaticMgmtFile::DeviceSn)
+    pub fn device_sn(&self) -> String {
+        self.inner.device_sn()
     }
 
     /// Returns UUID of the device.
-    pub fn device_uuid(&self) -> DeviceResult<String> {
-        self.device_info.get(&StaticMgmtFile::DeviceUuid)
+    pub fn device_uuid(&self) -> String {
+        self.inner.device_uuid()
     }
 
     /// Retrieves firmware revision from the device.
-    pub fn firmware_version(&self) -> DeviceResult<String> {
-        self.device_info.get(&DynamicMgmtFile::FwVersion)
+    pub fn firmware_version(&self) -> String {
+        self.inner.firmware_version()
     }
 
     /// Retrieves driver version for the device.
-    pub fn driver_version(&self) -> DeviceResult<String> {
-        self.device_info.get(&DynamicMgmtFile::Version)
+    pub fn driver_version(&self) -> String {
+        self.inner.driver_version()
     }
 
     /// Returns uptime of the device.
     pub fn heartbeat(&self) -> DeviceResult<u32> {
-        self.device_info
-            .get(&DynamicMgmtFile::Heartbeat)
-            .and_then(|str| {
-                str.parse::<u32>().map_err(|_| {
-                    DeviceError::unexpected_value(format!("Bad heartbeat value: {str}"))
-                })
-            })
+        self.inner.heartbeat()
     }
 
     /// Returns clock frequencies of components in the device.
     pub fn clock_frequency(&self) -> DeviceResult<Vec<ClockFrequency>> {
-        self.device_info
-            .get(&DynamicMgmtFile::NeClkFreqInfo)
-            .map(|str| str.lines().flat_map(ClockFrequency::try_from).collect())
+        self.inner.clock_frequency()
     }
 
     /// Controls the device led.
     #[allow(dead_code)]
     fn ctrl_device_led(&self, led: (bool, bool, bool)) -> DeviceResult<()> {
-        self.device_info.ctrl(
-            CtrlFile::DeviceLed,
-            &(led.0 as i32 + 0b10 * led.1 as i32 + 0b100 * led.2 as i32).to_string(),
-        )
+        self.inner.ctrl_device_led(led)
     }
 
     /// Control NE clocks.
     #[allow(dead_code)]
-    fn ctrl_ne_clock(&self, toggle: npu_mgmt::Toggle) -> DeviceResult<()> {
-        self.device_info
-            .ctrl(CtrlFile::NeClock, &(toggle as u8).to_string())
+    fn ctrl_ne_clock(&self, _toggle: npu_mgmt::Toggle) -> DeviceResult<()> {
+        unimplemented!()
     }
 
     /// Control the Dynamic Thermal Management policy.
     #[allow(dead_code)]
     fn ctrl_ne_dtm_policy(&self, policy: npu_mgmt::DtmPolicy) -> DeviceResult<()> {
-        self.device_info
-            .ctrl(CtrlFile::NeDtmPolicy, &(policy as u8).to_string())
+        self.inner.ctrl_ne_dtm_policy(policy)
     }
 
     /// Control NE performance level
     #[allow(dead_code)]
     fn ctrl_performance_level(&self, level: npu_mgmt::PerfLevel) -> DeviceResult<()> {
-        self.device_info
-            .ctrl(CtrlFile::PerformanceLevel, &(level as u8).to_string())
+        self.inner.ctrl_performance_level(level)
     }
 
     /// Control NE performance mode
     #[allow(dead_code)]
     fn ctrl_performance_mode(&self, mode: npu_mgmt::PerfMode) -> DeviceResult<()> {
-        self.device_info
-            .ctrl(CtrlFile::PerformanceMode, &(mode as u8).to_string())
+        self.inner.ctrl_performance_mode(mode)
     }
 
     /// Retrieve NUMA node ID associated with the NPU's PCI lane
+    // XXX(n0gu): warboy and renegade share the same implementation, but this may change in the future devices.
     pub fn numa_node(&self) -> DeviceResult<NumaNode> {
-        self.device_info.get_numa_node()
+        let busname = self.inner.busname();
+        let id = pci::numa::read_numa_node(self.inner.sysfs(), &busname)?
+            .parse::<i32>()
+            .map_err(|e| {
+                DeviceError::unexpected_value(format!("Unexpected numa node id: {}", e))
+            })?;
+
+        let node = match id {
+            _ if id >= 0 => NumaNode::Id(id as usize),
+            _ if id == -1 => NumaNode::UnSupported,
+            _ => {
+                return Err(DeviceError::unexpected_value(format!(
+                    "Unexpected numa node id: {id}"
+                )))
+            }
+        };
+
+        // TODO(n0gu): cache result
+        Ok(node)
     }
 
     /// Counts the number of cores.
@@ -212,7 +236,7 @@ impl Device {
         let mut counters = vec![];
 
         for dev_file in self.dev_files() {
-            if let Ok(perf_counter) = self.device_info().get_performance_counter(dev_file) {
+            if let Ok(perf_counter) = self.inner.get_performance_counter(dev_file) {
                 counters.push((dev_file, perf_counter));
             }
         }
@@ -262,7 +286,7 @@ impl Device {
 
 impl Display for Device {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "npu{}", self.device_index())
+        write!(f, "{}", self.name())
     }
 }
 
@@ -270,13 +294,14 @@ impl Eq for Device {}
 
 impl Ord for Device {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.device_index().cmp(&other.device_index())
+        self.devfile_index().cmp(&other.devfile_index())
     }
 }
 
 impl PartialEq for Device {
     fn eq(&self, other: &Self) -> bool {
-        self.device_info == other.device_info
+        self.inner.devfile_index() == other.inner.devfile_index()
+            && self.inner.arch() == other.inner.arch()
             && self.hwmon_fetcher == other.hwmon_fetcher
             && self.cores == other.cores
             && self.dev_files == other.dev_files
@@ -300,124 +325,6 @@ impl HardwareTopologyHint for Device {
 pub enum NumaNode {
     UnSupported,
     Id(usize),
-}
-
-#[derive(Debug)]
-pub struct DeviceInfo {
-    device_index: u8,
-    dev_root: PathBuf,
-    sys_root: PathBuf,
-    arch: Arch,
-    meta: HashMap<&'static str, String>,
-    numa_node: Mutex<Option<NumaNode>>,
-}
-
-impl DeviceInfo {
-    pub(crate) fn new(device_index: u8, dev_root: PathBuf, sys_root: PathBuf) -> DeviceInfo {
-        let mut meta = HashMap::default();
-        for file in StaticMgmtFile::iter() {
-            let filename = file.filename();
-            let value = npu_mgmt::read_mgmt_file(&sys_root, filename, device_index).unwrap();
-            meta.insert(filename, value);
-        }
-        let device_type = meta.get(&StaticMgmtFile::DeviceType.filename()).unwrap();
-        let soc_rev = meta.get(&StaticMgmtFile::SocRev.filename()).unwrap();
-        let arch = Arch::from_str(format!("{device_type}{soc_rev}").as_str())
-            .map_err(|_| DeviceError::UnknownArch {
-                arch: device_type.clone(),
-                rev: soc_rev.clone(),
-            })
-            .unwrap();
-        Self {
-            device_index,
-            dev_root,
-            sys_root,
-            arch,
-            meta,
-            numa_node: Mutex::new(None),
-        }
-    }
-
-    pub fn arch(&self) -> Arch {
-        self.arch
-    }
-
-    pub fn get(&self, mgmt_file: &dyn MgmtFile) -> DeviceResult<String> {
-        if mgmt_file.is_static() {
-            Ok(self.meta.get(mgmt_file.filename()).unwrap().to_string())
-        } else {
-            let value =
-                npu_mgmt::read_mgmt_file(&self.sys_root, mgmt_file.filename(), self.device_index)?;
-            Ok(value)
-        }
-    }
-
-    pub fn ctrl(&self, ctrl_file: CtrlFile, contents: &str) -> DeviceResult<()> {
-        npu_mgmt::write_ctrl_file(
-            &self.sys_root,
-            &ctrl_file.to_string(),
-            self.device_index,
-            contents,
-        )?;
-
-        Ok(())
-    }
-
-    pub fn get_numa_node(&self) -> DeviceResult<NumaNode> {
-        let mut numa_node = self.numa_node.lock().unwrap();
-        if let Some(node) = *numa_node {
-            return Ok(node);
-        }
-
-        let busname = self.get(&StaticMgmtFile::Busname)?;
-        let id = pci::numa::read_numa_node(&self.sys_root, &busname)?
-            .parse::<i32>()
-            .unwrap();
-
-        let node = if id >= 0 {
-            NumaNode::Id(id as usize)
-        } else if id == -1 {
-            NumaNode::UnSupported
-        } else {
-            return Err(DeviceError::unexpected_value(format!(
-                "Unexpected numa node id: {id}"
-            )));
-        };
-
-        *numa_node = Some(node);
-        Ok(node)
-    }
-
-    pub fn get_performance_counter(&self, file: &DeviceFile) -> DeviceResult<PerformanceCounter> {
-        PerformanceCounter::read(&self.sys_root, file.filename())
-            .map_err(DeviceError::performance_counter_error)
-    }
-}
-
-impl Eq for DeviceInfo {}
-
-impl PartialEq for DeviceInfo {
-    fn eq(&self, other: &Self) -> bool {
-        self.device_index == other.device_index
-            && self.dev_root == other.dev_root
-            && self.sys_root == other.sys_root
-            && self.arch == other.arch
-            && self.meta == other.meta
-            && *self.numa_node.lock().unwrap() == *other.numa_node.lock().unwrap()
-    }
-}
-
-impl Clone for DeviceInfo {
-    fn clone(&self) -> Self {
-        Self {
-            device_index: self.device_index,
-            dev_root: self.dev_root.clone(),
-            sys_root: self.sys_root.clone(),
-            arch: self.arch,
-            meta: self.meta.clone(),
-            numa_node: Mutex::new(*self.numa_node.lock().unwrap()),
-        }
-    }
 }
 
 /// Enum for NPU core status.
@@ -507,7 +414,7 @@ impl TryFrom<(u8, u8)> for CoreRange {
 /// An abstraction for a device file and its mode.
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct DeviceFile {
-    pub(crate) device_index: u8,
+    pub(crate) devfile_index: u8,
     pub(crate) core_range: CoreRange,
     pub(crate) path: PathBuf,
     pub(crate) mode: DeviceMode,
@@ -521,7 +428,7 @@ impl Display for DeviceFile {
 
 impl Ord for DeviceFile {
     fn cmp(&self, other: &Self) -> Ordering {
-        (self.device_index, self.core_range).cmp(&(other.device_index(), other.core_range()))
+        (self.devfile_index, self.core_range).cmp(&(other.devfile_index(), other.core_range()))
     }
 }
 
@@ -548,8 +455,8 @@ impl DeviceFile {
     }
 
     /// Returns the device index (e.g., 1 for npu1pe0).
-    pub fn device_index(&self) -> u8 {
-        self.device_index
+    pub fn devfile_index(&self) -> u8 {
+        self.devfile_index
     }
 
     /// Returns the range of cores this device file may occupy.
@@ -563,7 +470,7 @@ impl DeviceFile {
     }
 
     pub fn has_intersection(&self, other: &Self) -> bool {
-        self.device_index() == other.device_index()
+        self.devfile_index() == other.devfile_index()
             && self.core_range().has_intersection(&other.core_range())
     }
 }
@@ -578,7 +485,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
             .to_string_lossy()
             .to_string();
 
-        let (device_index, core_indices) = devfs::parse_indices(file_name)?;
+        let (devfile_index, core_indices) = devfs::parse_indices(file_name)?;
 
         let (mode, core_range) = match core_indices.len() {
             0 => (DeviceMode::MultiCore, CoreRange::All),
@@ -591,7 +498,7 @@ impl TryFrom<&PathBuf> for DeviceFile {
         };
 
         Ok(DeviceFile {
-            device_index,
+            devfile_index,
             core_range,
             path: path.clone(),
             mode,
@@ -677,7 +584,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0"),
                 core_range: CoreRange::All,
                 mode: DeviceMode::MultiCore,
@@ -687,7 +594,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe0"),
                 core_range: CoreRange::Range((0, 0)),
                 mode: DeviceMode::Single,
@@ -696,7 +603,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe1"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe1"),
                 core_range: CoreRange::Range((1, 1)),
                 mode: DeviceMode::Single,
@@ -705,7 +612,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-1"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe0-1"),
                 core_range: CoreRange::Range((0, 1)),
                 mode: DeviceMode::Fusion,
@@ -714,7 +621,7 @@ mod tests {
         assert_eq!(
             DeviceFile::try_from(&PathBuf::from("./npu0pe0-2"))?,
             DeviceFile {
-                device_index: 0,
+                devfile_index: 0,
                 path: PathBuf::from("./npu0pe0-2"),
                 core_range: CoreRange::Range((0, 2)),
                 mode: DeviceMode::Fusion,
@@ -744,87 +651,6 @@ mod tests {
         assert_eq!("multicore".parse(), Ok(DeviceMode::MultiCore));
         assert_eq!("MultiCore".parse(), Ok(DeviceMode::MultiCore));
         assert_eq!("invalid".parse::<DeviceMode>(), Err(()));
-    }
-
-    #[test]
-    fn test_static_read_sysfs() -> DeviceResult<()> {
-        let device_info = DeviceInfo::new(
-            0,
-            PathBuf::from("../test_data/test-0/dev"),
-            PathBuf::from("../test_data/test-0/sys"),
-        );
-
-        assert_eq!(
-            device_info.meta.get(StaticMgmtFile::Busname.filename()),
-            Some(&String::from("0000:6d:00.0"))
-        );
-        assert_eq!(
-            device_info.get(&StaticMgmtFile::Busname).ok(),
-            Some(String::from("0000:6d:00.0"))
-        );
-        assert_eq!(
-            device_info.meta.get(StaticMgmtFile::Busname.filename()),
-            Some(&String::from("0000:6d:00.0"))
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_dynamic_read_sysfs() -> DeviceResult<()> {
-        let device_info = DeviceInfo::new(
-            0,
-            PathBuf::from("../test_data/test-0/dev"),
-            PathBuf::from("../test_data/test-0/sys"),
-        );
-
-        assert_eq!(
-            device_info.meta.get(DynamicMgmtFile::FwVersion.filename()),
-            None
-        );
-        assert_eq!(
-            device_info.get(&DynamicMgmtFile::FwVersion).ok(),
-            Some(String::from("1.6.0, c1bebfd"))
-        );
-        assert_eq!(
-            device_info.meta.get(DynamicMgmtFile::FwVersion.filename()),
-            None
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_numa_node() -> DeviceResult<()> {
-        // npu0 => numa node 0
-        let device_info = DeviceInfo::new(
-            0,
-            PathBuf::from("../test_data/test-0/dev"),
-            PathBuf::from("../test_data/test-0/sys"),
-        );
-
-        assert_eq!(*device_info.numa_node.lock().unwrap(), None);
-        assert_eq!(device_info.get_numa_node()?, NumaNode::Id(0));
-        assert_eq!(
-            *device_info.numa_node.lock().unwrap(),
-            Some(NumaNode::Id(0))
-        );
-
-        // npu1 => numa node unsupported
-        let device_info = DeviceInfo::new(
-            1,
-            PathBuf::from("../test_data/test-0/dev"),
-            PathBuf::from("../test_data/test-0/sys"),
-        );
-
-        assert_eq!(*device_info.numa_node.lock().unwrap(), None);
-        assert_eq!(device_info.get_numa_node()?, NumaNode::UnSupported);
-        assert_eq!(
-            *device_info.numa_node.lock().unwrap(),
-            Some(NumaNode::UnSupported)
-        );
-
-        Ok(())
     }
 
     #[test]

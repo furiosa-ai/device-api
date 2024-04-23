@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use furiosa_device::blocking::{find_device_files, get_device, get_device_file, list_devices};
+use furiosa_device::blocking::{find_device_files, get_device_file, list_devices};
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
@@ -128,12 +128,6 @@ fn list_devices_python_sync(py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
     Ok(device_syncs)
 }
 
-/// This is sync version of get_device
-#[pyfunction(name = "get_device")]
-fn get_device_python_sync(idx: u8) -> PyResult<DevicePy> {
-    get_device(idx).map(DevicePy::new).map_err(to_py_err)
-}
-
 /// This is sync version of find_device_files
 #[pyfunction(name = "find_device_files")]
 fn find_device_files_python_sync(config: DeviceConfigPy) -> PyResult<Vec<DeviceFilePy>> {
@@ -158,7 +152,6 @@ fn get_device_file_python_sync(device_name: String) -> PyResult<DeviceFilePy> {
 #[pyo3(name = "furiosa_native_device_sync")]
 pub fn furiosa_device_python_sync(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_devices_python_sync, m)?)?;
-    m.add_function(wrap_pyfunction!(get_device_python_sync, m)?)?;
     m.add_function(wrap_pyfunction!(find_device_files_python_sync, m)?)?;
     m.add_function(wrap_pyfunction!(get_device_file_python_sync, m)?)?;
     m.add_class::<DeviceSyncPy>()?;

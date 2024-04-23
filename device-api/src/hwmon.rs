@@ -373,18 +373,22 @@ pub struct SensorValue {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Fetcher {
-    pub(crate) device_index: u8,
+    pub(crate) device_name: String,
     pub(crate) sensor_container: SensorContainer,
 }
 
 impl Fetcher {
-    pub(crate) async fn new(base_dir: &str, device_index: u8, busname: &str) -> DeviceResult<Self> {
+    pub(crate) async fn new(
+        base_dir: &str,
+        device_name: &str,
+        busname: &str,
+    ) -> DeviceResult<Self> {
         let sensor_container = SensorContainer::new(base_dir, busname)
             .await
-            .map_err(|e| DeviceError::hwmon_error(device_index, e))?;
+            .map_err(|e| DeviceError::hwmon_error(device_name.to_string(), e))?;
 
         Ok(Self {
-            device_index,
+            device_name: device_name.to_string(),
             sensor_container,
         })
     }
@@ -428,11 +432,11 @@ impl Fetcher {
             for sensor in sensors {
                 let (label, value) = sensor
                     .read_blocking(name)
-                    .map_err(|e| DeviceError::hwmon_error(self.device_index, e))?;
+                    .map_err(|e| DeviceError::hwmon_error(self.device_name.clone(), e))?;
 
                 let value: i32 = value.parse().map_err(|_| {
                     DeviceError::hwmon_error(
-                        self.device_index,
+                        self.device_name.clone(),
                         error::HwmonError::UnexpectedValueFormat {
                             sensor_name: label.clone(),
                             value,
@@ -455,11 +459,11 @@ impl Fetcher {
                 let (label, value) = sensor
                     .read_item(name)
                     .await
-                    .map_err(|e| DeviceError::hwmon_error(self.device_index, e))?;
+                    .map_err(|e| DeviceError::hwmon_error(self.device_name.clone(), e))?;
 
                 let value: i32 = value.parse().map_err(|_| {
                     DeviceError::hwmon_error(
-                        self.device_index,
+                        self.device_name.clone(),
                         error::HwmonError::UnexpectedValueFormat {
                             sensor_name: label.clone(),
                             value,
@@ -620,7 +624,7 @@ mod tests {
 
     #[tokio::test]
     async fn fetcher_read_test() -> DeviceResult<()> {
-        let fetcher = Fetcher::new("../test_data/test-0/sys", 0, "0000:6d:00.0").await?;
+        let fetcher = Fetcher::new("../test_data/test-0/sys", "/dev/npu0", "0000:6d:00.0").await?;
 
         let currents = fetcher.read_currents().await?;
         assert_eq!(currents.len(), 2);
