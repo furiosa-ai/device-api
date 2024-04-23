@@ -27,14 +27,14 @@ impl Arch {
     pub fn num_pe(&self) -> u8 {
         match self {
             Arch::WarboyB0 => 2,
-            Arch::Renegade => 8,
+            Arch::RNGD => 8,
         }
     }
 
     pub fn is_fusible_count(&self, count: u8) -> bool {
         match self {
             Arch::WarboyB0 => matches!(count, 1 | 2),
-            Arch::Renegade => matches!(count, 1 | 2 | 4),
+            Arch::RNGD => matches!(count, 1 | 2 | 4),
         }
     }
 

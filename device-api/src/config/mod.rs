@@ -42,10 +42,8 @@ use crate::{Arch, DeviceError};
 /// use std::str::FromStr;
 ///
 /// use furiosa_device::DeviceConfig;
-///
-/// let config = DeviceConfig::from_env("SOME_OTHER_ENV_KEY").build();
-/// let config = DeviceConfig::from_str("warboy:0:0,warboy:0:1").unwrap(); // get config directly from a string literal
-/// let config = DeviceConfig::from_str("npu:0:0,npu:0:1").unwrap(); // equivalent: you can use "npu" instead of "warboy"
+/// let config = DeviceConfig::from_env("SOME_ENV_KEY").build(); // get config from an environment variable
+/// let config = DeviceConfig::from_str("rngd:0:0-3,rngd:0:4-7").unwrap(); // get config directly from textual representation
 /// ```
 ///
 /// The rules for textual representation are as follows:
@@ -55,17 +53,23 @@ use crate::{Arch, DeviceError};
 ///
 /// use furiosa_device::DeviceConfig;
 ///
-/// // Using specific device names
-/// DeviceConfig::from_str("npu:0:0").unwrap(); // warboy, npu0pe0
-/// DeviceConfig::from_str("npu:0:0-1").unwrap(); // warboy, npu0pe0-1
+/// // Named configuration examples (using specific device names)
+/// DeviceConfig::from_str("warboy:0:0").unwrap(); // warboy, npu0pe0
+/// DeviceConfig::from_str("warboy:0:0-1").unwrap(); // warboy, npu0pe0-1
+/// DeviceConfig::from_str("rngd:0:0-3").unwrap(); // rngd, npu0pe0-3
+/// DeviceConfig::from_str("rngd:1:4-5").unwrap(); // rngd, npu1pe4-5
+/// DeviceConfig::from_str("npu:0:0").unwrap(); // warboy, npu0pe0; "npu" is an alias for "warboy" for backward compatibility
 ///
-/// // Using device configs
+/// // Unnamed configuration examples
 /// DeviceConfig::from_str("warboy*2").unwrap(); // single pe x 2 (equivalent to "warboy(1)*2")
 /// DeviceConfig::from_str("warboy(1)*2").unwrap(); // single pe x 2
 /// DeviceConfig::from_str("warboy(2)*2").unwrap(); // 2-pe fusioned x 2
+/// DeviceConfig::from_str("rngd(1)*2").unwrap(); // single pe x 2
+/// DeviceConfig::from_str("rngd(4)*1").unwrap(); // 4-pe fusioned x 1
 ///
-/// // Combine multiple representations separated by commas
-/// DeviceConfig::from_str("npu:0:0-1,npu:1:0-1").unwrap(); // npu0pe0-1, npu1pe0-1
+/// // Combining multiple comma-separated representation is also possible.
+/// DeviceConfig::from_str("warboy:0:0-1,warboy:1:0-1").unwrap();
+/// DeviceConfig::from_str("warboy:0:0-1,warboy(2)*1").unwrap(); // One named 2-pe warboy (npu0pe0-1), and one anonmyous 2-pe warboy
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "&str")]
@@ -78,6 +82,15 @@ impl DeviceConfig {
     pub fn warboy() -> DeviceConfigBuilder<Arch, NotDetermined, NotDetermined> {
         DeviceConfigBuilder {
             arch: Arch::WarboyB0,
+            cores: NotDetermined { _priv: () },
+            count: NotDetermined { _priv: () },
+        }
+    }
+
+    /// Returns a builder associated with RNGD NPUs.
+    pub fn rngd() -> DeviceConfigBuilder<Arch, NotDetermined, NotDetermined> {
+        DeviceConfigBuilder {
+            arch: Arch::RNGD,
             cores: NotDetermined { _priv: () },
             count: NotDetermined { _priv: () },
         }

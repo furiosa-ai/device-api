@@ -125,10 +125,10 @@ impl FromStr for Config {
         fn parse_arch<'a>(
         ) -> impl FnMut(&'a str) -> nom::IResult<&'a str, Arch, nom::error::Error<&'a str>>
         {
-            // TODO: rngd will be added later
-            let p = alt((tag("npu"), tag("warboy")));
+            let p = alt((tag("npu"), tag("warboy"), tag("rngd")));
             map_res(p, |s: &str| match s {
                 "npu" | "warboy" => Ok(Arch::WarboyB0),
+                "rngd" => Ok(Arch::RNGD),
                 _ => Err(format!("Invalid architecture: {}", s)),
             })
         }
@@ -169,15 +169,17 @@ impl FromStr for Config {
 
         // Try parsing a "warboy(1)*1" pattern
         fn unnamed_cfg_parser(s: &str) -> DeviceResult<Config> {
-            // TODO: rngd will be added later
-            let parser_arch = map_res(tag("warboy"), |s: &str| s.parse::<Arch>());
+            let parser_arch = map_res(alt((tag("warboy"), tag("rngd"))), |s: &str| match s {
+                "warboy" => Ok(Arch::WarboyB0),
+                "rngd" => Ok(Arch::RNGD),
+                _ => Err(format!("Invalid architecture: {}", s)),
+            });
             let parser_cores = map(opt(delimited(tag("("), digit_to_u8(), tag(")"))), |c| {
                 c.unwrap_or(1)
             });
             let parser_count = preceded(tag("*"), digit_to_u8());
             let mut parser = all_consuming(tuple((parser_arch, parser_cores, parser_count)));
 
-            // Note: nom::sequence::tuple requires parsers to have equivalent signatures
             let (_, (arch, core_num, count)) =
                 parser(s).map_err(|e| DeviceError::parse_error(s, e.to_string()))?;
 
@@ -238,18 +240,40 @@ mod tests {
 
     #[tokio::test]
     async fn test_named_config_fit() -> DeviceResult<()> {
-        let config = "npu:0:0".parse::<Config>().unwrap();
+        let config_warboy = "warboy:0:0".parse::<Config>().unwrap();
         let npu0pe0 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0").await?;
         let npu0pe1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe1").await?;
         let npu0pe0_1 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe0-1").await?;
         let npu1pe0 = crate::get_device_file_with("../test_data/test-0/dev", "npu0pe1").await?;
 
-        assert_eq!(config.count(), Count::Finite(1));
+        assert_eq!(config_warboy.count(), Count::Finite(1));
 
-        assert!(config.fit(Arch::WarboyB0, &npu0pe0));
-        assert!(!config.fit(Arch::WarboyB0, &npu0pe1));
-        assert!(!config.fit(Arch::WarboyB0, &npu0pe0_1));
-        assert!(!config.fit(Arch::WarboyB0, &npu1pe0));
+        assert!(config_warboy.fit(Arch::WarboyB0, &npu0pe0));
+        assert!(!config_warboy.fit(Arch::WarboyB0, &npu0pe1));
+        assert!(!config_warboy.fit(Arch::WarboyB0, &npu0pe0_1));
+        assert!(!config_warboy.fit(Arch::WarboyB0, &npu1pe0));
+
+        let config_warboy_compat = "npu:0:0".parse::<Config>().unwrap();
+
+        assert_eq!(config_warboy_compat.count(), Count::Finite(1));
+        assert!(config_warboy.fit(Arch::WarboyB0, &npu0pe0));
+        assert!(!config_warboy.fit(Arch::WarboyB0, &npu0pe1));
+        assert!(!config_warboy.fit(Arch::WarboyB0, &npu0pe0_1));
+        assert!(!config_warboy.fit(Arch::WarboyB0, &npu1pe0));
+
+        let config_rngd = "rngd:0:0-3".parse::<Config>().unwrap();
+
+        let npu0pe0 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe0").await?;
+        let npu0pe5 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe5").await?;
+        let npu0pe0_3 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe0-3").await?;
+
+        assert_eq!(config_rngd.count(), Count::Finite(1));
+        assert!(!config_rngd.fit(Arch::RNGD, &npu0pe0));
+        assert!(!config_rngd.fit(Arch::RNGD, &npu0pe5));
+        assert!(config_rngd.fit(Arch::RNGD, &npu0pe0_3));
 
         Ok(())
     }
@@ -269,6 +293,34 @@ mod tests {
         assert!(!config.fit(Arch::RNGD, &npu0pe0));
         assert!(!config.fit(Arch::WarboyB0, &npu0pe0_1));
 
+        let config = "rngd(1)*4".parse::<Config>().unwrap();
+        let npu0pe0 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe0").await?;
+        let npu0pe3 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe3").await?;
+        let npu0pe0_3 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe0-3").await?;
+
+        assert!(config.fit(Arch::RNGD, &npu0pe0));
+        assert!(config.fit(Arch::RNGD, &npu0pe3));
+        assert!(!config.fit(Arch::RNGD, &npu0pe0_3));
+
+        let config = "rngd(4)*2".parse::<Config>().unwrap();
+        let npu0pe0 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe0").await?;
+        let npu0pe0_3 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe0-3").await?;
+        let npu0pe4_7 =
+            crate::get_device_file_with("../test_data/test-1/dev/rngd", "npu0pe4-7").await?;
+
+        assert!(!config.fit(Arch::RNGD, &npu0pe0));
+        assert!(config.fit(Arch::RNGD, &npu0pe0_3));
+        assert!(config.fit(Arch::RNGD, &npu0pe4_7));
+
+        // config is populated even with invalid fusion count, but it does not fit any device file.
+        let config = "rngd(3)*1".parse::<Config>().unwrap();
+        assert!(!config.fit(Arch::RNGD, &npu0pe0_3));
+
         Ok(())
     }
 
@@ -281,7 +333,7 @@ mod tests {
         assert!("npu:0".parse::<Config>().is_err());
 
         assert_eq!(
-            "npu:0:0".parse::<Config>()?,
+            "warboy:0:0".parse::<Config>()?,
             Config::Named {
                 arch: Arch::WarboyB0,
                 devfile_index: 0,
@@ -297,17 +349,17 @@ mod tests {
             }
         );
         assert_eq!(
-            "npu:1:1".parse::<Config>()?,
+            "rngd:1:1".parse::<Config>()?,
             Config::Named {
-                arch: Arch::WarboyB0,
+                arch: Arch::RNGD,
                 devfile_index: 1,
                 core_range: CoreRange(1, 1)
             }
         );
         assert_eq!(
-            "npu:0:0-1".parse::<Config>()?,
+            "rngd:0:0-1".parse::<Config>()?,
             Config::Named {
-                arch: Arch::WarboyB0,
+                arch: Arch::RNGD,
                 devfile_index: 0,
                 core_range: CoreRange(0, 1)
             }
@@ -332,17 +384,17 @@ mod tests {
             }
         );
         assert_eq!(
-            "warboy(2)*4".parse::<Config>()?,
+            "rngd(2)*4".parse::<Config>()?,
             Config::Unnamed {
-                arch: Arch::WarboyB0,
+                arch: Arch::RNGD,
                 core_num: 2,
                 count: Count::Finite(4)
             }
         );
         assert_eq!(
-            "warboy*12".parse::<Config>()?,
+            "rngd*12".parse::<Config>()?,
             Config::Unnamed {
-                arch: Arch::WarboyB0,
+                arch: Arch::RNGD,
                 core_num: 1,
                 count: Count::Finite(12)
             }
