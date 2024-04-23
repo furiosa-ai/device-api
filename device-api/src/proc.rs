@@ -99,6 +99,9 @@ fn read_cmdline(pid: u32) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "linux")]
+    use super::*;
+
     #[test]
     #[cfg(target_os = "linux")]
     fn read_cmdline_test() {
