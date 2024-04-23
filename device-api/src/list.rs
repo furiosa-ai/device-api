@@ -91,7 +91,7 @@ pub(crate) struct DevFile {
     pub file_type: FileType,
 }
 
-/// List all files in the devfs directory, including /dev/renegade/.
+/// List all files in path
 async fn list_dev_files<P: AsRef<Path>>(path: P) -> io::Result<Vec<DevFile>> {
     let mut dev_files = Vec::new();
     let mut read_dir = tokio::fs::read_dir(path).await?;
@@ -156,7 +156,7 @@ mod tests {
         )?;
         assert_eq!(sorted_keys(&dev_files), vec![0, 1]);
 
-        let dev_files_err = list_dev_files(Arch::Renegade.devfile_path("../test_data/test-0/dev"))
+        let dev_files_err = list_dev_files(Arch::RNGD.devfile_path("../test_data/test-0/dev"))
             .await
             .map(filter_dev_files);
         assert!(dev_files_err.is_err());
@@ -167,7 +167,7 @@ mod tests {
         assert_eq!(sorted_keys(&dev_files), vec![0]);
 
         let dev_files = filter_dev_files(
-            list_dev_files(Arch::Renegade.devfile_path("../test_data/test-1/dev/")).await?,
+            list_dev_files(Arch::RNGD.devfile_path("../test_data/test-1/dev/")).await?,
         )?;
         assert_eq!(sorted_keys(&dev_files), vec![0]);
 
@@ -186,20 +186,20 @@ mod tests {
         let res = is_furiosa_device(Arch::WarboyB0, 2, "../test_data/test-0/sys").await;
         assert!(!res);
 
-        let res = is_furiosa_device(Arch::Renegade, 0, "../test_data/test-0/sys").await;
+        let res = is_furiosa_device(Arch::RNGD, 0, "../test_data/test-0/sys").await;
         assert!(!res);
 
-        // one warboy, one renegade device, both have index 0, in test-1
+        // one warboy, one rngd device, both have index 0, in test-1
         let res = is_furiosa_device(Arch::WarboyB0, 0, "../test_data/test-1/sys").await;
         assert!(res);
 
-        let res = is_furiosa_device(Arch::Renegade, 0, "../test_data/test-1/sys").await;
+        let res = is_furiosa_device(Arch::RNGD, 0, "../test_data/test-1/sys").await;
         assert!(res);
 
         let res = is_furiosa_device(Arch::WarboyB0, 1, "../test_data/test-1/sys").await;
         assert!(!res);
 
-        let res = is_furiosa_device(Arch::Renegade, 1, "../test_data/test-1/sys").await;
+        let res = is_furiosa_device(Arch::RNGD, 1, "../test_data/test-1/sys").await;
         assert!(!res);
 
         Ok(())

@@ -165,7 +165,7 @@ pub mod npu_mgmt {
     }
 }
 
-// XXX(n0gu): warboy and renegade share the same implementation, but this may change in the future devices.
+// XXX(n0gu): warboy and rngd share the same implementation, but this may change in the future devices.
 pub(crate) mod pci {
     pub(crate) mod numa {
         use std::io;

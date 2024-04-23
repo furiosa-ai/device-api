@@ -13,21 +13,19 @@ use crate::ClockFrequency;
 use crate::DeviceError;
 
 #[derive(Clone, Debug)]
-pub struct RenegadeInner {
+pub struct RNGDInner {
     devfile_index: u8,
     sysfs: PathBuf,
     mgmt_root: PathBuf,
     mgmt_cache: MgmtCache<StaticMgmtFile>,
 }
 
-impl RenegadeInner {
+impl RNGDInner {
     pub fn new(devfile_index: u8, sysfs: PathBuf) -> DeviceResult<Self> {
-        let mgmt_root = sysfs.join(format!(
-            "class/renegade_mgmt/renegade!npu{devfile_index}mgmt"
-        ));
+        let mgmt_root = sysfs.join(format!("class/rngd_mgmt/rngd!npu{devfile_index}mgmt"));
         let mgmt_cache = MgmtCache::init(&mgmt_root, StaticMgmtFile::iter())?;
 
-        Ok(RenegadeInner {
+        Ok(RNGDInner {
             devfile_index,
             sysfs,
             mgmt_root,
@@ -59,15 +57,15 @@ impl MgmtFile for StaticMgmtFile {
     }
 }
 
-impl DeviceInner for RenegadeInner {}
+impl DeviceInner for RNGDInner {}
 
-impl MgmtFileIO for RenegadeInner {
+impl MgmtFileIO for RNGDInner {
     fn mgmt_root(&self) -> PathBuf {
         self.mgmt_root.clone()
     }
 }
 
-impl DeviceMgmt for RenegadeInner {
+impl DeviceMgmt for RNGDInner {
     fn sysfs(&self) -> &PathBuf {
         &self.sysfs
     }
@@ -78,16 +76,16 @@ impl DeviceMgmt for RenegadeInner {
 
     #[inline]
     fn arch(&self) -> Arch {
-        Arch::Renegade
+        Arch::RNGD
     }
 
     fn name(&self) -> String {
-        format!("/dev/renegade/npu{}", self.devfile_index())
+        format!("/dev/rngd/npu{}", self.devfile_index())
     }
 
     fn alive(&self) -> DeviceResult<bool> {
         self.read_mgmt_to_string(npu_mgmt::file::DEVICE_STATE)
-            .map(|v| v == "good")
+            .map(|v| v == "1")
     }
 
     fn atr_error(&self) -> DeviceResult<HashMap<String, u32>> {
@@ -134,7 +132,7 @@ impl DeviceMgmt for RenegadeInner {
     }
 }
 
-impl DeviceCtrl for RenegadeInner {
+impl DeviceCtrl for RNGDInner {
     fn ctrl_device_led(&self, _led: (bool, bool, bool)) -> DeviceResult<()> {
         // XXX: must use DEVICE_LEDS file, not DEVICE_LED. Currently this it is not implemented on
         // the driver side.
@@ -154,7 +152,7 @@ impl DeviceCtrl for RenegadeInner {
     }
 }
 
-impl DevicePerf for RenegadeInner {
+impl DevicePerf for RNGDInner {
     fn get_performance_counter(
         &self,
         _file: &crate::DeviceFile,
@@ -168,11 +166,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_renegade_inner_functionality() -> eyre::Result<()> {
-        let device = RenegadeInner::new(0, PathBuf::from("../test_data/test-1/sys"))?;
+    fn test_rngd_inner_functionality() -> eyre::Result<()> {
+        let device = RNGDInner::new(0, PathBuf::from("../test_data/test-1/sys"))?;
 
         assert_eq!(device.devfile_index(), 0);
-        assert_eq!(device.arch(), Arch::Renegade);
+        assert_eq!(device.arch(), Arch::RNGD);
         assert!(device.alive()?);
         assert_eq!(device.atr_error()?.len(), 9);
         assert_eq!(device.busname(), "0000:00:03.0");

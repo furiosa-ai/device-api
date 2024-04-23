@@ -5,14 +5,15 @@ use pyo3::prelude::*;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ArchPy {
     Warboy,
-    Renegade,
+    #[allow(clippy::upper_case_acronyms)]
+    RNGD,
 }
 
 impl From<ArchPy> for furiosa_device::Arch {
     fn from(arch_family: ArchPy) -> Self {
         match arch_family {
             ArchPy::Warboy => furiosa_device::Arch::WarboyB0,
-            ArchPy::Renegade => furiosa_device::Arch::Renegade,
+            ArchPy::RNGD => furiosa_device::Arch::RNGD,
         }
     }
 }

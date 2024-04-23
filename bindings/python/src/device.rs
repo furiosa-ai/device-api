@@ -141,7 +141,7 @@ impl DevicePy {
     fn arch(&self) -> ArchPy {
         match self.inner.arch() {
             Arch::WarboyB0 => ArchPy::Warboy,
-            Arch::Renegade => ArchPy::Renegade,
+            Arch::RNGD => ArchPy::RNGD,
         }
     }
 
